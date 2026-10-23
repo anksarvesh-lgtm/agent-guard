@@ -4,12 +4,68 @@ import path from 'node:path';
 import os from 'node:os';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { checkForUpdates, performUpdate } from './update.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..');
 function getGeminiConfigPath() {
     const home = os.homedir();
     return path.join(home, '.gemini', 'config', 'mcp_config.json');
+}
+function getGeminiPluginsDir() {
+    const home = os.homedir();
+    return path.join(home, '.gemini', 'config', 'plugins', 'agent-guard');
+}
+export function installPluginBundle(nodeBin, serverPath, hookPath, dryRun) {
+    const pluginDir = getGeminiPluginsDir();
+    const templateDir = path.join(REPO_ROOT, 'templates', 'plugin', 'agent-guard');
+    if (!fs.existsSync(templateDir))
+        return;
+    console.log(`\n3. Installing @agent-guard Antigravity plugin into ${pluginDir}...`);
+    if (dryRun) {
+        console.log('   [Dry Run] Would deploy @agent-guard plugin bundle');
+        return;
+    }
+    try {
+        fs.mkdirSync(path.join(pluginDir, 'agents'), { recursive: true });
+        fs.mkdirSync(path.join(pluginDir, 'skills', 'agent-guard'), { recursive: true });
+        fs.mkdirSync(path.join(pluginDir, 'rules'), { recursive: true });
+        fs.mkdirSync(path.join(pluginDir, 'assets'), { recursive: true });
+        // Copy static files
+        fs.copyFileSync(path.join(templateDir, 'plugin.json'), path.join(pluginDir, 'plugin.json'));
+        fs.copyFileSync(path.join(templateDir, 'agents', 'agent-guard.md'), path.join(pluginDir, 'agents', 'agent-guard.md'));
+        fs.copyFileSync(path.join(templateDir, 'skills', 'agent-guard', 'SKILL.md'), path.join(pluginDir, 'skills', 'agent-guard', 'SKILL.md'));
+        fs.copyFileSync(path.join(templateDir, 'rules', 'AGENTS.md'), path.join(pluginDir, 'rules', 'AGENTS.md'));
+        if (fs.existsSync(path.join(templateDir, 'assets', 'logo.svg'))) {
+            fs.copyFileSync(path.join(templateDir, 'assets', 'logo.svg'), path.join(pluginDir, 'assets', 'logo.svg'));
+        }
+        // Write rendered mcp_config.json
+        const mcpContent = JSON.stringify({
+            mcpServers: {
+                'agent-guard': {
+                    command: nodeBin,
+                    args: [serverPath]
+                }
+            }
+        }, null, 2);
+        fs.writeFileSync(path.join(pluginDir, 'mcp_config.json'), mcpContent + '\n', 'utf-8');
+        // Write rendered hooks.json
+        const hooksContent = JSON.stringify({
+            'agent-guard-stop': {
+                Stop: [
+                    {
+                        type: 'command',
+                        command: `${nodeBin} ${hookPath}`
+                    }
+                ]
+            }
+        }, null, 2);
+        fs.writeFileSync(path.join(pluginDir, 'hooks.json'), hooksContent + '\n', 'utf-8');
+        console.log('   ✅ Installed Antigravity plugin: `@agent-guard` is now callable via chat mentions.');
+    }
+    catch (err) {
+        console.warn(`   ⚠️ Warning: Could not install plugin bundle: ${err.message}`);
+    }
 }
 function detectNodeBinary() {
     // Prefer current running node binary
@@ -114,10 +170,13 @@ export function installToAntigravity(options = {}) {
             console.log('   [Dry Run] Would configure .agents/hooks.json and AGENTS.md');
         }
     }
+    // 3. Deploy Antigravity @agent-guard plugin
+    installPluginBundle(nodeBin, serverPath, hookPath, options.dryRun);
     console.log('\n🎉 Installation Complete!');
     console.log('----------------------------------------------------');
     console.log('Restart or reload Antigravity to activate Agent Guard.');
-    console.log('Verify with: `npx agent-guard doctor` or `node dist/cli.js doctor`\n');
+    console.log('You can now mention `@agent-guard` directly in chat.');
+    console.log('Verify with: `npm run doctor` or `node dist/cli.js doctor`\n');
 }
 export function doctorCheck() {
     console.log('🩺 Agent Guard Readiness Doctor\n');
@@ -141,6 +200,26 @@ export function doctorCheck() {
     }
     else {
         console.log('• MCP Config:      [FAIL] ~/.gemini/config/mcp_config.json missing');
+    }
+    // Check @agent-guard plugin registration
+    const pluginDir = getGeminiPluginsDir();
+    const pluginManifest = path.join(pluginDir, 'plugin.json');
+    console.log(`• Mention @agent-guard: ${fs.existsSync(pluginManifest) ? '[OK] Plugin active in Antigravity' : '[WARN] Run npm run install:antigravity to enable @agent-guard mention'}`);
+    // Check Git upstream status for auto-update
+    const updateStatus = checkForUpdates(REPO_ROOT);
+    if (updateStatus.isGit) {
+        if (updateStatus.hasUpdate) {
+            console.log(`• Auto-Update:     [UPDATE AVAILABLE] ${updateStatus.behindCount} commits behind origin/main (run 'npm run update')`);
+        }
+        else if (updateStatus.error) {
+            console.log(`• Auto-Update:     [OFFLINE] ${updateStatus.error}`);
+        }
+        else {
+            console.log(`• Auto-Update:     [OK] Up to date with origin/main (${updateStatus.currentSha?.slice(0, 7)})`);
+        }
+    }
+    else {
+        console.log('• Auto-Update:     [INFO] Standalone installation (not a git clone)');
     }
     // Check build files
     const serverPath = path.join(REPO_ROOT, 'dist', 'index.js');
@@ -180,12 +259,31 @@ if (command === 'install') {
     const dryRun = args.includes('--dry-run');
     installToAntigravity({ targetWorkspace, dryRun });
 }
+else if (command === 'update') {
+    console.log('🔄 Checking for Agent Guard updates...\n');
+    const res = performUpdate(REPO_ROOT);
+    if (res.updated) {
+        console.log(`✅ ${res.message}`);
+        console.log(`• Previous Commit: ${res.previousSha?.slice(0, 7)}`);
+        console.log(`• Updated Commit:  ${res.newSha?.slice(0, 7)}`);
+        console.log('\nRunning readiness doctor...');
+        doctorCheck();
+    }
+    else if (res.success) {
+        console.log(`✅ ${res.message}`);
+    }
+    else {
+        console.error(`⚠️ ${res.message}`);
+        process.exit(1);
+    }
+}
 else if (command === 'doctor') {
     doctorCheck();
 }
 else {
     console.log('Usage:');
     console.log('  node dist/cli.js install [--workspace <path>] [--dry-run]');
+    console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');
 }
 //# sourceMappingURL=cli.js.map
