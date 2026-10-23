@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "/Users/sarvesh/.local/node-v24/bin/node",
+      "args": ["/Users/sarvesh/Downloads/mcp/agent-guard/dist/index.js"]
+    }
+  }
+}

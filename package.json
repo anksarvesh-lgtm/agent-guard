@@ -1,0 +1,38 @@
+{
+  "name": "agent-guard",
+  "version": "0.1.0",
+  "description": "Resilient, zero-telemetry local MCP server, keep-awake supervisor, and Antigravity Stop hook for reliable autonomous pairing.",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "agent-guard": "./dist/cli.js",
+    "agent-guard-server": "./dist/index.js",
+    "agent-guard-stop": "./dist/hook/stop-hook.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "install:antigravity": "node dist/cli.js install",
+    "doctor": "node dist/cli.js doctor",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "mcp",
+    "antigravity",
+    "agent-guard",
+    "keep-awake",
+    "ledger"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.6.1",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.19",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}

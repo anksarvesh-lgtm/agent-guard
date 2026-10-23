@@ -1,0 +1,10 @@
+{
+  "agent-guard-stop": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "/Users/sarvesh/.local/node-v24/bin/node /Users/sarvesh/Downloads/mcp/agent-guard/dist/hook/stop-hook.js"
+      }
+    ]
+  }
+}
