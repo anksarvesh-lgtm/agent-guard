@@ -184,6 +184,37 @@ To ensure the AI agent in any coding app knows when to invoke `task_start`, `tas
 
 ---
 
+## 🤖 Mentioning `@agent-guard` in Antigravity Chat
+
+Running `./install.sh` or `npm run install:antigravity` automatically bundles Agent Guard as an official Antigravity plugin and persona. You can summon it anytime in your prompt:
+
+```text
+@agent-guard migrate database models and verify migrations pass cleanly
+```
+
+This ensures:
+* The supervisor initializes `.agent/ledger.json` before multi-step code generation begins.
+* Sleep inhibition is held active during long commands.
+* The Stop hook prevents premature exits before all tests pass.
+
+---
+
+## 🔄 Auto-Update & Maintenance
+
+Agent Guard supports automated GitHub releases and zero-hassle local updating:
+
+```bash
+# Update local repository from origin main and rebuild:
+npm run update
+
+# Or via install script:
+./install.sh --update
+```
+
+When running in the background, Agent Guard periodically audits `origin/main` (throttled to at most once per hour) and signals available updates cleanly without interrupting active workflows.
+
+---
+
 ## 🩺 Verification & Diagnostics
 
 To verify your installation and environment health at any time:
@@ -198,12 +229,14 @@ npm run doctor
 
 • Node version:    v24.22.0 (/Users/sarvesh/.local/node-v24/bin/node)
 • MCP Config:      [OK] agent-guard is registered in mcp_config.json
+• Mention @agent-guard: [OK] Plugin active in Antigravity
+• Auto-Update:     [OK] Up to date with origin/main
 • Server Binary:   [OK] dist/index.js
 • Hook Binary:     [OK] dist/hook/stop-hook.js
 • Sleep Inhibitor: [OK] macOS caffeinate available
 ```
 
-Run automated tests (40/40 tests):
+Run automated tests (44/44 tests):
 ```bash
 npm test
 ```
@@ -215,5 +248,6 @@ npm test
 Agent Guard never alters system power settings or leaves daemons behind. To remove:
 
 1. Remove the `"agent-guard"` entry from your coding app's MCP config file.
-2. Remove `.agents/hooks.json` from your workspace.
-3. Remove `.agent/` folders if you wish to clear task history.
+2. Remove `~/.gemini/config/plugins/agent-guard/` if installed as an Antigravity plugin.
+3. Remove `.agents/hooks.json` from your workspace.
+4. Remove `.agent/` folders if you wish to clear task history.

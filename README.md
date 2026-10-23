@@ -10,9 +10,10 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
-  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-40%2F40%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
+  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
   <a href="#zero-telemetry"><img src="https://img.shields.io/badge/Telemetry-Zero%20%2F%20100%25%20Local-success.svg" alt="Zero Telemetry" /></a>
-  <a href="#token-economy"><img src="https://img.shields.io/badge/Token%20Footprint-Ultra%20Minimal-purple.svg" alt="Token Economy" /></a>
+  <a href="#mention-agent-guard"><img src="https://img.shields.io/badge/Mention-%40agent--guard-orange.svg" alt="Mention @agent-guard" /></a>
+  <a href="#auto-update"><img src="https://img.shields.io/badge/Auto--Update-Enabled-blue.svg" alt="Auto-Update Enabled" /></a>
   <a href="#prerequisites"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-green.svg" alt="Node >= 20" /></a>
 </p>
 
@@ -37,6 +38,8 @@ Autonomous AI coding agents in modern IDEs like Google Antigravity excel at sing
 - 🛑 **Antigravity Stop Hook**: Soft-blocks premature termination until all tasks are complete, with an integrated loop breaker.
 - ☕ **Supervised Keep-Awake Lease**: Keeps the computer awake using native OS tools (`caffeinate`) with an 8-hour safety ceiling.
 - ⚡ **Ultra-Lean Token Protocol**: 5 concise MCP tools designed from the ground up to conserve prompt tokens.
+- 🤖 **Chat Mention `@agent-guard`**: Summon Agent Guard directly in Antigravity or AI coding chat by typing `@agent-guard`.
+- 🔄 **GitHub Push Auto-Update**: CI/CD auto-releases on push to `main`; clients self-update via `npm run update` or `./install.sh --update`.
 
 ---
 
@@ -306,6 +309,55 @@ This installs:
 
 ---
 
+## 🤖 Invoking with Chat Mention (`@agent-guard`)
+
+Agent Guard is packaged as a native Antigravity Plugin and Subagent. You can summon Agent Guard directly in your conversation simply by typing **`@agent-guard`**:
+
+```text
+@agent-guard refactor auth service and run all integration tests before finishing
+```
+
+When invoked via `@agent-guard`:
+1. The agent adopts the **Agent Guard** supervisor persona.
+2. It automatically checks active tasks via `task_status`.
+3. It takes a lightweight repository snapshot via `repo_brief`.
+4. It initializes the DAG ledger with `task_start` and activates the keep-awake sleep lease.
+5. It validates each completed step with test results via `task_checkpoint`.
+
+---
+
+## 🔄 GitHub Push & Auto-Update Pipeline
+
+Agent Guard includes automated CI/CD and self-updating capabilities:
+
+### 1. Automatic GitHub Release on Push
+Every push to `main` on [https://github.com/anksarvesh-lgtm/agent-guard.git](https://github.com/anksarvesh-lgtm/agent-guard.git) automatically triggers GitHub Actions to:
+* Validate cross-platform builds across Node 20 & 22 on macOS, Linux, and Windows.
+* Run the complete Vitest test suite.
+* Build and package release tarballs (`agent-guard-*.tgz`).
+* Update the floating `latest` git tag and publish a GitHub Release with updated changelog and assets.
+
+### 2. Updating Your Local Installation
+You can update your local Agent Guard installation at any time with a single command:
+
+```bash
+# Via NPM script:
+npm run update
+
+# Or via install script:
+./install.sh --update
+
+# Or via CLI binary:
+node dist/cli.js update
+```
+
+The updater pulls changes from `origin/main`, recompiles TypeScript (`dist/`), and re-runs the readiness doctor.
+
+### 3. Non-Blocking Background Checks
+When running as an MCP server, Agent Guard quietly checks upstream git status in the background (debounced to at most once per hour). If updates are detected, it signals readiness without blocking your coding agent or interrupting offline work.
+
+---
+
 ## Verification & Doctor
 
 Agent Guard includes a built-in diagnostic doctor to verify all integrations:
@@ -317,8 +369,10 @@ npm run doctor
 ```
 🩺 Agent Guard Readiness Doctor
 
-• Node version:    v24.22.0 (/path/to/node)
+• Node version:    v24.22.0 (/Users/sarvesh/.local/node-v24/bin/node)
 • MCP Config:      [OK] agent-guard is registered in mcp_config.json
+• Mention @agent-guard: [OK] Plugin active in Antigravity
+• Auto-Update:     [OK] Up to date with origin/main (88941aa)
 • Server Binary:   [OK] dist/index.js
 • Hook Binary:     [OK] dist/hook/stop-hook.js
 • Sleep Inhibitor: [OK] macOS caffeinate available
@@ -331,9 +385,9 @@ npm test
 ```
 
 ```
-Test Files  7 passed (7)
-     Tests  40 passed (40)
-  Duration  564ms
+Test Files  8 passed (8)
+     Tests  44 passed (44)
+  Duration  2.02s
 ```
 
 ---
