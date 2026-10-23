@@ -4,6 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { checkForUpdates, performUpdate } from './update.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -193,10 +194,26 @@ if (command === 'install') {
   const targetWorkspace = targetIdx !== -1 ? args[targetIdx + 1] : undefined;
   const dryRun = args.includes('--dry-run');
   installToAntigravity({ targetWorkspace, dryRun });
+} else if (command === 'update') {
+  console.log('🔄 Checking for Agent Guard updates...\n');
+  const res = performUpdate(REPO_ROOT);
+  if (res.updated) {
+    console.log(`✅ ${res.message}`);
+    console.log(`• Previous Commit: ${res.previousSha?.slice(0, 7)}`);
+    console.log(`• Updated Commit:  ${res.newSha?.slice(0, 7)}`);
+    console.log('\nRunning readiness doctor...');
+    doctorCheck();
+  } else if (res.success) {
+    console.log(`✅ ${res.message}`);
+  } else {
+    console.error(`⚠️ ${res.message}`);
+    process.exit(1);
+  }
 } else if (command === 'doctor') {
   doctorCheck();
 } else {
   console.log('Usage:');
   console.log('  node dist/cli.js install [--workspace <path>] [--dry-run]');
+  console.log('  node dist/cli.js update');
   console.log('  node dist/cli.js doctor');
 }

@@ -11,6 +11,7 @@ import { handleTaskCheckpoint } from './tools/taskCheckpoint.js';
 import { handleTaskStatus } from './tools/taskStatus.js';
 import { handleKeepAwake } from './tools/keepAwake.js';
 import { handleRepoBrief } from './tools/repoBrief.js';
+import { maybeBackgroundUpdate } from './update.js';
 
 const server = new Server(
   {
@@ -227,6 +228,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 async function main() {
+  try {
+    maybeBackgroundUpdate();
+  } catch {
+    // Non-fatal
+  }
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }
