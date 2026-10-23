@@ -19,6 +19,67 @@ function getGeminiConfigPath(): string {
   return path.join(home, '.gemini', 'config', 'mcp_config.json');
 }
 
+function getGeminiPluginsDir(): string {
+  const home = os.homedir();
+  return path.join(home, '.gemini', 'config', 'plugins', 'agent-guard');
+}
+
+export function installPluginBundle(nodeBin: string, serverPath: string, hookPath: string, dryRun?: boolean): void {
+  const pluginDir = getGeminiPluginsDir();
+  const templateDir = path.join(REPO_ROOT, 'templates', 'plugin', 'agent-guard');
+  if (!fs.existsSync(templateDir)) return;
+
+  console.log(`\n3. Installing @agent-guard Antigravity plugin into ${pluginDir}...`);
+  if (dryRun) {
+    console.log('   [Dry Run] Would deploy @agent-guard plugin bundle');
+    return;
+  }
+
+  try {
+    fs.mkdirSync(path.join(pluginDir, 'agents'), { recursive: true });
+    fs.mkdirSync(path.join(pluginDir, 'skills', 'agent-guard'), { recursive: true });
+    fs.mkdirSync(path.join(pluginDir, 'rules'), { recursive: true });
+    fs.mkdirSync(path.join(pluginDir, 'assets'), { recursive: true });
+
+    // Copy static files
+    fs.copyFileSync(path.join(templateDir, 'plugin.json'), path.join(pluginDir, 'plugin.json'));
+    fs.copyFileSync(path.join(templateDir, 'agents', 'agent-guard.md'), path.join(pluginDir, 'agents', 'agent-guard.md'));
+    fs.copyFileSync(path.join(templateDir, 'skills', 'agent-guard', 'SKILL.md'), path.join(pluginDir, 'skills', 'agent-guard', 'SKILL.md'));
+    fs.copyFileSync(path.join(templateDir, 'rules', 'AGENTS.md'), path.join(pluginDir, 'rules', 'AGENTS.md'));
+    if (fs.existsSync(path.join(templateDir, 'assets', 'logo.svg'))) {
+      fs.copyFileSync(path.join(templateDir, 'assets', 'logo.svg'), path.join(pluginDir, 'assets', 'logo.svg'));
+    }
+
+    // Write rendered mcp_config.json
+    const mcpContent = JSON.stringify({
+      mcpServers: {
+        'agent-guard': {
+          command: nodeBin,
+          args: [serverPath]
+        }
+      }
+    }, null, 2);
+    fs.writeFileSync(path.join(pluginDir, 'mcp_config.json'), mcpContent + '\n', 'utf-8');
+
+    // Write rendered hooks.json
+    const hooksContent = JSON.stringify({
+      'agent-guard-stop': {
+        Stop: [
+          {
+            type: 'command',
+            command: `${nodeBin} ${hookPath}`
+          }
+        ]
+      }
+    }, null, 2);
+    fs.writeFileSync(path.join(pluginDir, 'hooks.json'), hooksContent + '\n', 'utf-8');
+
+    console.log('   ✅ Installed Antigravity plugin: `@agent-guard` is now callable via chat mentions.');
+  } catch (err: any) {
+    console.warn(`   ⚠️ Warning: Could not install plugin bundle: ${err.message}`);
+  }
+}
+
 function detectNodeBinary(): string {
   // Prefer current running node binary
   if (process.execPath && fs.existsSync(process.execPath)) {
@@ -128,10 +189,14 @@ export function installToAntigravity(options: { targetWorkspace?: string; dryRun
     }
   }
 
+  // 3. Deploy Antigravity @agent-guard plugin
+  installPluginBundle(nodeBin, serverPath, hookPath, options.dryRun);
+
   console.log('\n🎉 Installation Complete!');
   console.log('----------------------------------------------------');
   console.log('Restart or reload Antigravity to activate Agent Guard.');
-  console.log('Verify with: `npx agent-guard doctor` or `node dist/cli.js doctor`\n');
+  console.log('You can now mention `@agent-guard` directly in chat.');
+  console.log('Verify with: `npm run doctor` or `node dist/cli.js doctor`\n');
 }
 
 export function doctorCheck(): void {
@@ -155,6 +220,25 @@ export function doctorCheck(): void {
     }
   } else {
     console.log('• MCP Config:      [FAIL] ~/.gemini/config/mcp_config.json missing');
+  }
+
+  // Check @agent-guard plugin registration
+  const pluginDir = getGeminiPluginsDir();
+  const pluginManifest = path.join(pluginDir, 'plugin.json');
+  console.log(`• Mention @agent-guard: ${fs.existsSync(pluginManifest) ? '[OK] Plugin active in Antigravity' : '[WARN] Run npm run install:antigravity to enable @agent-guard mention'}`);
+
+  // Check Git upstream status for auto-update
+  const updateStatus = checkForUpdates(REPO_ROOT);
+  if (updateStatus.isGit) {
+    if (updateStatus.hasUpdate) {
+      console.log(`• Auto-Update:     [UPDATE AVAILABLE] ${updateStatus.behindCount} commits behind origin/main (run 'npm run update')`);
+    } else if (updateStatus.error) {
+      console.log(`• Auto-Update:     [OFFLINE] ${updateStatus.error}`);
+    } else {
+      console.log(`• Auto-Update:     [OK] Up to date with origin/main (${updateStatus.currentSha?.slice(0, 7)})`);
+    }
+  } else {
+    console.log('• Auto-Update:     [INFO] Standalone installation (not a git clone)');
   }
 
   // Check build files

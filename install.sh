@@ -36,5 +36,12 @@ fi
 
 chmod +x dist/index.js dist/hook/stop-hook.js dist/cli.js 2>/dev/null || true
 
-# 3. Run the installer CLI
+# 3. Check for update action
+if [ "${1:-}" = "--update" ] || [ "${1:-}" = "-u" ] || [ "${1:-}" = "update" ]; then
+    echo "• Running Agent Guard auto-updater..."
+    "$NODE_BIN" dist/cli.js update
+    exit 0
+fi
+
+# 4. Run the installer CLI
 "$NODE_BIN" dist/cli.js install "$@"
