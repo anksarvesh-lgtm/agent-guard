@@ -16,6 +16,11 @@
   <a href="#prerequisites"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-green.svg" alt="Node >= 20" /></a>
 </p>
 
+<p align="center">
+  <strong>Developer</strong>: <a href="https://github.com/anksarvesh-lgtm">Sarvesh</a> |
+  <strong>GitHub</strong>: <a href="https://github.com/anksarvesh-lgtm/agent-guard">anksarvesh-lgtm/agent-guard</a>
+</p>
+
 ---
 
 ## Why Agent Guard?
@@ -132,26 +137,172 @@ flowchart TD
 
 ## Quickstart & Installation
 
-For the comprehensive setup manual, see the [Installation Guide](INSTALL.md).
+For the comprehensive setup manual and deep-dive troubleshooting, see the [Installation Guide (INSTALL.md)](INSTALL.md).
 
-### 1-Click Automated Install
-Run the automated installer from the repository:
+### ⚡ 1-Click Universal Git Install
+Clone and install Agent Guard with a single command on any machine:
 
 ```bash
+git clone https://github.com/anksarvesh-lgtm/agent-guard.git ~/.agent-guard && ~/.agent-guard/install.sh
+```
+
+Or from an existing local clone:
+```bash
+cd agent-guard
 ./install.sh
 ```
 
-### Install into Any Workspace
-To configure Agent Guard's Stop hook and `AGENTS.md` rules into any project on your computer:
+---
+
+## 🛠️ Configuring Your AI Coding App
+
+Agent Guard operates as a standard [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server over `stdio`. Use the configuration snippet below for your environment:
+
+<details open>
+<summary><strong>1. Google Antigravity (IDE, App 2.0, CLI <code>agy</code>)</strong></summary>
+
+The automated installer configures Antigravity automatically. To configure manually, add to `~/.gemini/config/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
+    }
+  }
+}
+```
+
+**Antigravity Stop Hook** (`.agents/hooks.json` in your workspace):
+```json
+{
+  "agent-guard-stop": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "node /absolute/path/to/agent-guard/dist/hook/stop-hook.js"
+      }
+    ]
+  }
+}
+```
+</details>
+
+<details>
+<summary><strong>2. Claude Code CLI</strong></summary>
+
+Add with a single CLI command:
+```bash
+claude mcp add agent-guard -- node /absolute/path/to/agent-guard/dist/index.js
+```
+
+Or add to `~/.claude/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><strong>3. Cursor IDE</strong></summary>
+
+Navigate to **Settings &rarr; Features &rarr; MCP &rarr; Add New MCP Server**, or edit `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><strong>4. Windsurf (Codeium / Cascade)</strong></summary>
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><strong>5. VS Code (Cline / Roo Code / Continue)</strong></summary>
+
+Add to `cline_mcp_settings.json`:
+
+```json
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-guard/dist/index.js"],
+      "disabled": false,
+      "autoApprove": [
+        "task_start",
+        "task_checkpoint",
+        "task_status",
+        "repo_brief",
+        "keep_awake"
+      ]
+    }
+  }
+}
+```
+</details>
+
+<details>
+<summary><strong>6. Zed Editor</strong></summary>
+
+Add to `~/.config/zed/settings.json`:
+
+```json
+{
+  "experimental": {
+    "model_context_protocol": {
+      "servers": {
+        "agent-guard": {
+          "command": "node",
+          "args": ["/absolute/path/to/agent-guard/dist/index.js"]
+        }
+      }
+    }
+  }
+}
+```
+</details>
+
+---
+
+## 🎯 Target Workspace Setup
+
+To enable Agent Guard's autonomous supervision in any target project:
 
 ```bash
 ./install.sh --workspace "/path/to/your/project"
 ```
 
-### 1-Line Remote Git Install (Fresh Machine)
-```bash
-git clone https://github.com/<your-username>/agent-guard.git ~/.agent-guard && ~/.agent-guard/install.sh
-```
+This installs:
+1. **`.agents/hooks.json`**: Prevents the agent from abandoning work before all steps are complete and verified.
+2. **`AGENTS.md`**: Provides clear system instructions directing the model to start tasks, inspect code maps before touching files, verify work with >= 10-char proof notes, and retry failed steps before continuing.
 
 ---
 
@@ -184,6 +335,15 @@ Test Files  7 passed (7)
      Tests  40 passed (40)
   Duration  564ms
 ```
+
+---
+
+## 👨‍💻 Developer & Author
+
+* **Developer**: **Sarvesh** ([@anksarvesh-lgtm](https://github.com/anksarvesh-lgtm))
+* **Project Repository**: [https://github.com/anksarvesh-lgtm/agent-guard.git](https://github.com/anksarvesh-lgtm/agent-guard.git)
+
+Contributions, feature suggestions, and pull requests are warmly welcomed! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 

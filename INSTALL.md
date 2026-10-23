@@ -1,97 +1,44 @@
-# Agent Guard — Installation & Setup Guide
+# Agent Guard — Installation & Coding App Setup Guide
 
-This guide covers all methods to install, configure, verify, and uninstall **Agent Guard** (`agent-guard`) with Google Antigravity and compatible Model Context Protocol (MCP) clients.
+> **Developer**: [Sarvesh](https://github.com/anksarvesh-lgtm)  
+> **Repository**: [https://github.com/anksarvesh-lgtm/agent-guard.git](https://github.com/anksarvesh-lgtm/agent-guard.git)
 
----
-
-## Prerequisites
-
-Before installing Agent Guard, ensure your system meets the following requirements:
-
-1. **Node.js**: Version **20.0.0** or newer (`node -v`).
-2. **Git**: Installed and available on your system PATH (`git --version`).
-3. **Google Antigravity**: Antigravity IDE, Antigravity 2.0, or the `agy` CLI installed.
-4. **Operating System**: macOS (Apple Silicon / Intel), Windows 10/11, or Linux (systemd-supported).
+This guide covers complete installation instructions and configuration snippets for **Agent Guard** (`agent-guard`) across all major AI coding apps, IDEs, and CLI tools.
 
 ---
 
-## Installation Methods
+## 📋 Prerequisites
 
-### Method 1: The Automated 1-Click Installer (Recommended)
+Before installing, ensure your environment meets these requirements:
+* **Node.js**: `v20.0.0` or newer (`node -v`)
+* **Git**: Installed and available on system PATH (`git --version`)
+* **Operating System**: macOS (Apple Silicon / Intel), Windows 10/11, or Linux
 
-From within the `agent-guard` repository folder:
+---
+
+## ⚡ 1-Click Universal Git Install
+
+To clone and install Agent Guard with a single command from any terminal:
 
 ```bash
+git clone https://github.com/anksarvesh-lgtm/agent-guard.git ~/.agent-guard && ~/.agent-guard/install.sh
+```
+
+If you already cloned the repository locally:
+```bash
+cd agent-guard
 ./install.sh
 ```
 
-**What this automated command does:**
-1. Resolves and validates your active Node.js binary (Node 20+).
-2. Automatically installs dependencies and compiles TypeScript (`npm install && npm run build`).
-3. Registers the `agent-guard` server entry into your global Antigravity config (`~/.gemini/config/mcp_config.json`), non-destructively preserving existing servers.
-4. Sets up the Stop hook in `.agents/hooks.json` in your workspace.
-5. Deploys the recommended workspace rules into `AGENTS.md`.
-
 ---
 
-### Method 2: Node.js / NPM CLI Installer
+## 🛠️ Configuring AI Coding Apps
 
-If you prefer using `npm` directly:
+Agent Guard connects over the standardized **Model Context Protocol (MCP)** using `stdio`. Below is the exact configuration for each coding application:
 
-```bash
-cd agent-guard
-npm install
-npm run build
-npm run install:antigravity
-```
+### 1. Google Antigravity (IDE, App 2.0, CLI `agy`)
 
----
-
-### Method 3: Remote 1-Line Git Install (Fresh Machine)
-
-To clone and install Agent Guard in a single terminal command from anywhere:
-
-```bash
-git clone https://github.com/<your-username>/agent-guard.git ~/.agent-guard && ~/.agent-guard/install.sh
-```
-
----
-
-### Method 4: Configuring a Specific Workspace / Project
-
-To install Agent Guard's Stop hook and `AGENTS.md` rules into any other existing repository or workspace on your machine:
-
-```bash
-./install.sh --workspace "/path/to/your/project"
-```
-
-Or via the TypeScript CLI:
-
-```bash
-node dist/cli.js install --workspace "/path/to/your/project"
-```
-
-To preview changes without writing files, append `--dry-run`:
-
-```bash
-./install.sh --workspace "/path/to/your/project" --dry-run
-```
-
----
-
-### Method 5: Manual Configuration
-
-If you prefer to configure your environment by hand without running the script:
-
-#### 1. Build the Binaries
-```bash
-cd agent-guard
-npm install
-npm run build
-```
-
-#### 2. Register MCP Server
-Open `~/.gemini/config/mcp_config.json` (or create it if absent) and add the `agent-guard` entry under `mcpServers`:
+The automated installer configures Antigravity automatically. To configure manually, add to `~/.gemini/config/mcp_config.json`:
 
 ```json
 {
@@ -103,11 +50,8 @@ Open `~/.gemini/config/mcp_config.json` (or create it if absent) and add the `ag
   }
 }
 ```
-*(Tip: Replace `"node"` with the absolute path to your Node 20+ binary, e.g., `$(which node)`).*
 
-#### 3. Register the Stop Hook
-In the root of your target project, create or edit `.agents/hooks.json`:
-
+#### Antigravity Stop Hook (`.agents/hooks.json` in your workspace)
 ```json
 {
   "agent-guard-stop": {
@@ -121,51 +65,155 @@ In the root of your target project, create or edit `.agents/hooks.json`:
 }
 ```
 
-#### 4. Install Agent Rules
-Copy [`templates/AGENT_RULES.md`](templates/AGENT_RULES.md) into your project root as `AGENTS.md`.
+---
+
+### 2. Claude Code CLI
+
+You can add Agent Guard to Claude Code with a single CLI command:
+
+```bash
+claude mcp add agent-guard -- node /absolute/path/to/agent-guard/dist/index.js
+```
+
+Or add it directly to `~/.claude/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
+    }
+  }
+}
+```
 
 ---
 
-## Verifying Your Installation
+### 3. Cursor IDE
 
-### 1. Run the Built-in Doctor Check
-Agent Guard includes a diagnostic utility that audits your Node binary, build files, MCP config, and sleep inhibitor:
+In Cursor, go to **Settings &rarr; Features &rarr; MCP &rarr; Add New MCP Server**, or edit `~/.cursor/mcp.json`:
+
+```json
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
+    }
+  }
+}
+```
+
+---
+
+### 4. Windsurf (Codeium / Cascade)
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
+    }
+  }
+}
+```
+
+---
+
+### 5. VS Code (Cline / Roo Code / Continue)
+
+For **Cline** (`~/Library/Application Support/Code/User/globalStorage/saoudrizwan.claude-dev/settings/cline_mcp_settings.json` on macOS or `%APPDATA%\Code\User\...` on Windows):
+
+```json
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "node",
+      "args": ["/absolute/path/to/agent-guard/dist/index.js"],
+      "disabled": false,
+      "autoApprove": [
+        "task_start",
+        "task_checkpoint",
+        "task_status",
+        "repo_brief",
+        "keep_awake"
+      ]
+    }
+  }
+}
+```
+
+---
+
+### 6. Zed Editor
+
+Add to `~/.config/zed/settings.json`:
+
+```json
+{
+  "experimental": {
+    "model_context_protocol": {
+      "servers": {
+        "agent-guard": {
+          "command": "node",
+          "args": ["/absolute/path/to/agent-guard/dist/index.js"]
+        }
+      }
+    }
+  }
+}
+```
+
+---
+
+## 🎯 Target Project Setup (Rules & Hooks)
+
+To ensure the AI agent in any coding app knows when to invoke `task_start`, `task_checkpoint`, and `repo_brief`:
+
+1. Run the target-workspace command:
+   ```bash
+   ./install.sh --workspace "/path/to/your/project"
+   ```
+2. This installs:
+   * **`.agents/hooks.json`**: Prevents premature stopping.
+   * **`AGENTS.md`**: Injects rules instructing the agent to call `task_status` first, verify completions with >= 10-char proof notes, and retry failed steps before moving on.
+
+---
+
+## 🩺 Verification & Diagnostics
+
+To verify your installation and environment health at any time:
 
 ```bash
 npm run doctor
 ```
 
-**Expected output:**
+**Diagnostic Output:**
 ```
 🩺 Agent Guard Readiness Doctor
 
-• Node version:    v24.22.0 (/path/to/node)
+• Node version:    v24.22.0 (/Users/sarvesh/.local/node-v24/bin/node)
 • MCP Config:      [OK] agent-guard is registered in mcp_config.json
 • Server Binary:   [OK] dist/index.js
 • Hook Binary:     [OK] dist/hook/stop-hook.js
 • Sleep Inhibitor: [OK] macOS caffeinate available
 ```
 
-### 2. Run the Full Test Suite
-Ensure all 40 unit and integration tests pass:
-
+Run automated tests (40/40 tests):
 ```bash
 npm test
 ```
 
-### 3. Reload Antigravity
-After registering the MCP server, restart or reload your Antigravity window so the 5 new tools are loaded into the agent's context.
-
 ---
 
-## How to Uninstall
+## 🗑️ How to Uninstall
 
-If you ever wish to remove Agent Guard completely, it leaves zero system settings altered:
+Agent Guard never alters system power settings or leaves daemons behind. To remove:
 
-1. **Remove MCP Registration**: Delete the `"agent-guard"` entry from `~/.gemini/config/mcp_config.json`.
-2. **Remove Project Hooks**: Remove `"agent-guard-stop"` from `.agents/hooks.json` in your projects.
-3. **Remove Project Rules**: Remove the rules from `AGENTS.md`.
-4. **Remove State Files**: Delete the `.agent/` directory inside your projects.
-5. **Delete Repository**: Delete the `agent-guard` folder.
-
-Agent Guard never modifies permanent OS power configurations; normal sleep timers remain untouched.
+1. Remove the `"agent-guard"` entry from your coding app's MCP config file.
+2. Remove `.agents/hooks.json` from your workspace.
+3. Remove `.agent/` folders if you wish to clear task history.
