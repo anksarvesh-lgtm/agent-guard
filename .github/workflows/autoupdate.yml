@@ -1,0 +1,74 @@
+name: Auto Update & Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  autoupdate:
+    name: Build, Package & Auto-Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js 20.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build TypeScript
+        run: npm run build
+
+      - name: Run test suite
+        run: npm test
+
+      - name: Package Release Tarball
+        run: |
+          npm pack
+          TARBALL=$(ls -1 agent-guard-*.tgz | head -n 1)
+          echo "TARBALL=$TARBALL" >> $GITHUB_ENV
+          echo "SHA=$(git rev-parse HEAD)" >> $GITHUB_ENV
+          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
+      - name: Create or Update 'latest' Git Tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -fa latest -m "Auto-update release: ${{ env.SHORT_SHA }}"
+          git push origin latest --force
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create or Update GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/heads/main')
+        with:
+          tag_name: latest
+          name: "Agent Guard Latest (${{ env.SHORT_SHA }})"
+          body: |
+            ## 🛡️ Agent Guard Automated Release
+            - **Commit**: `${{ env.SHA }}`
+            - **Updated**: ${{ github.event.head_commit.timestamp }}
+            - **Author**: ${{ github.event.head_commit.author.name }}
+            - **Message**: ${{ github.event.head_commit.message }}
+
+            ### ⚡ 1-Line Universal Install / Update:
+            ```bash
+            git clone https://github.com/anksarvesh-lgtm/agent-guard.git ~/.agent-guard 2>/dev/null || (cd ~/.agent-guard && git pull --rebase)
+            ~/.agent-guard/install.sh
+            ```
+          files: ${{ env.TARBALL }}
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
