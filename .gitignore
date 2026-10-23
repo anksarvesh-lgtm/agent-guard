@@ -1,4 +1,19 @@
+# Dependencies
 node_modules/
+
+# Agent Guard state and ledger (per-project)
 .agent/
+
+# Test coverage & caches
+coverage/
+*.tsbuildinfo
+
+# Logs & temp files
 *.log
+*.tmp
 .DS_Store
+Thumbs.db
+
+# Secrets
+.env*
+!.env.example

@@ -19,10 +19,25 @@
   },
   "keywords": [
     "mcp",
+    "model-context-protocol",
     "antigravity",
     "agent-guard",
     "keep-awake",
-    "ledger"
+    "caffeinate",
+    "ledger",
+    "ai-agents",
+    "autonomous-coding",
+    "developer-tools"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "install.sh",
+    "README.md",
+    "LICENSE"
   ],
   "author": "",
   "license": "Apache-2.0",
