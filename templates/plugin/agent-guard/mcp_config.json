@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "agent-guard": {
+      "command": "{{NODE_BIN}}",
+      "args": ["{{SERVER_PATH}}"]
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "agent-guard-stop": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "{{NODE_BIN}} {{HOOK_PATH}}"
+      }
+    ]
+  }
+}
