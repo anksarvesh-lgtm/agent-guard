@@ -18,7 +18,7 @@ All contributors are expected to adhere to our [Code of Conduct](CODE_OF_CONDUCT
 
 ### 2. Getting the Code
 ```bash
-git clone https://github.com/<your-username>/agent-guard.git
+git clone https://github.com/anksarvesh-lgtm/agent-guard.git
 cd agent-guard
 npm install
 ```

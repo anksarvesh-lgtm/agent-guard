@@ -39,7 +39,18 @@
     "README.md",
     "LICENSE"
   ],
-  "author": "",
+  "author": {
+    "name": "Sarvesh",
+    "url": "https://github.com/anksarvesh-lgtm"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/anksarvesh-lgtm/agent-guard.git"
+  },
+  "homepage": "https://github.com/anksarvesh-lgtm/agent-guard#readme",
+  "bugs": {
+    "url": "https://github.com/anksarvesh-lgtm/agent-guard/issues"
+  },
   "license": "Apache-2.0",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.6.1",
