@@ -1,93 +1,126 @@
 <p align="center">
-  <img src="assets/logo.png" alt="Agent Guard Logo" width="360" />
+  <img src="assets/logo.png" alt="Agent Guard Logo" width="380" />
 </p>
 
 <h1 align="center">Agent Guard</h1>
 
 <p align="center">
-  <strong>Resilient, zero-telemetry local MCP server, keep-awake supervisor, and Antigravity Stop hook for reliable autonomous pairing.</strong>
+  <strong>Resilient, zero-telemetry local Model Context Protocol (MCP) server, keep-awake supervisor, and Antigravity Stop hook for autonomous AI pairing.</strong>
 </p>
 
 <p align="center">
-  <a href="#features"><img src="https://img.shields.io/badge/MCP-Protocol-blue.svg" alt="MCP" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
   <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-40%2F40%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
   <a href="#zero-telemetry"><img src="https://img.shields.io/badge/Telemetry-Zero%20%2F%20100%25%20Local-success.svg" alt="Zero Telemetry" /></a>
   <a href="#token-economy"><img src="https://img.shields.io/badge/Token%20Footprint-Ultra%20Minimal-purple.svg" alt="Token Economy" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-amber.svg" alt="License: MIT" /></a>
+  <a href="#prerequisites"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-green.svg" alt="Node >= 20" /></a>
 </p>
 
 ---
 
-## Overview
+## Why Agent Guard?
 
-**Agent Guard** (`agent-guard`) is a purpose-built local companion for Google Antigravity and autonomous coding agents. When working with AI coding assistants over long, complex tasks, agents frequently suffer from:
-1. **Premature abandonment**: Stopping work midway before running tests or finishing subsequent steps.
-2. **Context bloat & token waste**: Re-reading deep file hierarchies and receiving thousands of redundant tokens in status output.
-3. **Session amnesia**: Losing task progress and state when a chat dies or hits token limits.
-4. **Machine sleep**: Tasks stalling when display or idle sleep kicks in unattended.
+Autonomous AI coding agents in modern IDEs like Google Antigravity excel at single-turn instructions, but frequently encounter catastrophic failure modes during extended, multi-step work:
 
-Agent Guard solves these core failure modes with a zero-database, file-backed atomic ledger, 5 ultra-lean MCP tools, a guarded keep-awake supervisor, and an Antigravity Stop hook.
+1. **Premature Abandonment**: The agent declares victory and halts before running tests or finishing dependent steps.
+2. **Context Window Bloat**: Repeatedly crawling deep file hierarchies and receiving thousands of redundant tokens in status output.
+3. **Session Amnesia**: When a chat hits context limits or crashes, all task memory is lost and the agent restarts from scratch.
+4. **Unattended Sleep**: Complex tasks stall midway because the computer's display or idle sleep kicks in while you step away.
+
+**Agent Guard** (`agent-guard`) solves all four problems with zero external infrastructure:
+- 💾 **File-Backed Atomic Ledger**: Keeps track of every step in `.agent/ledger.json` with self-healing recovery and concurrency locking.
+- 🛑 **Antigravity Stop Hook**: Soft-blocks premature termination until all tasks are complete, with an integrated loop breaker.
+- ☕ **Supervised Keep-Awake Lease**: Keeps the computer awake using native OS tools (`caffeinate`) with an 8-hour safety ceiling.
+- ⚡ **Ultra-Lean Token Protocol**: 5 concise MCP tools designed from the ground up to conserve prompt tokens.
+
+---
+
+## System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Antigravity ["Google Antigravity"]
+        Agent["Autonomous AI Agent"]
+        HookEngine["Stop Hook Engine"]
+        Rules["Workspace Rules (AGENTS.md)"]
+    end
+
+    subgraph AgentGuard ["agent-guard (Node 20+ / TypeScript)"]
+        MCPServer["MCP Server (stdio)\nsrc/index.ts"]
+        Tools["5 Core Tools\ntask_start | task_checkpoint | task_status\nkeep_awake | repo_brief"]
+        Ledger["Safe Ledger Engine\n(Locking, Atomic Rename, Auto-Repair)"]
+        AwakeMgr["Awake Supervisor\n(Lease Ticker, Swap, 8h Ceiling)"]
+        StopHook["Stop Hook Script\n(3-Idle Push Loop Breaker)"]
+    end
+
+    subgraph Project ["Target Repository: <project>/"]
+        AgentDir[".agent/"]
+        LedgerJson[".agent/ledger.json\n(Task & Step States)"]
+        BriefMd[".agent/brief.md\n(Cached Map < 1.5k tok)"]
+        HookState[".agent/hook-state.json\n(Push Counters)"]
+        LogTxt[".agent/log.txt\n(1MB Rotated Audit Log)"]
+    end
+
+    Rules -->|Guides Calls| Agent
+    Agent <-->|MCP Protocol| MCPServer
+    MCPServer --> Tools
+    Tools --> Ledger
+    Tools --> AwakeMgr
+    Ledger --> AgentDir
+    HookEngine -->|Fires on Exit| StopHook
+    StopHook --> LedgerJson
+    StopHook --> HookState
+    StopHook -->|continue or allow| HookEngine
+```
 
 ---
 
 ## Core Pillars
 
-```mermaid
-flowchart LR
-    A[Agent Guard Engine] --> B[Atomic Ledger\n.agent/ledger.json]
-    A --> C[5 Lean Tools\nUltra-low token cost]
-    A --> D[Awake Supervisor\nLease-based caffeinate]
-    A --> E[Stop Hook\nLoop-broken gating]
-
-    B -->|Self-Healing| F[Recovery from .prev.json]
-    C -->|Capped Context| G[repo_brief < 1.5k tok]
-    D -->|8h Hard Cap| H[Auto-Timeout & Battery Safe]
-    E -->|3 Idle Pushes| I[Guaranteed Exit]
-```
-
-### 1. 🛡️ Zero-Telemetry & Strict Local Isolation
-* **Zero network calls**: No telemetry, no external pings, no cloud dependencies.
-* **Path Sandboxing**: All mutations are strictly jailed to `<project>/.agent/`. Refuses the home directory, filesystem root, system directories, and directories lacking `.git` or `.agent`.
+### 1. 🛡️ Zero Telemetry & Local Sandboxing
+* **100% Offline & Private**: Zero network dependencies, zero tracking, no cloud telemetry.
+* **Strict Path Sandboxing**: Resolves canonical realpaths; strictly jails writes to `<project>/.agent/`. Disallows the root directory, user home directory, OS system folders, and paths lacking `.git` or `.agent`.
 
 ### 2. ⚡ Maximum Token Economy
-* Every tool is designed to conserve context window tokens:
-  * `task_start`: ~150 tokens.
-  * `task_checkpoint`: Single directive <= 300 characters (~60 tokens).
-  * `task_status`: Compact snapshot under 500 tokens, even with 30 steps.
-  * `repo_brief`: One-shot repository summary (< 1,500 tokens, hard cap at 8,000 characters) that prevents the agent from opening and reading dozens of project files.
-  * `schema.ts`: Automatically truncates goals, titles, and notes with `[cut]`.
-  * Logs to `.agent/log.txt` on disk; zero audit text dumped into LLM context.
+* Context window consumption is minimized at every level:
+  * `task_start`: Concise initialization response (~150 tokens).
+  * `task_checkpoint`: Single action instruction <= 300 characters (~60 tokens).
+  * `task_status`: High-density snapshot under 500 tokens, even with 30 steps.
+  * `repo_brief`: Fast, one-shot repository summary (< 1,500 tokens; hard cap at 8,000 characters) that prevents the agent from crawling dozens of files.
+  * Automatic string truncation with `[cut]` for goals (500 chars), titles (200 chars), and notes (500 chars).
+  * Disk-only rotation logging (`.agent/log.txt` at 1MB); zero debug spam injected into model context.
 
 ### 3. 💾 Crash-Proof, Self-Healing State Ledger
-* **Atomic Writes**: Writes to temporary file followed by atomic filesystem `rename`.
-* **Locking & Recovery**: Concurrency locking (`.agent/ledger.lock`) with 30-second stale lock eviction.
-* **Auto-Repair**: Backs up previous state to `ledger.prev.json` before each write; automatically restores valid state if corruption is detected.
+* **Atomic Writes**: Writes to `.agent/ledger.tmp` followed by atomic filesystem `rename`.
+* **Lock Contention**: Concurrency locking (`.agent/ledger.lock`) with 30-second stale lock eviction.
+* **Automatic Recovery**: Backs up prior state to `ledger.prev.json` before writing; automatically self-heals and restores state if corruption is ever detected on read.
 
 ### 4. 🔄 Resilient Step & Retry Machine
-* **Proof Verification**: Marking a step `done` requires at least 10 characters of proof in the note (e.g. test outputs).
+* **Proof Verification**: Marking a step `done` requires at least 10 non-whitespace characters of verification proof in the note (e.g. test outputs or compile results).
 * **Retry Escalation**: Failed steps increment retries up to `max_tries` (default 3); automatically transitions to `blocked` once exhausted.
-* **Dependency Cascading**: Automatically cascades `blocked` status to any dependent steps.
-* **Deterministic Prioritization**: Next step is always chosen by strict priority: `in_progress` &rarr; `failed` with retries &rarr; first eligible `pending`.
+* **Dependency Cascading**: Automatically cascades `blocked` status to any dependent steps down the DAG.
+* **Strict Prioritization**: The next step is always selected deterministically:
+  $$\text{in\_progress} \longrightarrow \text{failed (with retries)} \longrightarrow \text{first ready pending}$$
 
 ### 5. ☕ Supervised Keep-Awake Leases
-* Prevents unattended computers from sleeping during builds or multi-step execution.
-* OS-specific background helpers:
+* Prevents unattended computers from sleeping during long builds, tests, or multi-step execution.
+* Native OS helpers:
   * **macOS**: `caffeinate -di -t <sec> -w <pid>` with seamless child swapping (no sleep gap) and battery discharge warnings.
   * **Windows**: PowerShell `SetThreadExecutionState` continuous wrapper.
   * **Linux**: `systemd-inhibit --what=idle:sleep`.
 * Auto-expiring lease renewed at every checkpoint, guarded by an **8-hour hard ceiling**.
 
 ### 6. 🛑 Antigravity Stop Hook & Loop Breaker
-* Runs via Antigravity's `.agents/hooks.json`.
+* Wired via Antigravity's `.agents/hooks.json`.
 * Detects premature agent stops: if unfinished, unblocked steps remain, soft-pushes the agent back to continue.
-* **Embedded Loop Breaker**: If the agent makes no checkpoint progress for 3 pushes, or reaches 10 total pushes, allows stop to prevent infinite loops.
+* **Loop Breaker**: If the agent makes no checkpoint progress for 3 consecutive pushes, or reaches 10 total pushes, allows stop to prevent runaway loops.
 * **Fail-Safe**: Fully wrapped in exception handling; never stalls or traps the IDE.
 
 ---
 
 ## MCP Tools Reference
 
-| Tool | Purpose | Typical Token Cost | Inputs |
+| Tool | Purpose | Token Cost | Inputs |
 | :--- | :--- | :--- | :--- |
 | `task_start` | Starts a tracked task, validates step DAG, begins 30m awake lease | ~150 tokens | `goal`, `steps`, `max_tries?`, `replace?`, `project_path?` |
 | `task_checkpoint` | Reports progress (`in_progress`, `done`, `failed`), verifies proof, extends lease | ~60 tokens | `step_id`, `status`, `note`, `error?`, `add_steps?`, `project_path?` |
@@ -97,74 +130,65 @@ flowchart LR
 
 ---
 
-## Installation & Configuration
+## Quickstart & Installation
 
-### 1. Build Agent Guard
+For the comprehensive setup manual, see the [Installation Guide](INSTALL.md).
+
+### 1-Click Automated Install
+Run the automated installer from the repository:
+
 ```bash
-cd agent-guard
-npm install
-npm test
-npm run build
+./install.sh
 ```
 
-### 2. Register in Antigravity
-Add to `~/.gemini/config/mcp_config.json`:
+### Install into Any Workspace
+To configure Agent Guard's Stop hook and `AGENTS.md` rules into any project on your computer:
 
-```json
-{
-  "mcpServers": {
-    "agent-guard": {
-      "command": "node",
-      "args": ["/full/path/to/agent-guard/dist/index.js"]
-    }
-  }
-}
+```bash
+./install.sh --workspace "/path/to/your/project"
 ```
 
-### 3. Install Stop Hook
-Add to `.agents/hooks.json` in your target workspace:
-
-```json
-{
-  "agent-guard-stop": {
-    "Stop": [
-      {
-        "type": "command",
-        "command": "node /full/path/to/agent-guard/dist/hook/stop-hook.js"
-      }
-    ]
-  }
-}
+### 1-Line Remote Git Install (Fresh Machine)
+```bash
+git clone https://github.com/<your-username>/agent-guard.git ~/.agent-guard && ~/.agent-guard/install.sh
 ```
-
-### 4. Configure Workspace Rules
-Copy `templates/AGENT_RULES.md` into your repository's `AGENTS.md` to instruct the agent to use the tools automatically.
 
 ---
 
-## Test Suite
+## Verification & Doctor
 
-Agent Guard includes comprehensive automated unit tests covering all edge cases, path traversal exploits, concurrency contention, and recovery routines:
+Agent Guard includes a built-in diagnostic doctor to verify all integrations:
+
+```bash
+npm run doctor
+```
+
+```
+🩺 Agent Guard Readiness Doctor
+
+• Node version:    v24.22.0 (/path/to/node)
+• MCP Config:      [OK] agent-guard is registered in mcp_config.json
+• Server Binary:   [OK] dist/index.js
+• Hook Binary:     [OK] dist/hook/stop-hook.js
+• Sleep Inhibitor: [OK] macOS caffeinate available
+```
+
+Run the automated test suite:
 
 ```bash
 npm test
 ```
 
 ```
- ✓ test/paths.test.ts (8 tests)
- ✓ test/stopHook.test.ts (4 tests)
- ✓ test/keepAwake.test.ts (5 tests)
- ✓ test/ledger.test.ts (6 tests)
- ✓ test/repoBrief.test.ts (3 tests)
- ✓ test/stepRules.test.ts (7 tests)
- ✓ test/tools.test.ts (7 tests)
-
 Test Files  7 passed (7)
      Tests  40 passed (40)
+  Duration  564ms
 ```
 
 ---
 
-## License
+## Free Software License
 
-MIT License. See [LICENSE](LICENSE) for details.
+Agent Guard is free and open-source software licensed under the **[Apache License, Version 2.0](LICENSE)**.
+
+You are free to use, modify, distribute, and embed Agent Guard for personal, academic, or commercial purposes. See the [`LICENSE`](LICENSE) file for the full license text.
