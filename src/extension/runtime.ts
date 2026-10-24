@@ -85,6 +85,138 @@ function getMcpConfigPath() {
   return path.join(getHomeDir(), '.gemini', 'config', 'mcp_config.json');
 }
 
+function getAgentGuardRepoDir() {
+  const mcpCfg = getMcpConfigPath();
+  if (fs.existsSync(mcpCfg)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(mcpCfg, 'utf-8'));
+      const entry = (data.mcpServers && (data.mcpServers['agent-guard'] || data.mcpServers['agent-guard_agent-guard'])) || null;
+      if (entry && Array.isArray(entry.args) && entry.args[0]) {
+        const repo = path.resolve(path.dirname(entry.args[0]), '..');
+        if (fs.existsSync(path.join(repo, 'package.json'))) return repo;
+      }
+    } catch (e) {}
+  }
+  const candidates = [
+    path.join(getHomeDir(), 'Downloads', 'mcp', 'agent-guard'),
+    path.join(getHomeDir(), '.gemini', 'config', 'plugins', 'agent-guard'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(path.join(c, 'package.json'))) return c;
+  }
+  return null;
+}
+
+function checkAgentGuardUpdate() {
+  const repoDir = getAgentGuardRepoDir();
+  if (!repoDir || !fs.existsSync(path.join(repoDir, '.git'))) {
+    return { hasUpdate: false, isGit: false, message: 'Agent Guard is installed as a standalone plugin.' };
+  }
+  const gitEnv = Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '' });
+  try {
+    const currentSha = execSync('git rev-parse HEAD', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 3000 }).trim();
+    try {
+      execSync('git fetch origin main --quiet', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 6000 });
+    } catch (e) {
+      return { hasUpdate: false, isGit: true, currentSha: currentSha.slice(0, 7), error: 'Could not reach remote (offline or network error)' };
+    }
+    const remoteSha = execSync('git rev-parse origin/main', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 3000 }).trim();
+    if (currentSha === remoteSha) {
+      return { hasUpdate: false, isGit: true, currentSha: currentSha.slice(0, 7), remoteSha: remoteSha.slice(0, 7), message: 'Agent Guard is up to date (commit ' + currentSha.slice(0, 7) + ').' };
+    }
+    let behindCount = 1;
+    try {
+      behindCount = parseInt(execSync('git rev-list --count HEAD..origin/main', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv }).trim(), 10) || 1;
+    } catch (e) {}
+    return {
+      hasUpdate: true,
+      isGit: true,
+      behindCount: behindCount,
+      currentSha: currentSha.slice(0, 7),
+      remoteSha: remoteSha.slice(0, 7),
+      message: 'Update available: ' + behindCount + ' new commit(s) on origin/main.'
+    };
+  } catch (err) {
+    return { hasUpdate: false, isGit: true, error: err.message };
+  }
+}
+
+function performAgentGuardUpdate() {
+  const repoDir = getAgentGuardRepoDir();
+  if (!repoDir) {
+    vscode.window.showErrorMessage('Cannot update: Agent Guard repository directory not found.');
+    return;
+  }
+  vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: 'Updating Agent Guard to latest release...',
+      cancellable: false,
+    },
+    async (progress) => {
+      progress.report({ message: 'Pulling latest commits from GitHub...' });
+      const gitEnv = Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '' });
+      try {
+        execSync('git pull --rebase origin main --quiet', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 20000 });
+        progress.report({ message: 'Building TypeScript bundles...' });
+        try {
+          execSync('npm run build', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 30000 });
+        } catch (e) {
+          execSync('npx tsc', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 30000 });
+        }
+        progress.report({ message: 'Reinstalling extension into editor...' });
+        try {
+          execSync('node dist/cli.js extension install', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 15000 });
+        } catch (e) {}
+        
+        refreshAllWebviews();
+        updateStatusBar();
+
+        vscode.window.showInformationMessage(
+          '🎉 Agent Guard updated successfully! Reload window to apply changes.',
+          'Reload Window',
+          'Dismiss'
+        ).then(sel => {
+          if (sel === 'Reload Window') {
+            vscode.commands.executeCommand('workbench.action.reloadWindow');
+          }
+        });
+      } catch (err) {
+        vscode.window.showErrorMessage('Agent Guard update failed: ' + err.message);
+      }
+    }
+  );
+}
+
+function promptCheckForUpdates() {
+  vscode.window.withProgress(
+    {
+      location: vscode.ProgressLocation.Notification,
+      title: 'Checking for Agent Guard updates...',
+      cancellable: false,
+    },
+    async (progress) => {
+      const res = checkAgentGuardUpdate();
+      if (res.hasUpdate) {
+        vscode.window.showInformationMessage(
+          '🚀 ' + res.message + ' (Current: ' + res.currentSha + ' → Remote: ' + res.remoteSha + ')',
+          'Update Now',
+          'Later'
+        ).then(sel => {
+          if (sel === 'Update Now') {
+            performAgentGuardUpdate();
+          }
+        });
+      } else if (res.error) {
+        vscode.window.showWarningMessage('Update check notice: ' + res.error);
+      } else {
+        vscode.window.showInformationMessage('✅ ' + (res.message || 'Agent Guard is up to date.'));
+      }
+      refreshAllWebviews();
+    }
+  );
+}
+
 function getStateDbPath() {
   const home = getHomeDir();
   const candidates = [];
@@ -770,6 +902,7 @@ function showQuickMenu() {
     { label: '$(server-process) Select Active Model', description: 'Currently: ' + activeModel, action: 'select_model' },
     { label: '$(beaker) Simulate 1% Quota Tripwire', description: 'Test seamless automatic account rotation', action: 'test_tripwire' },
     { label: '$(book) Browse Awesome Skills Catalog', description: 'Curated skills supervised by @agent-guard', action: 'browse_skills' },
+    { label: '$(cloud-download) Check for Updates', description: 'Check GitHub for new Agent Guard updates & 1-click update', action: 'check_update' },
     { label: '$(heart) Run Readiness Doctor', description: 'Comprehensive diagnostics check', action: 'doctor' },
     { label: '$(refresh) Refresh Status', description: 'Poll system & credentials now', action: 'refresh' }
   ];
@@ -786,6 +919,7 @@ function showQuickMenu() {
     else if (sel.action === 'select_model') promptSelectModel();
     else if (sel.action === 'test_tripwire') triggerTestTripwire();
     else if (sel.action === 'browse_skills') promptBrowseSkills();
+    else if (sel.action === 'check_update') promptCheckForUpdates();
     else if (sel.action === 'doctor') runDoctorDiagnostics();
     else if (sel.action === 'refresh') {
       updateStatusBar();
@@ -1665,9 +1799,8 @@ function activate(context) {
     }),
     vscode.commands.registerCommand('agentGuard.browseSkills', () => promptBrowseSkills()),
     vscode.commands.registerCommand('agentGuard.runDoctor', () => runDoctorDiagnostics()),
-    vscode.commands.registerCommand('agentGuard.checkForUpdates', () => {
-      vscode.window.showInformationMessage('Agent Guard is up to date.');
-    }),
+    vscode.commands.registerCommand('agentGuard.checkForUpdates', () => promptCheckForUpdates()),
+    vscode.commands.registerCommand('agentGuard.performUpdate', () => performAgentGuardUpdate()),
     vscode.commands.registerCommand('agentGuard.refresh', () => {
       queryLiveQuota(true);
       updateStatusBar();
