@@ -32,6 +32,39 @@ export function getHomeDir(): string {
   return process.env.AGENT_GUARD_HOME || os.homedir();
 }
 
+export function deploySkillsToDirectory(skillsSourceDir: string, targetSkillsDir: string, dryRun?: boolean): number {
+  if (!fs.existsSync(skillsSourceDir)) return 0;
+  if (!dryRun) {
+    fs.mkdirSync(targetSkillsDir, { recursive: true });
+  }
+
+  const entries = fs.readdirSync(skillsSourceDir, { withFileTypes: true });
+  let count = 0;
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      const srcSkillDir = path.join(skillsSourceDir, entry.name);
+      const destSkillDir = path.join(targetSkillsDir, entry.name);
+      if (!dryRun) {
+        fs.mkdirSync(destSkillDir, { recursive: true });
+        const files = fs.readdirSync(srcSkillDir);
+        for (const file of files) {
+          fs.copyFileSync(path.join(srcSkillDir, file), path.join(destSkillDir, file));
+        }
+      }
+      count++;
+    }
+  }
+  return count;
+}
+
+function resolveSkillsSourceDir(repoRoot: string): string {
+  const curated = path.join(repoRoot, 'templates', 'skills', 'curated');
+  if (fs.existsSync(curated)) return curated;
+  const pluginSkills = path.join(repoRoot, 'templates', 'plugin', 'agent-guard', 'skills');
+  if (fs.existsSync(pluginSkills)) return pluginSkills;
+  return '';
+}
+
 function safeJsonWrite(filePath: string, updater: (data: any) => any, dryRun?: boolean): void {
   let data: any = {};
   if (fs.existsSync(filePath)) {
@@ -76,12 +109,16 @@ export const antigravityTarget: AppTarget = {
       return cfg;
     }, ctx.dryRun);
 
+    const skillsSource = resolveSkillsSourceDir(ctx.repoRoot);
+    const globalSkillsDir = path.join(getHomeDir(), '.gemini', 'config', 'skills');
+    const skillCount = deploySkillsToDirectory(skillsSource, globalSkillsDir, ctx.dryRun);
+
     return {
       appId: 'antigravity',
       appName: 'Google Antigravity & Gemini CLI',
       installed: true,
       configPath,
-      message: `Configured agent-guard MCP server in ${configPath}`,
+      message: `Configured agent-guard MCP server in ${configPath} and deployed ${skillCount} skills to ${globalSkillsDir}`,
     };
   },
 };
@@ -126,12 +163,16 @@ export const claudeTarget: AppTarget = {
       return cfg;
     }, ctx.dryRun);
 
+    const skillsSource = resolveSkillsSourceDir(ctx.repoRoot);
+    const claudeSkillsDir = path.join(home, '.claude', 'skills');
+    const skillCount = deploySkillsToDirectory(skillsSource, claudeSkillsDir, ctx.dryRun);
+
     return {
       appId: 'claude',
       appName: 'Claude Code',
       installed: true,
       configPath,
-      message: `Configured agent-guard MCP server in ${configPath}`,
+      message: `Configured agent-guard MCP server in ${configPath} and deployed ${skillCount} skills to ${claudeSkillsDir}`,
     };
   },
 };
@@ -170,12 +211,16 @@ export const codexTarget: AppTarget = {
       return cfg;
     }, ctx.dryRun);
 
+    const skillsSource = resolveSkillsSourceDir(ctx.repoRoot);
+    const codexSkillsDir = path.join(codexHome, 'skills');
+    const skillCount = deploySkillsToDirectory(skillsSource, codexSkillsDir, ctx.dryRun);
+
     return {
       appId: 'codex',
       appName: 'Codex CLI',
       installed: true,
       configPath,
-      message: `Configured agent-guard MCP server in ${configPath}`,
+      message: `Configured agent-guard MCP server in ${configPath} and deployed ${skillCount} skills to ${codexSkillsDir}`,
     };
   },
 };
@@ -205,12 +250,16 @@ export const cursorTarget: AppTarget = {
       return cfg;
     }, ctx.dryRun);
 
+    const skillsSource = resolveSkillsSourceDir(ctx.repoRoot);
+    const cursorSkillsDir = path.join(getHomeDir(), '.cursor', 'skills');
+    const skillCount = deploySkillsToDirectory(skillsSource, cursorSkillsDir, ctx.dryRun);
+
     return {
       appId: 'cursor',
       appName: 'Cursor IDE',
       installed: true,
       configPath,
-      message: `Configured agent-guard MCP server in ${configPath}`,
+      message: `Configured agent-guard MCP server in ${configPath} and deployed ${skillCount} skills to ${cursorSkillsDir}`,
     };
   },
 };
