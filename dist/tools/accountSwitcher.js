@@ -121,6 +121,25 @@ export function handleAccountSwitcher(rawArgs) {
             logToolCall('account_switcher', null, 'CONFIG_OK', validatedProject);
             return `✅ Account switcher configured: Auto-rotate is ${newEnabled ? 'ENABLED' : 'DISABLED'} with threshold <= ${newThreshold}%.`;
         }
+        if (action === 'proxy' || action === 'failover_proxy') {
+            logToolCall('account_switcher', null, 'PROXY_STATUS', validatedProject);
+            return [
+                '# 🛡️ Antigravity Seamless HTTP 429 Failover Proxy',
+                '',
+                '- **Transparent In-Memory Replay**: Intercepts HTTP 429 / 403 `RESOURCE_EXHAUSTED` responses and transparently rotates to next account without dropping client connection.',
+                '- **Intra-Account Model Fallback**: Degrades from primary (`claude-sonnet-4-6`, `gemini-3.1-pro`) to secondary (`gemini-3.8-flash`) before account rotation.',
+                '- **Process Supervisor**: Automatically discovers Antigravity 2.0 binary and sets `HTTP_PROXY=http://127.0.0.1:8080`.',
+                '',
+                '### How to Launch:',
+                '```bash',
+                '# 1. From workspace:',
+                'node ../antigravity-account-switcher/bin/cli.js launch',
+                '',
+                '# 2. Or open web dashboard:',
+                'node ../antigravity-account-switcher/bin/cli.js web',
+                '```'
+            ].join('\n');
+        }
         return 'BAD_INPUT: Unknown action';
     }
     catch (err) {

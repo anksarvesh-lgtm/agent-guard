@@ -822,6 +822,8 @@ if (command === 'install') {
       threshold_percent: threshold,
       project_path: process.cwd()
     }));
+  } else if (sub === 'proxy' || sub === 'failover') {
+    console.log(handleAccountSwitcher({ action: 'failover_proxy', project_path: process.cwd() }));
   } else {
     console.log('Usage:');
     console.log('  node dist/cli.js accounts list');
@@ -833,6 +835,7 @@ if (command === 'install') {
     console.log('  node dist/cli.js accounts remove <account-id>');
     console.log('  node dist/cli.js accounts rotate');
     console.log('  node dist/cli.js accounts auto-switch <on|off> [--threshold <pct>]');
+    console.log('  node dist/cli.js accounts proxy');
   }
 } else if (command === 'compress') {
   const sub = args[1] || 'list-algos';

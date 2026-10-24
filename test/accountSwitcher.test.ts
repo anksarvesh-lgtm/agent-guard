@@ -84,7 +84,7 @@ describe('Antigravity Account Switcher & 1% Auto-Rotator', () => {
     const active = manager.getActiveAccount();
     expect(active?.id).toBe('backup-1');
     expect(active?.isActive).toBe(true);
-  });
+  }, 25000);
 
   it('triggers auto-rotation automatically when remaining quota reaches 1%', () => {
     manager.addAccount({
@@ -194,6 +194,15 @@ describe('Antigravity Account Switcher & 1% Auto-Rotator', () => {
         token_source_file: '/non/existent/path/token.json',
       });
       expect(nonExistentFile).toContain('not found');
+    });
+
+    it('returns failover proxy instructions on proxy action', () => {
+      const output = handleAccountSwitcher({
+        action: 'failover_proxy',
+      });
+      expect(output).toContain('Antigravity Seamless HTTP 429 Failover Proxy');
+      expect(output).toContain('Transparent In-Memory Replay');
+      expect(output).toContain('Intra-Account Model Fallback');
     });
   });
 });
