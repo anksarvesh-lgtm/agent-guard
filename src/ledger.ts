@@ -8,7 +8,7 @@ import {
   getLedgerTmpPath,
   getHistoryDir,
 } from './util/paths.js';
-import { TaskLedger, Step, StepStatus } from './types.js';
+import { TaskLedger, Step, StepStatus, ActiveAgentSession, AgentDirective } from './types.js';
 
 const LOCK_WAIT_MS = 50;
 const LOCK_TIMEOUT_MS = 5000;
@@ -244,4 +244,84 @@ export function evaluateTaskStatus(steps: Step[]): 'active' | 'done' | 'blocked'
   }
 
   return 'active';
+}
+
+/**
+ * Record or update an active agent session in .agent/active_agents.json.
+ */
+export function recordActiveAgent(
+  projectPath: string,
+  agentId: string,
+  role: string = 'worker',
+  activeStepId?: string
+): void {
+  try {
+    const agentFile = path.join(getAgentDir(projectPath), 'active_agents.json');
+    let agents: Record<string, ActiveAgentSession> = {};
+    if (fs.existsSync(agentFile)) {
+      try {
+        agents = JSON.parse(fs.readFileSync(agentFile, 'utf-8'));
+      } catch {}
+    }
+
+    agents[agentId] = {
+      agent_id: agentId,
+      role,
+      last_seen: new Date().toISOString(),
+      active_step_id: activeStepId,
+    };
+
+    fs.writeFileSync(agentFile, JSON.stringify(agents, null, 2), 'utf-8');
+  } catch {}
+}
+
+/**
+ * Retrieve all known active agent sessions.
+ */
+export function getActiveAgents(projectPath: string): Record<string, ActiveAgentSession> {
+  try {
+    const agentFile = path.join(getAgentDir(projectPath), 'active_agents.json');
+    if (fs.existsSync(agentFile)) {
+      return JSON.parse(fs.readFileSync(agentFile, 'utf-8'));
+    }
+  } catch {}
+  return {};
+}
+
+/**
+ * Dispatch an authoritative completion directive for active agents.
+ */
+export function dispatchAgentDirective(
+  projectPath: string,
+  directive: string,
+  targetAgent: string = 'all'
+): AgentDirective {
+  const dirFile = path.join(getAgentDir(projectPath), 'agent_directives.json');
+  const newDirective: AgentDirective = {
+    id: `dir-${Date.now()}`,
+    directive,
+    target_agent: targetAgent,
+    created_at: new Date().toISOString(),
+    active: true,
+  };
+
+  try {
+    fs.writeFileSync(dirFile, JSON.stringify(newDirective, null, 2), 'utf-8');
+  } catch {}
+
+  return newDirective;
+}
+
+/**
+ * Retrieve currently active inter-agent directive.
+ */
+export function getActiveDirective(projectPath: string): AgentDirective | null {
+  try {
+    const dirFile = path.join(getAgentDir(projectPath), 'agent_directives.json');
+    if (fs.existsSync(dirFile)) {
+      const data: AgentDirective = JSON.parse(fs.readFileSync(dirFile, 'utf-8'));
+      if (data.active) return data;
+    }
+  } catch {}
+  return null;
 }

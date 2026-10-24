@@ -12,6 +12,23 @@ export interface Step {
   note: string | null;
   last_error: string | null;
   updated_at: string;
+  assigned_agent?: string;
+}
+
+export interface ActiveAgentSession {
+  agent_id: string;
+  name?: string;
+  role?: string;
+  last_seen: string;
+  active_step_id?: string;
+}
+
+export interface AgentDirective {
+  id: string;
+  directive: string;
+  target_agent?: string;
+  created_at: string;
+  active: boolean;
 }
 
 export interface TaskLedger {
@@ -23,6 +40,7 @@ export interface TaskLedger {
   updated_at: string;
   checkpoint_count: number;
   steps: Step[];
+  active_agents?: Record<string, ActiveAgentSession>;
 }
 
 export interface HookState {
@@ -66,5 +84,12 @@ export interface KeepAwakeParams {
 
 export interface RepoBriefParams {
   refresh?: boolean;
+  project_path?: string;
+}
+
+export interface AgentEnforceParams {
+  action: 'status' | 'broadcast' | 'force_next';
+  directive?: string;
+  target_agent?: string;
   project_path?: string;
 }
