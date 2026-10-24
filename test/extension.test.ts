@@ -31,7 +31,7 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
   });
 
   describe('Manifest & Runtime Generation', () => {
-    it('generates a compliant VS Code extension manifest', () => {
+    it('generates a compliant VS Code extension manifest with 21 feature control commands', () => {
       const manifest = generateExtensionManifest('1.2.3');
       expect(manifest.name).toBe('agent-guard');
       expect(manifest.publisher).toBe('sarvesh');
@@ -42,10 +42,28 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
 
       // Commands
       const commands = manifest.contributes.commands.map((c: any) => c.command);
+      expect(commands.length).toBeGreaterThanOrEqual(20);
       expect(commands).toContain('agentGuard.openDashboard');
+      expect(commands).toContain('agentGuard.showStatus');
       expect(commands).toContain('agentGuard.toggleKeepAwake');
+      expect(commands).toContain('agentGuard.acquireAwakeLease');
+      expect(commands).toContain('agentGuard.releaseAwakeLease');
       expect(commands).toContain('agentGuard.toggleAutoAccept');
+      expect(commands).toContain('agentGuard.manageGrants');
       expect(commands).toContain('agentGuard.switchAccount');
+      expect(commands).toContain('agentGuard.addAccount');
+      expect(commands).toContain('agentGuard.removeAccount');
+      expect(commands).toContain('agentGuard.toggleAutoSwitch');
+      expect(commands).toContain('agentGuard.setTripwireThreshold');
+      expect(commands).toContain('agentGuard.testTripwire');
+      expect(commands).toContain('agentGuard.countTokensCurrentFile');
+      expect(commands).toContain('agentGuard.switchTokenModel');
+      expect(commands).toContain('agentGuard.resetTokenSession');
+      expect(commands).toContain('agentGuard.browseSkills');
+      expect(commands).toContain('agentGuard.generateProjectMap');
+      expect(commands).toContain('agentGuard.runDoctor');
+      expect(commands).toContain('agentGuard.checkForUpdates');
+      expect(commands).toContain('agentGuard.refresh');
 
       // Webview & Views Container
       expect(manifest.contributes.viewsContainers.activitybar[0].id).toBe('agentGuard');
@@ -55,15 +73,39 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
       const props = manifest.contributes.configuration.properties;
       expect(props['agentGuard.statusBar.showTokenPercent']).toBeDefined();
       expect(props['agentGuard.lowQuotaThresholdPercent'].default).toBe(1.0);
+      expect(props['agentGuard.defaultAwakeMinutes'].default).toBe(120);
+      expect(props['agentGuard.defaultModel'].default).toBe('gemini-2.5-flash');
     });
 
-    it('generates valid zero-dependency extension runtime script', () => {
+    it('generates runtime script containing all feature controllers and tabbed webview', () => {
       const script = generateExtensionRuntimeScript();
       expect(script).toContain('module.exports = {');
       expect(script).toContain('activate');
       expect(script).toContain('deactivate');
       expect(script).toContain('vscode.window.createStatusBarItem');
       expect(script).toContain('agentGuard.openDashboard');
+
+      // Feature controllers
+      expect(script).toContain('switchAccount(targetId, reason)');
+      expect(script).toContain('addAccountToPool(');
+      expect(script).toContain('removeAccountFromPool(');
+      expect(script).toContain('setAutoRotateConfig(');
+      expect(script).toContain('acquireAwakeLease(minutes)');
+      expect(script).toContain('releaseAwakeLease()');
+      expect(script).toContain('setAutoAcceptGrants(toolsList)');
+      expect(script).toContain('estimateTokens(text, modelId)');
+      expect(script).toContain('countTokensInActiveEditor()');
+      expect(script).toContain('runDoctorDiagnostics()');
+      expect(script).toContain('installSkillDirectly(skillId)');
+
+      // Multi-tab Webview structure
+      expect(script).toContain('tab-overview');
+      expect(script).toContain('tab-accounts');
+      expect(script).toContain('tab-tokens');
+      expect(script).toContain('tab-awake');
+      expect(script).toContain('tab-skills');
+
+      // 1% tripwire
       expect(script).toContain('Automatic 1% Quota Rotation Tripwire');
     });
   });
