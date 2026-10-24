@@ -2,6 +2,15 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execSync } from 'node:child_process';
+export const AGENT_GUARD_AUTO_APPROVE_TOOLS = [
+    'task_start',
+    'task_checkpoint',
+    'task_status',
+    'keep_awake',
+    'repo_brief',
+    'agent_enforce',
+    'project_map',
+];
 export function getHomeDir() {
     return process.env.AGENT_GUARD_HOME || os.homedir();
 }
@@ -69,15 +78,7 @@ export const antigravityTarget = {
             cfg.mcpServers['agent-guard'] = {
                 command: ctx.nodeBin,
                 args: [ctx.serverPath],
-                autoApprove: [
-                    'task_start',
-                    'task_checkpoint',
-                    'task_status',
-                    'keep_awake',
-                    'repo_brief',
-                    'agent_enforce',
-                    'project_map',
-                ],
+                autoApprove: [...AGENT_GUARD_AUTO_APPROVE_TOOLS],
             };
             return cfg;
         }, ctx.dryRun);
@@ -129,7 +130,15 @@ export const claudeTarget = {
             cfg.mcpServers['agent-guard'] = {
                 command: ctx.nodeBin,
                 args: [ctx.serverPath],
+                autoApprove: [...AGENT_GUARD_AUTO_APPROVE_TOOLS],
             };
+            // Configure approved tools for Claude Code CLI
+            cfg.approvedTools = cfg.approvedTools || [];
+            for (const tool of AGENT_GUARD_AUTO_APPROVE_TOOLS) {
+                if (!cfg.approvedTools.includes(tool)) {
+                    cfg.approvedTools.push(tool);
+                }
+            }
             return cfg;
         }, ctx.dryRun);
         const skillsSource = resolveSkillsSourceDir(ctx.repoRoot);
@@ -176,6 +185,7 @@ export const codexTarget = {
             cfg.mcpServers['agent-guard'] = {
                 command: ctx.nodeBin,
                 args: [ctx.serverPath],
+                autoApprove: [...AGENT_GUARD_AUTO_APPROVE_TOOLS],
             };
             return cfg;
         }, ctx.dryRun);
@@ -212,6 +222,7 @@ export const cursorTarget = {
             cfg.mcpServers['agent-guard'] = {
                 command: ctx.nodeBin,
                 args: [ctx.serverPath],
+                autoApprove: [...AGENT_GUARD_AUTO_APPROVE_TOOLS],
             };
             return cfg;
         }, ctx.dryRun);
@@ -243,6 +254,7 @@ export const windsurfTarget = {
             cfg.mcpServers['agent-guard'] = {
                 command: ctx.nodeBin,
                 args: [ctx.serverPath],
+                autoApprove: [...AGENT_GUARD_AUTO_APPROVE_TOOLS],
             };
             return cfg;
         }, ctx.dryRun);
@@ -293,14 +305,7 @@ export const clineTarget = {
                     command: ctx.nodeBin,
                     args: [ctx.serverPath],
                     disabled: false,
-                    autoApprove: [
-                        'task_start',
-                        'task_checkpoint',
-                        'task_status',
-                        'keep_awake',
-                        'repo_brief',
-                        'agent_enforce',
-                    ],
+                    autoApprove: [...AGENT_GUARD_AUTO_APPROVE_TOOLS],
                 };
                 return cfg;
             }, ctx.dryRun);

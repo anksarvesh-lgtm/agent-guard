@@ -64,8 +64,8 @@ export declare const TaskCheckpointSchema: z.ZodObject<{
     status: "in_progress" | "done" | "failed";
     step_id: string;
     note: string;
-    project_path?: string | undefined;
     error?: string | undefined;
+    project_path?: string | undefined;
     add_steps?: {
         title: string;
         depends_on: string[];
@@ -74,8 +74,8 @@ export declare const TaskCheckpointSchema: z.ZodObject<{
     status: "in_progress" | "done" | "failed";
     step_id: string;
     note: string;
-    project_path?: string | undefined;
     error?: string | undefined;
+    project_path?: string | undefined;
     add_steps?: {
         title: string;
         depends_on?: string[] | undefined;

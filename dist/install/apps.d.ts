@@ -20,6 +20,7 @@ export interface AppTarget {
     getConfigPath: () => string;
     install: (ctx: InstallContext) => AppInstallResult;
 }
+export declare const AGENT_GUARD_AUTO_APPROVE_TOOLS: string[];
 export declare function getHomeDir(): string;
 export declare function deploySkillsToDirectory(skillsSourceDir: string, targetSkillsDir: string, dryRun?: boolean): number;
 export declare const antigravityTarget: AppTarget;
