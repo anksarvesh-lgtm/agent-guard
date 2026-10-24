@@ -6,8 +6,10 @@
   "version": "0.1.0",
   "suggestedPrompts": [
     "Start autonomous pair programming with @agent-guard",
-    "Audit project security with @agent-guard using security-audit",
-    "Inspect active task ledger with @agent-guard",
+    "Audit project security and OWASP hardening with @agent-guard using security-audit",
+    "Enforce clean architecture boundaries with @agent-guard using clean-architecture",
+    "Deconstruct & optimize multi-agent workflows with @agent-guard using ai-agents-architect",
+    "Inspect task ledger status with @agent-guard",
     "Hold keep-awake lease with @agent-guard"
   ]
 }
