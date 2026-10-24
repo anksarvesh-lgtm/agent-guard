@@ -223,7 +223,7 @@ export function sendLanguageServerRpcSync(
   }
 }
 
-function processQuotaData(quotaRes: any, userRes: any): LiveQuotaSummary {
+export function processQuotaData(quotaRes: any, userRes: any): LiveQuotaSummary {
   const groups: LiveQuotaGroup[] = [];
   let lowestFraction = 1.0;
   let gemini5h: number | undefined;

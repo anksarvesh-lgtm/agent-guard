@@ -46,6 +46,7 @@ export declare function sendLanguageServerRpc(target: LanguageServerTarget, meth
  * Sends a synchronous POST request to the local Antigravity Language Server via curl.
  */
 export declare function sendLanguageServerRpcSync(target: LanguageServerTarget, methodName: string, payload?: Record<string, any>, timeoutSec?: number): any;
+export declare function processQuotaData(quotaRes: any, userRes: any): LiveQuotaSummary;
 /**
  * Synchronous version of getLiveQuotaSummary using curl and internal caching.
  */

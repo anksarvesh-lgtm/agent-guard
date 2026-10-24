@@ -161,7 +161,7 @@ export function sendLanguageServerRpcSync(target, methodName, payload = {}, time
         return null;
     }
 }
-function processQuotaData(quotaRes, userRes) {
+export function processQuotaData(quotaRes, userRes) {
     const groups = [];
     let lowestFraction = 1.0;
     let gemini5h;
