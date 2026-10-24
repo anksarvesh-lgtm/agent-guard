@@ -36,6 +36,7 @@ export const AGENT_GUARD_AUTO_APPROVE_TOOLS = [
   'repo_brief',
   'agent_enforce',
   'project_map',
+  'token_counter',
 ];
 
 export function getHomeDir(): string {

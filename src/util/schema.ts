@@ -61,6 +61,15 @@ export const RepoBriefSchema = z.object({
   project_path: z.string().optional(),
 });
 
+export const TokenCounterSchema = z.object({
+  model: z.string().optional().default('gemini-1.5-pro'),
+  text: z.string().optional(),
+  file_path: z.string().optional(),
+  transcript_path: z.string().optional(),
+  compare_all: z.boolean().optional().default(true),
+  project_path: z.string().optional(),
+});
+
 /**
  * Formats Zod errors into a clean, human-readable BAD_INPUT error string
  */

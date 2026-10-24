@@ -11,7 +11,8 @@
         "keep_awake",
         "repo_brief",
         "agent_enforce",
-        "project_map"
+        "project_map",
+        "token_counter"
       ]
     }
   }
