@@ -14,7 +14,7 @@ import { handleModelCompressor } from './tools/modelCompressor.js';
 import { maybeBackgroundUpdate } from './update.js';
 const server = new Server({
     name: 'agent-guard',
-    version: '0.2.9',
+    version: '0.2.10',
 }, {
     capabilities: {
         tools: {},

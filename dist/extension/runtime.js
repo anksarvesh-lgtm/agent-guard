@@ -20,7 +20,7 @@ const vscode = require('vscode');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execSync, spawn } = require('child_process');
+const { execSync, spawn, exec } = require('child_process');
 
 const EXTENSION_VERSION = '${extensionVersion}';
 
@@ -33,6 +33,9 @@ let sessionTokens = { input: 0, output: 0, total: 0 };
 let leaseTimeout = null;
 let cachedLiveQuota = null;
 let lastQuotaCheck = 0;
+let cachedUpdateInfo = { hasUpdate: false, isGit: true, checked: false, message: 'Up to date' };
+let lastUpdateCheckTime = 0;
+let isUpdateCheckInProgress = false;
 
 const SUPPORTED_MODELS = [
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', contextWindow: 1048576, charsPerToken: 4.0 },
@@ -110,37 +113,57 @@ function getAgentGuardRepoDir() {
 }
 
 function checkAgentGuardUpdate() {
+  return cachedUpdateInfo;
+}
+
+function refreshAgentGuardUpdateAsync(callback) {
+  const now = Date.now();
+  if (isUpdateCheckInProgress || (now - lastUpdateCheckTime < 600000 && cachedUpdateInfo.checked)) {
+    if (callback) callback(cachedUpdateInfo);
+    return;
+  }
   const repoDir = getAgentGuardRepoDir();
   if (!repoDir || !fs.existsSync(path.join(repoDir, '.git'))) {
-    return { hasUpdate: false, isGit: false, message: 'Agent Guard is installed as a standalone plugin.' };
+    cachedUpdateInfo = { hasUpdate: false, isGit: false, checked: true, message: 'Agent Guard is installed as a standalone plugin.' };
+    if (callback) callback(cachedUpdateInfo);
+    return;
   }
+  isUpdateCheckInProgress = true;
+  lastUpdateCheckTime = now;
+
   const gitEnv = Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '' });
-  try {
-    const currentSha = execSync('git rev-parse HEAD', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 3000 }).trim();
+  exec('git fetch origin main --quiet', { cwd: repoDir, env: gitEnv, timeout: 8000 }, (err) => {
+    isUpdateCheckInProgress = false;
     try {
-      execSync('git fetch origin main --quiet', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 6000 });
+      const currentSha = execSync('git rev-parse HEAD', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 }).trim();
+      if (err) {
+        cachedUpdateInfo = { hasUpdate: false, isGit: true, checked: true, currentSha: currentSha.slice(0, 7), error: 'Could not reach remote (offline or network error)' };
+      } else {
+        const remoteSha = execSync('git rev-parse origin/main', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 }).trim();
+        if (currentSha === remoteSha) {
+          cachedUpdateInfo = { hasUpdate: false, isGit: true, checked: true, currentSha: currentSha.slice(0, 7), remoteSha: remoteSha.slice(0, 7), message: 'Agent Guard is up to date (commit ' + currentSha.slice(0, 7) + ').' };
+        } else {
+          let behindCount = 1;
+          try {
+            behindCount = parseInt(execSync('git rev-list --count HEAD..origin/main', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), 10) || 1;
+          } catch (e) {}
+          cachedUpdateInfo = {
+            hasUpdate: true,
+            isGit: true,
+            checked: true,
+            behindCount: behindCount,
+            currentSha: currentSha.slice(0, 7),
+            remoteSha: remoteSha.slice(0, 7),
+            message: 'Update available: ' + behindCount + ' new commit(s) on origin/main.'
+          };
+        }
+      }
     } catch (e) {
-      return { hasUpdate: false, isGit: true, currentSha: currentSha.slice(0, 7), error: 'Could not reach remote (offline or network error)' };
+      cachedUpdateInfo = { hasUpdate: false, isGit: true, checked: true, error: e.message };
     }
-    const remoteSha = execSync('git rev-parse origin/main', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 3000 }).trim();
-    if (currentSha === remoteSha) {
-      return { hasUpdate: false, isGit: true, currentSha: currentSha.slice(0, 7), remoteSha: remoteSha.slice(0, 7), message: 'Agent Guard is up to date (commit ' + currentSha.slice(0, 7) + ').' };
-    }
-    let behindCount = 1;
-    try {
-      behindCount = parseInt(execSync('git rev-list --count HEAD..origin/main', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv }).trim(), 10) || 1;
-    } catch (e) {}
-    return {
-      hasUpdate: true,
-      isGit: true,
-      behindCount: behindCount,
-      currentSha: currentSha.slice(0, 7),
-      remoteSha: remoteSha.slice(0, 7),
-      message: 'Update available: ' + behindCount + ' new commit(s) on origin/main.'
-    };
-  } catch (err) {
-    return { hasUpdate: false, isGit: true, error: err.message };
-  }
+    refreshAllWebviews();
+    if (callback) callback(cachedUpdateInfo);
+  });
 }
 
 function performAgentGuardUpdate() {
@@ -198,23 +221,24 @@ function promptCheckForUpdates() {
       cancellable: false,
     },
     async (progress) => {
-      const res = checkAgentGuardUpdate();
-      if (res.hasUpdate) {
-        vscode.window.showInformationMessage(
-          '🚀 ' + res.message + ' (Current: ' + res.currentSha + ' → Remote: ' + res.remoteSha + ')',
-          'Update Now',
-          'Later'
-        ).then(sel => {
-          if (sel === 'Update Now') {
-            performAgentGuardUpdate();
-          }
-        });
-      } else if (res.error) {
-        vscode.window.showWarningMessage('Update check notice: ' + res.error);
-      } else {
-        vscode.window.showInformationMessage('✅ ' + (res.message || 'Agent Guard is up to date.'));
-      }
-      refreshAllWebviews();
+      refreshAgentGuardUpdateAsync((res) => {
+        if (res.hasUpdate) {
+          vscode.window.showInformationMessage(
+            '🚀 ' + res.message + ' (Current: ' + res.currentSha + ' → Remote: ' + res.remoteSha + ')',
+            'Update Now',
+            'Later'
+          ).then(sel => {
+            if (sel === 'Update Now') {
+              performAgentGuardUpdate();
+            }
+          });
+        } else if (res.error) {
+          vscode.window.showWarningMessage('Update check notice: ' + res.error);
+        } else {
+          vscode.window.showInformationMessage('✅ ' + (res.message || 'Agent Guard is up to date.'));
+        }
+        refreshAllWebviews();
+      });
     }
   );
 }
@@ -257,17 +281,18 @@ function autoCheckAndInstallOnStartup() {
   }
   setTimeout(() => {
     try {
-      const res = checkAgentGuardUpdate();
-      if (res && res.hasUpdate) {
-        vscode.window.showInformationMessage(
-          '🚀 Agent Guard: New update detected on startup (' + (res.behindCount || 1) + ' new commit(s) on origin/main). Installing update now...'
-        );
-        performAgentGuardUpdate();
-      }
+      refreshAgentGuardUpdateAsync((res) => {
+        if (res && res.hasUpdate) {
+          vscode.window.showInformationMessage(
+            '🚀 Agent Guard: New update detected on startup (' + (res.behindCount || 1) + ' new commit(s) on origin/main). Installing update now...'
+          );
+          performAgentGuardUpdate();
+        }
+      });
     } catch (e) {
       // Silent error on startup check
     }
-  }, 2500);
+  }, 4000);
 }
 
 function getStateDbPath() {
@@ -300,8 +325,8 @@ function readStateDbCredentials() {
   const dbPath = getStateDbPath();
   if (!dbPath || !fs.existsSync(dbPath)) return {};
   try {
-    const py = 'import sqlite3, json, sys; conn = sqlite3.connect(sys.argv[1]); cur = conn.cursor(); cur.execute("SELECT key, value FROM ItemTable WHERE key IN (\x27antigravityUnifiedStateSync.oauthToken\x27, \x27antigravityUnifiedStateSync.userStatus\x27, \x27antigravity.profileUrl\x27)"); rows = dict(cur.fetchall()); conn.close(); print(json.dumps({\x27oauthToken\x27: rows.get(\x27antigravityUnifiedStateSync.oauthToken\x27), \x27userStatus\x27: rows.get(\x27antigravityUnifiedStateSync.userStatus\x27), \x27profileUrl\x27: rows.get(\x27antigravity.profileUrl\x27)}))';
-    const out = execSync(\`python3 -c "\${py}" "\${dbPath}"\`, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const py = 'import sqlite3, json, sys; conn = sqlite3.connect(sys.argv[1]); cur = conn.cursor(); cur.execute("SELECT key, value FROM ItemTable WHERE key IN (?, ?, ?)", ("antigravityUnifiedStateSync.oauthToken", "antigravityUnifiedStateSync.userStatus", "antigravity.profileUrl")); rows = dict(cur.fetchall()); conn.close(); print(json.dumps({"oauthToken": rows.get("antigravityUnifiedStateSync.oauthToken"), "userStatus": rows.get("antigravityUnifiedStateSync.userStatus"), "profileUrl": rows.get("antigravity.profileUrl")}))';
+    const out = execSync('python3 -c ' + JSON.stringify(py) + ' ' + JSON.stringify(dbPath), { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 3000 });
     return JSON.parse(out.trim());
   } catch (e) {
     return {};
@@ -312,9 +337,9 @@ function writeStateDbCredentials(creds) {
   const dbPath = getStateDbPath();
   if (!dbPath || !fs.existsSync(dbPath)) return false;
   try {
-    const py = 'import sqlite3, json, sys; conn = sqlite3.connect(sys.argv[1]); cur = conn.cursor(); creds = json.loads(sys.argv[2]);\\nif creds.get(\x27oauthToken\x27): cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (\x27antigravityUnifiedStateSync.oauthToken\x27, ?)", (creds[\x27oauthToken\x27],));\\nif creds.get(\x27userStatus\x27): cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (\x27antigravityUnifiedStateSync.userStatus\x27, ?)", (creds[\x27userStatus\x27],));\\nif creds.get(\x27profileUrl\x27): cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (\x27antigravity.profileUrl\x27, ?)", (creds[\x27profileUrl\x27],));\\nconn.commit(); conn.close(); print("OK")';
+    const py = 'import sqlite3, json, sys; conn = sqlite3.connect(sys.argv[1]); cur = conn.cursor(); creds = json.loads(sys.argv[2]);\\nif creds.get("oauthToken"): cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (\\"antigravityUnifiedStateSync.oauthToken\\", ?)", (creds["oauthToken"],));\\nif creds.get("userStatus"): cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (\\"antigravityUnifiedStateSync.userStatus\\", ?)", (creds["userStatus"],));\\nif creds.get("profileUrl"): cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (\\"antigravity.profileUrl\\", ?)", (creds["profileUrl"],));\\nconn.commit(); conn.close(); print("OK")';
     const payload = JSON.stringify(creds);
-    const out = execSync(\`python3 -c "\${py}" "\${dbPath}" '\${payload}'\`, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const out = execSync('python3 -c ' + JSON.stringify(py) + ' ' + JSON.stringify(dbPath) + ' ' + JSON.stringify(payload), { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 3000 });
     return out.trim() === 'OK';
   } catch (e) {
     return false;
@@ -1192,16 +1217,18 @@ function runDoctorDiagnostics() {
 }
 
 function getWebviewContent() {
-  const data = readAccountsData() || { accounts: [], autoRotateEnabled: true, thresholdPercent: 1.0 };
-  const live = queryLiveQuota();
-  const activeAcc = data.accounts.find(a => a.isActive) || data.accounts[0] || { name: 'Primary', remainingPercent: 100, id: 'primary', status: 'active' };
-  const awake = isSleepPreventionActive();
-  const autoAccept = getAutoAcceptStatus();
-  const task = getActiveTaskInfo();
-  const updateInfo = checkAgentGuardUpdate();
-  const autoUpdateStartup = getAutoUpdateOnStartupConfig();
+  try {
+    const data = readAccountsData() || { accounts: [], autoRotateEnabled: true, thresholdPercent: 1.0 };
+    const live = queryLiveQuota();
+    const accounts = Array.isArray(data.accounts) ? data.accounts : [];
+    const activeAcc = accounts.find(a => a.isActive) || accounts[0] || { name: 'Primary', remainingPercent: 100, id: 'primary', status: 'active' };
+    const awake = isSleepPreventionActive();
+    const autoAccept = getAutoAcceptStatus();
+    const task = getActiveTaskInfo();
+    const updateInfo = checkAgentGuardUpdate();
+    const autoUpdateStartup = getAutoUpdateOnStartupConfig();
 
-  const lowestQuota = live ? live.lowestRemainingPercent : (activeAcc.remainingPercent || 100);
+    const lowestQuota = live ? live.lowestRemainingPercent : (activeAcc.remainingPercent || 100);
 
   return \`<!DOCTYPE html>
 <html lang="en">
@@ -1653,6 +1680,13 @@ function getWebviewContent() {
   </script>
 </body>
 </html>\`;
+  } catch (err) {
+    return \`<!DOCTYPE html><html><body style="font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:16px;background:#1a1e29;color:#fff;">
+      <h2>🛡️ Agent Guard</h2>
+      <p style="color:#ff9500;">UI Initialized. Click Refresh below.</p>
+      <button onclick="acquireVsCodeApi().postMessage({command:'refresh'})" style="padding:6px 12px;background:#007aff;color:#fff;border:none;border-radius:4px;cursor:pointer;">↻ Refresh</button>
+    </body></html>\`;
+  }
 }
 
 function openDashboard() {
@@ -1829,12 +1863,18 @@ description: \${skill ? skill.desc : 'Curated Agent Guard skill'}
 
 class AgentGuardViewProvider {
   resolveWebviewView(webviewView) {
-    webviewView.webview.options = { enableScripts: true };
-    webviewView.webview.html = getWebviewContent();
-    webviewView.webview.onDidReceiveMessage(message => {
-      handleWebviewMessage(message);
+    try {
+      webviewView.webview.options = { enableScripts: true };
       webviewView.webview.html = getWebviewContent();
-    });
+      webviewView.webview.onDidReceiveMessage(message => {
+        try {
+          handleWebviewMessage(message);
+          webviewView.webview.html = getWebviewContent();
+        } catch (e) {}
+      });
+    } catch (err) {
+      webviewView.webview.html = '<html><body style="background:#1a1e29;color:#fff;padding:16px;"><h3>🛡️ Agent Guard</h3><p>Dashboard active.</p></body></html>';
+    }
   }
 }
 

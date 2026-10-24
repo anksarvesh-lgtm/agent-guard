@@ -131,6 +131,41 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
       expect(typeof v).toBe('string');
       expect(v).toMatch(/^\d+\.\d+\.\d+$/);
     });
+
+    it('ensures generated runtime script has zero JavaScript syntax errors and activates cleanly', () => {
+      const script = generateExtensionRuntimeScript();
+      const mockVscode = {
+        window: {
+          createStatusBarItem: () => ({ show: () => {}, text: '', tooltip: '' }),
+          showInformationMessage: () => Promise.resolve(),
+          showErrorMessage: () => Promise.resolve(),
+          registerWebviewViewProvider: () => ({ dispose: () => {} }),
+          createWebviewPanel: () => ({
+            reveal: () => {},
+            webview: { html: '', onDidReceiveMessage: () => {} },
+            onDidDispose: () => {}
+          })
+        },
+        StatusBarAlignment: { Right: 1 },
+        commands: { registerCommand: () => ({ dispose: () => {} }) },
+        workspace: { workspaceFolders: [] },
+        MarkdownString: function (val: string) { (this as any).value = val; }
+      };
+
+      const customRequire = (id: string) => {
+        if (id === 'vscode') return mockVscode;
+        return require(id);
+      };
+
+      const fn = new Function('require', 'module', 'exports', script);
+      const mod = { exports: {} as any };
+      expect(() => fn(customRequire, mod, mod.exports)).not.toThrow();
+
+      const context = { subscriptions: [] as any[] };
+      expect(() => mod.exports.activate(context)).not.toThrow();
+      expect(context.subscriptions.length).toBeGreaterThan(0);
+      expect(() => mod.exports.deactivate()).not.toThrow();
+    });
   });
 
   describe('Target Detection', () => {
