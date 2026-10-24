@@ -65,6 +65,7 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
       expect(commands).toContain('agentGuard.runDoctor');
       expect(commands).toContain('agentGuard.checkForUpdates');
       expect(commands).toContain('agentGuard.performUpdate');
+      expect(commands).toContain('agentGuard.toggleStartupUpdate');
       expect(commands).toContain('agentGuard.snapshotAccount');
       expect(commands).toContain('agentGuard.refresh');
 
@@ -103,8 +104,12 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
       expect(script).toContain('checkAgentGuardUpdate()');
       expect(script).toContain('performAgentGuardUpdate()');
       expect(script).toContain('promptCheckForUpdates()');
+      expect(script).toContain('autoCheckAndInstallOnStartup()');
+      expect(script).toContain('getAutoUpdateOnStartupConfig()');
+      expect(script).toContain('setAutoUpdateOnStartupConfig(');
       expect(script).toContain("post('checkUpdate')");
       expect(script).toContain("post('performUpdate')");
+      expect(script).toContain("post('toggleStartupUpdate')");
 
       // Multi-tab Webview structure
       expect(script).toContain('tab-overview');

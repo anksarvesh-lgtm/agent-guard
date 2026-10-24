@@ -199,4 +199,24 @@ export function maybeBackgroundUpdate(repoDir = DEFAULT_REPO_ROOT, logFn) {
         }
     }, 100).unref?.();
 }
+/**
+ * Check and auto-install updates on startup if enabled and available.
+ */
+export function autoUpdateOnStartup(repoDir = DEFAULT_REPO_ROOT, logFn) {
+    try {
+        const check = checkForUpdates(repoDir);
+        if (check.isGit && check.hasUpdate) {
+            if (logFn) {
+                logFn(`[Agent Guard Startup] Auto-installing update: ${check.behindCount || 1} new commit(s) detected.`);
+            }
+            return performUpdate(repoDir);
+        }
+    }
+    catch (err) {
+        if (logFn) {
+            logFn(`[Agent Guard Startup] Auto-update check error: ${err.message}`);
+        }
+    }
+    return null;
+}
 //# sourceMappingURL=update.js.map

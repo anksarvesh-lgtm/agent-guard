@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { checkForUpdates, performUpdate, maybeBackgroundUpdate } from '../src/update.js';
+import { checkForUpdates, performUpdate, maybeBackgroundUpdate, autoUpdateOnStartup } from '../src/update.js';
 
 describe('Auto-Update Engine', () => {
   let tempDir: string;
@@ -56,5 +56,11 @@ describe('Auto-Update Engine', () => {
     maybeBackgroundUpdate(tempDir);
     const state2 = JSON.parse(fs.readFileSync(markerFile, 'utf-8'));
     expect(state2.last_check).toBe(state1.last_check);
+  });
+
+  it('handles autoUpdateOnStartup safely on non-git directory', () => {
+    let logMsg = '';
+    const res = autoUpdateOnStartup(tempDir, (msg) => { logMsg = msg; });
+    expect(res).toBeNull();
   });
 });

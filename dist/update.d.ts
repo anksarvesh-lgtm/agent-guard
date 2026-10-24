@@ -25,4 +25,8 @@ export declare function performUpdate(repoDir?: string): PerformUpdateResult;
  * Non-blocking background update check (cached for 1 hour to avoid network overhead).
  */
 export declare function maybeBackgroundUpdate(repoDir?: string, logFn?: (msg: string) => void): void;
+/**
+ * Check and auto-install updates on startup if enabled and available.
+ */
+export declare function autoUpdateOnStartup(repoDir?: string, logFn?: (msg: string) => void): PerformUpdateResult | null;
 //# sourceMappingURL=update.d.ts.map

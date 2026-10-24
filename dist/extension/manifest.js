@@ -170,6 +170,12 @@ export function generateExtensionManifest(version = '1.0.0') {
                     icon: '$(cloud-download)',
                 },
                 {
+                    command: 'agentGuard.toggleStartupUpdate',
+                    title: 'Toggle Auto Check Update and Install on Startup',
+                    category: 'Agent Guard',
+                    icon: '$(sync)',
+                },
+                {
                     command: 'agentGuard.snapshotAccount',
                     title: 'Snapshot Active Session Credentials into Pool',
                     category: 'Agent Guard',

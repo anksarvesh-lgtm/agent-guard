@@ -219,6 +219,57 @@ function promptCheckForUpdates() {
   );
 }
 
+function getAutoUpdateOnStartupConfig() {
+  const home = getHomeDir();
+  const cfgPath = path.join(home, '.gemini', 'config', 'agent_guard_settings.json');
+  try {
+    if (fs.existsSync(cfgPath)) {
+      const data = JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
+      if (typeof data.autoUpdateOnStartup === 'boolean') {
+        return data.autoUpdateOnStartup;
+      }
+    }
+  } catch (e) {}
+  return true;
+}
+
+function setAutoUpdateOnStartupConfig(enabled) {
+  const home = getHomeDir();
+  const cfgDir = path.join(home, '.gemini', 'config');
+  const cfgPath = path.join(cfgDir, 'agent_guard_settings.json');
+  try {
+    if (!fs.existsSync(cfgDir)) fs.mkdirSync(cfgDir, { recursive: true });
+    let data = {};
+    if (fs.existsSync(cfgPath)) {
+      try { data = JSON.parse(fs.readFileSync(cfgPath, 'utf-8')); } catch (e) {}
+    }
+    data.autoUpdateOnStartup = !!enabled;
+    fs.writeFileSync(cfgPath, JSON.stringify(data, null, 2), 'utf-8');
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+function autoCheckAndInstallOnStartup() {
+  if (!getAutoUpdateOnStartupConfig()) {
+    return;
+  }
+  setTimeout(() => {
+    try {
+      const res = checkAgentGuardUpdate();
+      if (res && res.hasUpdate) {
+        vscode.window.showInformationMessage(
+          '🚀 Agent Guard: New update detected on startup (' + (res.behindCount || 1) + ' new commit(s) on origin/main). Installing update now...'
+        );
+        performAgentGuardUpdate();
+      }
+    } catch (e) {
+      // Silent error on startup check
+    }
+  }, 2500);
+}
+
 function getStateDbPath() {
   const home = getHomeDir();
   const candidates = [];
@@ -905,6 +956,7 @@ function showQuickMenu() {
     { label: '$(beaker) Simulate 1% Quota Tripwire', description: 'Test seamless automatic account rotation', action: 'test_tripwire' },
     { label: '$(book) Browse Awesome Skills Catalog', description: 'Curated skills supervised by @agent-guard', action: 'browse_skills' },
     { label: '$(cloud-download) Check for Updates', description: 'Check GitHub for new Agent Guard updates & 1-click update', action: 'check_update' },
+    { label: '$(sync) Toggle Startup Auto-Update', description: getAutoUpdateOnStartupConfig() ? 'Startup auto-update: ENABLED' : 'Startup auto-update: DISABLED', action: 'toggle_startup_update' },
     { label: '$(heart) Run Readiness Doctor', description: 'Comprehensive diagnostics check', action: 'doctor' },
     { label: '$(refresh) Refresh Status', description: 'Poll system & credentials now', action: 'refresh' }
   ];
@@ -922,6 +974,12 @@ function showQuickMenu() {
     else if (sel.action === 'test_tripwire') triggerTestTripwire();
     else if (sel.action === 'browse_skills') promptBrowseSkills();
     else if (sel.action === 'check_update') promptCheckForUpdates();
+    else if (sel.action === 'toggle_startup_update') {
+      const cur = getAutoUpdateOnStartupConfig();
+      setAutoUpdateOnStartupConfig(!cur);
+      refreshAllWebviews();
+      vscode.window.showInformationMessage('Startup Auto-Update is now ' + (!cur ? 'ENABLED' : 'DISABLED'));
+    }
     else if (sel.action === 'doctor') runDoctorDiagnostics();
     else if (sel.action === 'refresh') {
       updateStatusBar();
@@ -1141,6 +1199,7 @@ function getWebviewContent() {
   const autoAccept = getAutoAcceptStatus();
   const task = getActiveTaskInfo();
   const updateInfo = checkAgentGuardUpdate();
+  const autoUpdateStartup = getAutoUpdateOnStartupConfig();
 
   const lowestQuota = live ? live.lowestRemainingPercent : (activeAcc.remainingPercent || 100);
 
@@ -1360,6 +1419,13 @@ function getWebviewContent() {
         <div style="font-size: 11px; opacity: 0.8;">\${live && live.userEmail ? live.userEmail : activeAcc.id} | Plan: \${live ? live.planName : 'Pro'}</div>
         <button class="btn" onclick="post('switchAccount')">Switch Account</button>
         <button class="btn btn-secondary" onclick="post('snapshotAccount')">Snapshot Active</button>
+      </div>
+
+      <div class="card">
+        <h3>🔄 Startup Auto-Update</h3>
+        <div class="val">\${autoUpdateStartup ? '🟢 AUTO ON' : '⚪ MANUAL'}</div>
+        <div style="font-size: 11px; opacity: 0.8;">Auto check & install every startup</div>
+        <button class="btn" onclick="post('toggleStartupUpdate')">\${autoUpdateStartup ? 'Disable Auto-Install' : 'Enable Auto-Install'}</button>
       </div>
     </div>
 
@@ -1710,6 +1776,11 @@ function handleWebviewMessage(message) {
     promptCheckForUpdates();
   } else if (command === 'performUpdate') {
     performAgentGuardUpdate();
+  } else if (command === 'toggleStartupUpdate') {
+    const cur = getAutoUpdateOnStartupConfig();
+    setAutoUpdateOnStartupConfig(!cur);
+    refreshAllWebviews();
+    vscode.window.showInformationMessage('Startup Auto-Update is now ' + (!cur ? 'ENABLED' : 'DISABLED'));
   }
 }
 
@@ -1827,6 +1898,12 @@ function activate(context) {
       updateStatusBar();
       refreshAllWebviews();
       vscode.window.showInformationMessage('Agent Guard status refreshed.');
+    }),
+    vscode.commands.registerCommand('agentGuard.toggleStartupUpdate', () => {
+      const cur = getAutoUpdateOnStartupConfig();
+      setAutoUpdateOnStartupConfig(!cur);
+      refreshAllWebviews();
+      vscode.window.showInformationMessage('Startup Auto-Update is now ' + (!cur ? 'ENABLED' : 'DISABLED'));
     })
   );
 
@@ -1841,6 +1918,9 @@ function activate(context) {
   updateStatusBar();
   pollTimer = setInterval(updateStatusBar, 2000);
   context.subscriptions.push({ dispose: () => clearInterval(pollTimer) });
+
+  // 5. Auto check and install update on every startup
+  autoCheckAndInstallOnStartup();
 }
 
 function deactivate() {
