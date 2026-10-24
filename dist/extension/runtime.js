@@ -501,7 +501,12 @@ function addAccountToPool(id, name, tokenContent, apiKey) {
     let tokenFilePath = undefined;
     if (tokenContent) {
       tokenFilePath = path.join(tokensDir, id + '.token');
-      fs.writeFileSync(tokenFilePath, tokenContent.trim(), 'utf-8');
+      const trimmed = tokenContent.trim();
+      if (fs.existsSync(trimmed)) {
+        fs.copyFileSync(trimmed, tokenFilePath);
+      } else {
+        fs.writeFileSync(tokenFilePath, trimmed, 'utf-8');
+      }
       if (process.platform !== 'win32') {
         try { fs.chmodSync(tokenFilePath, 0o600); } catch (e) {}
       }
@@ -865,18 +870,47 @@ function promptSnapshotAccount() {
 }
 
 function promptAddAccount() {
-  vscode.window.showInputBox({ prompt: 'Enter Account Identifier (e.g. backup-work, secondary-google):' }).then(id => {
-    if (!id) return;
-    vscode.window.showInputBox({ prompt: 'Enter Display Name for Account:', value: id }).then(name => {
-      vscode.window.showInputBox({ prompt: 'Paste OAuth Token JSON or File Path to Token (or leave empty for API key):' }).then(tokenContent => {
-        const res = addAccountToPool(id, name, tokenContent, undefined);
-        if (res.success) {
-          vscode.window.showInformationMessage(\`✅ Agent Guard: \${res.message}\`);
-        } else {
-          vscode.window.showErrorMessage('Failed to add: ' + res.message);
-        }
+  const options = [
+    { label: '$(camera) Snapshot Active Session', description: 'Capture current Antigravity IDE login into the pool', action: 'snapshot' },
+    { label: '$(key) Import Token File or Paste JSON', description: 'Add OAuth token file or JSON content', action: 'token' },
+    { label: '$(globe) Add API Key', description: 'Add Gemini, Claude, or OpenAI API key', action: 'apikey' },
+  ];
+
+  vscode.window.showQuickPick(options, { placeHolder: 'Choose how to add an account to Agent Guard pool' }).then(sel => {
+    if (!sel) return;
+    if (sel.action === 'snapshot') {
+      promptSnapshotAccount();
+    } else if (sel.action === 'token') {
+      vscode.window.showInputBox({ prompt: 'Enter Account Identifier (e.g. backup-work, secondary-google):' }).then(id => {
+        if (!id) return;
+        vscode.window.showInputBox({ prompt: 'Enter Display Name for Account:', value: id }).then(name => {
+          vscode.window.showInputBox({ prompt: 'Paste OAuth Token JSON or File Path to Token:' }).then(tokenContent => {
+            if (!tokenContent) return;
+            const res = addAccountToPool(id, name, tokenContent, undefined);
+            if (res.success) {
+              vscode.window.showInformationMessage(\`✅ Agent Guard: \${res.message}\`);
+            } else {
+              vscode.window.showErrorMessage('Failed to add: ' + res.message);
+            }
+          });
+        });
       });
-    });
+    } else if (sel.action === 'apikey') {
+      vscode.window.showInputBox({ prompt: 'Enter Account Identifier (e.g. gemini-key, claude-api):' }).then(id => {
+        if (!id) return;
+        vscode.window.showInputBox({ prompt: 'Enter Display Name for Account:', value: id }).then(name => {
+          vscode.window.showInputBox({ prompt: 'Enter API Key (password masked):', password: true }).then(apiKey => {
+            if (!apiKey) return;
+            const res = addAccountToPool(id, name, undefined, apiKey);
+            if (res.success) {
+              vscode.window.showInformationMessage(\`✅ Agent Guard: \${res.message}\`);
+            } else {
+              vscode.window.showErrorMessage('Failed to add: ' + res.message);
+            }
+          });
+        });
+      });
+    }
   });
 }
 
@@ -1226,9 +1260,55 @@ function getWebviewContent() {
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
       <h3>Registered Account Pool (\${data.accounts.length})</h3>
       <div>
-        <button class="btn" onclick="post('snapshotAccount')">📸 Snapshot Current Account</button>
-        <button class="btn btn-secondary" onclick="post('addAccount')">+ Add Manually</button>
+        <button class="btn" onclick="post('snapshotAccount')">📸 Snapshot Active Session</button>
+        <button class="btn btn-secondary" onclick="toggleAddAccountPanel()">➕ Add Account</button>
         <button class="btn btn-secondary" onclick="post('testTripwire')">Simulate 1% Rotation</button>
+      </div>
+    </div>
+
+    <!-- INLINE ADD ACCOUNT ACCORDION / CARD -->
+    <div id="addAccountPanel" style="display: none; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 6px; padding: 14px; background: rgba(255,255,255,0.03);">
+      <h3 style="margin-top:0;">➕ Add Account to Switcher Pool</h3>
+      <p style="font-size:12px; opacity:0.85; margin-bottom:12px;">Add an Antigravity OAuth session, backup token file, or API key to the seamless auto-rotation pool.</p>
+      
+      <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+        <button id="tabAddSnapshot" class="btn" onclick="showAddTab('snapshot')">📸 Snapshot Current IDE Login</button>
+        <button id="tabAddToken" class="btn btn-secondary" onclick="showAddTab('token')">🔑 Paste Token / File</button>
+        <button id="tabAddApiKey" class="btn btn-secondary" onclick="showAddTab('apikey')">🌐 API Key</button>
+      </div>
+
+      <!-- Snapshot Subtab -->
+      <div id="subtab-snapshot">
+        <div style="font-size:12px; margin-bottom:8px;">Capture the currently authenticated IDE session credentials into the account pool:</div>
+        <div style="display:grid; grid-template-columns: 1fr 1fr auto; gap:8px; align-items:center;">
+          <input type="text" id="snapId" placeholder="Account ID (e.g. personal-acc)" value="\${live && live.userEmail ? live.userEmail.split('@')[0] : ''}">
+          <input type="text" id="snapName" placeholder="Display Name (e.g. Personal Account)" value="\${live && live.userName ? live.userName + ' (' + (live.userEmail || '') + ')' : ''}">
+          <button class="btn" onclick="post('snapshotAccountCustom', { id: document.getElementById('snapId').value, name: document.getElementById('snapName').value })">Save Snapshot</button>
+        </div>
+      </div>
+
+      <!-- Token Subtab -->
+      <div id="subtab-token" style="display:none;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+          <input type="text" id="tokId" placeholder="Account ID (e.g. work-token)">
+          <input type="text" id="tokName" placeholder="Display Name (e.g. Work Account)">
+        </div>
+        <div style="margin-bottom:8px;">
+          <textarea id="tokContent" placeholder="Paste OAuth Token JSON or File Path to Token (e.g. ~/.gemini/backup.token)..." style="width:100%; height:60px; font-family:monospace; font-size:11px;"></textarea>
+        </div>
+        <button class="btn" onclick="post('addAccountDirect', { id: document.getElementById('tokId').value, name: document.getElementById('tokName').value, token: document.getElementById('tokContent').value })">Add Token Account</button>
+      </div>
+
+      <!-- API Key Subtab -->
+      <div id="subtab-apikey" style="display:none;">
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; margin-bottom:8px;">
+          <input type="text" id="keyId" placeholder="Account ID (e.g. gemini-key)">
+          <input type="text" id="keyName" placeholder="Display Name (e.g. Gemini 2.5 Flash API Key)">
+        </div>
+        <div style="display:grid; grid-template-columns: 1fr auto; gap:8px; align-items:center;">
+          <input type="password" id="keyValue" placeholder="API Key (AIzaSy... or sk-...)">
+          <button class="btn" onclick="post('addApiKeyDirect', { id: document.getElementById('keyId').value, name: document.getElementById('keyName').value, apiKey: document.getElementById('keyValue').value })">Add API Key</button>
+        </div>
       </div>
     </div>
 
@@ -1335,6 +1415,24 @@ function getWebviewContent() {
       const activeContent = document.getElementById('tab-' + name);
       if (activeContent) activeContent.classList.add('active');
     }
+    function toggleAddAccountPanel() {
+      const p = document.getElementById('addAccountPanel');
+      if (p) p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+    function showAddTab(tab) {
+      const snap = document.getElementById('subtab-snapshot');
+      const tok = document.getElementById('subtab-token');
+      const key = document.getElementById('subtab-apikey');
+      if (snap) snap.style.display = tab === 'snapshot' ? 'block' : 'none';
+      if (tok) tok.style.display = tab === 'token' ? 'block' : 'none';
+      if (key) key.style.display = tab === 'apikey' ? 'block' : 'none';
+      const bSnap = document.getElementById('tabAddSnapshot');
+      const bTok = document.getElementById('tabAddToken');
+      const bKey = document.getElementById('tabAddApiKey');
+      if (bSnap) bSnap.className = tab === 'snapshot' ? 'btn' : 'btn btn-secondary';
+      if (bTok) bTok.className = tab === 'token' ? 'btn' : 'btn btn-secondary';
+      if (bKey) bKey.className = tab === 'apikey' ? 'btn' : 'btn btn-secondary';
+    }
   </script>
 </body>
 </html>\`;
@@ -1382,6 +1480,35 @@ function handleWebviewMessage(message) {
     showAccountPicker();
   } else if (command === 'snapshotAccount') {
     promptSnapshotAccount();
+  } else if (command === 'snapshotAccountCustom') {
+    const res = snapshotCurrentAccount(payload?.id, payload?.name);
+    if (res.success) {
+      vscode.window.showInformationMessage('✅ Agent Guard: ' + res.message);
+    } else {
+      vscode.window.showErrorMessage('Failed to snapshot: ' + res.message);
+    }
+  } else if (command === 'addAccountDirect') {
+    if (!payload?.id) {
+      vscode.window.showWarningMessage('Please enter an account ID.');
+    } else {
+      const res = addAccountToPool(payload.id, payload.name, payload.token, undefined);
+      if (res.success) {
+        vscode.window.showInformationMessage('✅ Agent Guard: ' + res.message);
+      } else {
+        vscode.window.showErrorMessage('Failed to add: ' + res.message);
+      }
+    }
+  } else if (command === 'addApiKeyDirect') {
+    if (!payload?.id || !payload?.apiKey) {
+      vscode.window.showWarningMessage('Please enter an account ID and API key.');
+    } else {
+      const res = addAccountToPool(payload.id, payload.name, undefined, payload.apiKey);
+      if (res.success) {
+        vscode.window.showInformationMessage('✅ Agent Guard: ' + res.message);
+      } else {
+        vscode.window.showErrorMessage('Failed to add: ' + res.message);
+      }
+    }
   } else if (command === 'selectAccount') {
     const res = switchAccount(payload, 'Switched via Webview Dashboard');
     if (res.success) {
