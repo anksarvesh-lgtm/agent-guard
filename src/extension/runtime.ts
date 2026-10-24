@@ -1137,6 +1137,7 @@ function getWebviewContent() {
   const awake = isSleepPreventionActive();
   const autoAccept = getAutoAcceptStatus();
   const task = getActiveTaskInfo();
+  const updateInfo = checkAgentGuardUpdate();
 
   const lowestQuota = live ? live.lowestRemainingPercent : (activeAcc.remainingPercent || 100);
 
@@ -1293,10 +1294,12 @@ function getWebviewContent() {
       <div>
         <h1>Agent Guard Supervisor</h1>
         <span class="badge badge-green">LIVE IN-APP EXTENSION</span>
-        <span class="badge badge-blue">\${live ? 'RPC LIVE (75ms)' : 'STANDBY'}</span>
+        <span class="badge badge-blue">v1.0.0</span>
+        \${updateInfo.hasUpdate ? \`<span class="badge badge-orange" style="cursor: pointer;" onclick="post('checkUpdate')">🚀 Update Available (\${updateInfo.behindCount} new commits)</span>\` : \`<span class="badge badge-blue">\${live ? 'RPC LIVE (75ms)' : 'UP TO DATE'}</span>\`}
       </div>
     </div>
     <div>
+      \${updateInfo.hasUpdate ? \`<button class="btn" style="background: var(--blue);" onclick="post('performUpdate')">🚀 Update Now</button>\` : \`<button class="btn btn-secondary" onclick="post('checkUpdate')">🔄 Check for Updates</button>\`}
       <button class="btn btn-secondary" onclick="post('refresh')">↻ Refresh</button>
       <button class="btn" onclick="post('runDoctor')">🩺 Run Doctor</button>
     </div>
@@ -1312,6 +1315,17 @@ function getWebviewContent() {
 
   <!-- TAB 1: OVERVIEW -->
   <div id="tab-overview" class="tab-content active">
+    \${updateInfo.hasUpdate ? \`
+      <div class="card" style="margin-bottom: 12px; border-left: 4px solid var(--blue); display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h3 style="color: var(--blue); margin-bottom: 4px;">🚀 New Agent Guard Release Available</h3>
+          <div style="font-size: 12px;">\${updateInfo.message} (Current commit: <code>\${updateInfo.currentSha}</code> &rarr; Remote: <code>\${updateInfo.remoteSha}</code>)</div>
+        </div>
+        <div>
+          <button class="btn" style="margin-top: 0;" onclick="post('performUpdate')">1-Click Update</button>
+        </div>
+      </div>
+    \` : ''}
     <div class="grid">
       <div class="card">
         <h3>☕ Sleep Prevention</h3>
@@ -1689,6 +1703,10 @@ function handleWebviewMessage(message) {
     installSkillDirectly(payload);
   } else if (command === 'runDoctor') {
     runDoctorDiagnostics();
+  } else if (command === 'checkUpdate') {
+    promptCheckForUpdates();
+  } else if (command === 'performUpdate') {
+    performAgentGuardUpdate();
   }
 }
 

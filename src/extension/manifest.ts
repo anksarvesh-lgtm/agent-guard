@@ -164,6 +164,18 @@ export function generateExtensionManifest(version: string = '1.0.0'): Record<str
           icon: '$(cloud-download)',
         },
         {
+          command: 'agentGuard.performUpdate',
+          title: 'Update Agent Guard to Latest Release',
+          category: 'Agent Guard',
+          icon: '$(cloud-download)',
+        },
+        {
+          command: 'agentGuard.snapshotAccount',
+          title: 'Snapshot Active Session Credentials into Pool',
+          category: 'Agent Guard',
+          icon: '$(camera)',
+        },
+        {
           command: 'agentGuard.refresh',
           title: 'Refresh Status',
           category: 'Agent Guard',
