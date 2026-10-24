@@ -18,6 +18,8 @@
     "awake": "node dist/cli.js awake",
     "tokens": "node dist/cli.js tokens",
     "accounts": "node dist/cli.js accounts",
+    "extension:install": "node dist/cli.js extension install",
+    "extension:status": "node dist/cli.js extension status",
     "update": "node dist/cli.js update",
     "map": "node dist/cli.js map",
     "skills": "node dist/cli.js skills",
@@ -43,6 +45,7 @@
   "files": [
     "dist",
     "templates",
+    "assets",
     "install.sh",
     "README.md",
     "LICENSE"

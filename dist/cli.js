@@ -13,6 +13,7 @@ import { globalAwakeManager } from './awake/manager.js';
 import { handleTokenCounter } from './tools/tokenCounter.js';
 import { handleAccountSwitcher } from './tools/accountSwitcher.js';
 import { globalAccountManager } from './accounts/index.js';
+import { installExtensionToAllDetected, getExtensionStatus } from './extension/index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -313,6 +314,22 @@ export function installAgentGuard(options = {}) {
     installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPath, options.dryRun);
     // 4. Configure auto-accept in IDE
     configureAutoAcceptGrants(options.dryRun);
+    // 5. Install Agent Guard extension into coding applications
+    console.log('\n5. Installing Agent Guard Extension into coding applications...');
+    if (!options.dryRun) {
+        const extResults = installExtensionToAllDetected(undefined, path.join(REPO_ROOT, 'assets'));
+        for (const res of extResults) {
+            if (res.success) {
+                console.log(`   ✅ Installed Agent Guard extension into ${res.target.name}`);
+            }
+            else {
+                console.log(`   ⚠️ Failed to install extension into ${res.target.name}: ${res.error}`);
+            }
+        }
+    }
+    else {
+        console.log('   [Dry Run] Would install Agent Guard extension into detected IDEs');
+    }
     console.log('\n🎉 Universal Installation Complete!');
     console.log('----------------------------------------------------');
     console.log('Agent Guard is now active across your coding environments.');
@@ -438,6 +455,20 @@ export function doctorCheck() {
     }
     catch {
         console.log('• Account Switcher: [WARN] Could not read accounts.json');
+    }
+    // Check IDE Extensions
+    try {
+        const extStatuses = getExtensionStatus();
+        const installedExts = extStatuses.filter((s) => s.isInstalled);
+        if (installedExts.length > 0) {
+            console.log(`• IDE Extension:   [OK] Installed in ${installedExts.map((e) => `${e.target.name} (v${e.version || '1.0.0'})`).join(', ')}`);
+        }
+        else {
+            console.log('• IDE Extension:   [INFO] Not yet installed in IDEs (run: npm run extension:install)');
+        }
+    }
+    catch {
+        console.log('• IDE Extension:   [WARN] Could not inspect IDE extensions');
     }
     console.log('');
 }
@@ -697,9 +728,44 @@ else if (command === 'accounts') {
         console.log('  node dist/cli.js accounts auto-switch <on|off> [--threshold <pct>]');
     }
 }
+else if (command === 'extension') {
+    const sub = args[1] || 'status';
+    if (sub === 'install') {
+        console.log('📦 Installing Agent Guard Extension into coding applications...\n');
+        const results = installExtensionToAllDetected(undefined, path.join(REPO_ROOT, 'assets'));
+        for (const r of results) {
+            if (r.success) {
+                console.log(`✅ ${r.message}`);
+            }
+            else {
+                console.error(`❌ ${r.message}`);
+            }
+        }
+        console.log('\nExtension installation complete. Restart your editor to activate the Agent Guard status bar!');
+    }
+    else if (sub === 'status') {
+        console.log('🛡️ Agent Guard IDE Extension Status\n');
+        const statuses = getExtensionStatus();
+        for (const s of statuses) {
+            const mark = s.isInstalled ? '✅ INSTALLED' : (s.target.isDetected ? '⚪ DETECTED (Not installed)' : '❌ Not detected');
+            console.log(`• ${s.target.name}: ${mark}`);
+            if (s.isInstalled) {
+                console.log(`  Version: v${s.version || '1.0.0'}`);
+                console.log(`  Path:    ${s.installedPath}`);
+            }
+        }
+        console.log('\nTip: Run `node dist/cli.js extension install` to install into detected editors.');
+    }
+    else {
+        console.log('Usage:');
+        console.log('  node dist/cli.js extension install');
+        console.log('  node dist/cli.js extension status');
+    }
+}
 else {
     console.log('Usage:');
     console.log('  node dist/cli.js install [--all|--claude|--cursor|--codex|--antigravity|--windsurf|--cline|--zed] [--workspace <path>] [--dry-run]');
+    console.log('  node dist/cli.js extension [install|status]');
     console.log('  node dist/cli.js auto-accept [--dry-run]');
     console.log('  node dist/cli.js awake [status|hold <mins>|release]');
     console.log('  node dist/cli.js tokens [file] [--model <name>] [--text <str>] [--no-compare]');
