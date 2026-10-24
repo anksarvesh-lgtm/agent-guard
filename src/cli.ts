@@ -108,6 +108,7 @@ export function configureAutoAcceptGrants(dryRun?: boolean): { addedCount: numbe
       'mcp(agent-guard/agent_enforce)',
       'mcp(agent-guard/project_map)',
       'mcp(agent-guard/token_counter)',
+      'mcp(agent-guard/account_switcher)',
       // Antigravity plugin-scoped tool grants
       'mcp(agent-guard_agent-guard/task_start)',
       'mcp(agent-guard_agent-guard/task_checkpoint)',
@@ -117,6 +118,7 @@ export function configureAutoAcceptGrants(dryRun?: boolean): { addedCount: numbe
       'mcp(agent-guard_agent-guard/agent_enforce)',
       'mcp(agent-guard_agent-guard/project_map)',
       'mcp(agent-guard_agent-guard/token_counter)',
+      'mcp(agent-guard_agent-guard/account_switcher)',
       // Command execution grants for autonomous agent workflow
       'command(agent-guard)',
       'command(npx agent-guard)',
@@ -127,6 +129,7 @@ export function configureAutoAcceptGrants(dryRun?: boolean): { addedCount: numbe
       'command(npm run map)',
       'command(npm run skills)',
       'command(npm run tokens)',
+      'command(npm run accounts)',
       'command(./install.sh)',
       'command(node dist/cli.js)',
       'command(node dist/cli.js doctor)',

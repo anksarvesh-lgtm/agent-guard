@@ -70,6 +70,20 @@ export const TokenCounterSchema = z.object({
   project_path: z.string().optional(),
 });
 
+export const AccountSwitcherSchema = z.object({
+  action: z.enum(['status', 'switch', 'list', 'add', 'auto_rotate', 'configure']),
+  account_id: z.string().optional(),
+  name: z.string().optional(),
+  provider: z.enum(['antigravity', 'gemini', 'claude', 'openai', 'custom']).optional().default('antigravity'),
+  token_content: z.string().optional(),
+  token_source_file: z.string().optional(),
+  api_key: z.string().optional(),
+  threshold_percent: z.number().min(0.1).max(50).optional().default(1.0),
+  enabled: z.boolean().optional(),
+  reason: z.string().optional(),
+  project_path: z.string().optional(),
+});
+
 /**
  * Formats Zod errors into a clean, human-readable BAD_INPUT error string
  */

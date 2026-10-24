@@ -12,7 +12,8 @@
         "repo_brief",
         "agent_enforce",
         "project_map",
-        "token_counter"
+        "token_counter",
+        "account_switcher"
       ]
     }
   }
