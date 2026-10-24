@@ -8,7 +8,8 @@ import {
   calculateContextBudget,
   formatTokenNumber,
   parseTranscriptTokens,
-  estimateTextTokens
+  estimateTextTokens,
+  getLiveQuotaSummarySync
 } from '../tokens/index.js';
 
 export function handleTaskStatus(rawArgs: any): string {
@@ -95,6 +96,17 @@ export function handleTaskStatus(rawArgs: any): string {
         ? `[Auto-Switch at <=${accConfig.thresholdPercent}%: ON]`
         : '[Auto-Switch: OFF]';
       lines.push(`Active Account: "${activeAcc.name}" (${activeAcc.id}, ${activeAcc.remainingPercent}% quota) ${rotateStatus}`);
+    }
+  } catch {}
+
+  // Live Language Server Quota Badge
+  try {
+    const live = getLiveQuotaSummarySync();
+    if (live.isReachable) {
+      const geminiStr = live.geminiFiveHourPercent !== undefined ? `Gemini 5h: ${live.geminiFiveHourPercent}%` : '';
+      const claudeStr = live.claudeFiveHourPercent !== undefined ? `Claude: ${live.claudeFiveHourPercent}%` : '';
+      const parts = [geminiStr, claudeStr].filter(Boolean).join(' | ');
+      lines.push(`Live Quota: ⚡ ${parts} (${live.userEmail || 'Active'})`);
     }
   } catch {}
 

@@ -10,7 +10,8 @@ import {
   calculateContextBudget,
   compareAcrossModels,
   parseTranscriptTokens,
-  formatTokenNumber
+  formatTokenNumber,
+  getLiveQuotaSummarySync
 } from '../tokens/index.js';
 import { globalAccountManager } from '../accounts/index.js';
 
@@ -160,15 +161,39 @@ export function handleTokenCounter(rawArgs: any): string {
     }
   }
 
+  // Live Language Server RPC Quota
+  const liveQuota = getLiveQuotaSummarySync();
+  if (liveQuota.isReachable) {
+    lines.push('\n### ⚡ Live Antigravity Language Server Quota:');
+    if (liveQuota.userEmail) {
+      lines.push(`• **Active Account**: ${liveQuota.userName || 'User'} (${liveQuota.userEmail}) | Plan: **${liveQuota.planName}**`);
+    }
+    for (const group of liveQuota.groups) {
+      lines.push(`• **${group.displayName}**:`);
+      for (const bucket of group.buckets) {
+        const resetNote = bucket.resetCountdown ? ` (resets in ${bucket.resetCountdown})` : '';
+        const emoji = bucket.remainingPercent <= 1 ? '🔴' : bucket.remainingPercent <= 20 ? '🟡' : '🟢';
+        lines.push(`  - ${bucket.displayName}: ${emoji} **${bucket.remainingPercent}% remaining**${resetNote}`);
+      }
+    }
+    if (liveQuota.availablePromptCredits !== undefined) {
+      lines.push(`• **Available Credits**: ${liveQuota.availablePromptCredits} prompt / ${liveQuota.availableFlowCredits || 0} flow`);
+    }
+  }
+
   // 1% Remaining Quota Tripwire: Auto-switch account seamlessly without disturbing user
   try {
-    if (budget.percentRemaining <= 1.0) {
+    const effectiveRemaining = liveQuota.isReachable
+      ? Math.min(budget.percentRemaining, liveQuota.lowestRemainingPercent)
+      : budget.percentRemaining;
+
+    if (effectiveRemaining <= 1.0) {
       const rotateRes = globalAccountManager.checkAndAutoRotate(
-        budget.percentRemaining,
-        `Token budget at ${budget.percentRemaining}% remaining (${formatTokenNumber(budget.remainingTokens)} tokens left)`
+        effectiveRemaining,
+        `Token/Quota budget at ${effectiveRemaining}% remaining`
       );
       if (rotateRes.triggered && rotateRes.switchResult?.success) {
-        lines.push(`\n🔄 **Auto-Switch Notice**: Token headroom reached ${budget.percentRemaining}%. Seamlessly rotated to account "${rotateRes.switchResult.currentAccountName}" (${rotateRes.switchResult.currentAccountId}) without task disruption.`);
+        lines.push(`\n🔄 **Auto-Switch Notice**: Token headroom reached ${effectiveRemaining}%. Seamlessly rotated to account "${rotateRes.switchResult.currentAccountName}" (${rotateRes.switchResult.currentAccountId}) without task disruption.`);
       }
     }
   } catch {}
