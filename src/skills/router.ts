@@ -130,8 +130,10 @@ export class JitSkillRouter {
       'recall',
     ]);
 
-    // 2. Tier 2: Composio SaaS Skills in agent-skills/skills/composio-skills
-    const composioDir = path.join(path.dirname(this.repoRoot), 'agent-skills', 'skills', 'composio-skills');
+    // 4. Tier 2: Composio SaaS Skills in templates/skills/composio (bundled) or external fallback
+    const bundledComposio = path.join(this.repoRoot, 'templates', 'skills', 'composio');
+    const fallbackComposio = path.join(path.dirname(this.repoRoot), 'agent-skills', 'skills', 'composio-skills');
+    const composioDir = fs.existsSync(bundledComposio) ? bundledComposio : fallbackComposio;
     if (fs.existsSync(composioDir)) {
       try {
         const entries = fs.readdirSync(composioDir, { withFileTypes: true });
