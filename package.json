@@ -16,6 +16,7 @@
     "install:antigravity": "node dist/cli.js install",
     "update": "node dist/cli.js update",
     "map": "node dist/cli.js map",
+    "skills": "node dist/cli.js skills",
     "doctor": "node dist/cli.js doctor",
     "test": "vitest run",
     "test:watch": "vitest"

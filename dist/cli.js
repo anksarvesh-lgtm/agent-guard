@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { checkForUpdates, performUpdate } from './update.js';
 import { generateFullProjectMap } from './brief/map.js';
 import { getProjectFreshness } from './brief/stale.js';
+import { loadSkillsIndex, listFeaturedSkills, searchSkills, getSkillInfo, getCategories, installSkill, formatSkillsTable } from './skills/manager.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -57,12 +58,14 @@ export function configureAutoAcceptGrants(dryRun) {
             'command(npm run doctor)',
             'command(npm run update)',
             'command(npm run map)',
+            'command(npm run skills)',
             'command(./install.sh)',
             'command(node dist/cli.js)',
             'command(node dist/cli.js doctor)',
             'command(node dist/cli.js install)',
             'command(node dist/cli.js update)',
-            'command(node dist/cli.js map)'
+            'command(node dist/cli.js map)',
+            'command(node dist/cli.js skills)'
         ];
         let count = 0;
         for (const grant of grantsToAdd) {
@@ -410,11 +413,92 @@ else if (command === 'map') {
 else if (command === 'doctor') {
     doctorCheck();
 }
+else if (command === 'skills') {
+    const sub = args[1] || 'list';
+    if (sub === 'list') {
+        const featured = listFeaturedSkills(REPO_ROOT);
+        const total = loadSkillsIndex(REPO_ROOT).length;
+        console.log('🛡️ Agent Guard Awesome Skills Catalog\n');
+        console.log(`Curated by Sarvesh (@anksarvesh-lgtm) | Total Skills: ${total}`);
+        console.log('Supervised by @agent-guard • Apache-2.0 License\n');
+        console.log('Featured Core Skills:');
+        console.log(formatSkillsTable(featured));
+        console.log('\nCommands:');
+        console.log('  node dist/cli.js skills search <term>');
+        console.log('  node dist/cli.js skills info <id>');
+        console.log('  node dist/cli.js skills install <id> [--path <dir>]');
+        console.log('  node dist/cli.js skills categories\n');
+    }
+    else if (sub === 'search') {
+        const query = args[2] || '';
+        const results = searchSkills(query, { limit: 25 }, REPO_ROOT);
+        console.log(`🔍 Search Results for "${query}" (${results.length} found):\n`);
+        console.log(formatSkillsTable(results));
+        console.log('\nTip: Run `node dist/cli.js skills info <id>` for full details.');
+    }
+    else if (sub === 'info') {
+        const id = args[2];
+        if (!id) {
+            console.error('Usage: node dist/cli.js skills info <skill-id>');
+            process.exit(1);
+        }
+        const skill = getSkillInfo(id, REPO_ROOT);
+        if (!skill) {
+            console.error(`Skill "${id}" not found.`);
+            process.exit(1);
+        }
+        console.log(`\n🛡️ Skill: ${skill.name} (${skill.id})`);
+        console.log('----------------------------------------------------');
+        console.log(`• Category:    ${skill.category}`);
+        console.log(`• Risk Level:  ${skill.risk || 'safe'}`);
+        console.log(`• Source:      ${skill.source || 'community'}`);
+        console.log(`• Author:      ${skill.author || 'Curated by Agent Guard'}`);
+        console.log(`• Tags:        ${(skill.tags || []).join(', ') || 'none'}`);
+        console.log(`• Supervisor:  @agent-guard`);
+        console.log(`\nDescription:\n  ${skill.description}`);
+        console.log(`\nInstall Command:`);
+        console.log(`  node dist/cli.js skills install ${skill.id}\n`);
+    }
+    else if (sub === 'categories') {
+        const cats = getCategories(REPO_ROOT);
+        console.log('📂 Skill Categories:\n');
+        for (const c of cats) {
+            console.log(`  • ${c.category.padEnd(25)} (${c.count} skills)`);
+        }
+        console.log(`\nTotal Categories: ${cats.length}`);
+    }
+    else if (sub === 'install') {
+        const id = args[2];
+        if (!id) {
+            console.error('Usage: node dist/cli.js skills install <skill-id> [--path <dir>]');
+            process.exit(1);
+        }
+        const pathIdx = args.indexOf('--path');
+        const targetDir = pathIdx !== -1 ? args[pathIdx + 1] : undefined;
+        const res = installSkill(id, { targetDir, repoRoot: REPO_ROOT });
+        if (res.success) {
+            console.log(`✅ ${res.message}`);
+        }
+        else {
+            console.error(`❌ ${res.message}`);
+            process.exit(1);
+        }
+    }
+    else {
+        console.log('Usage:');
+        console.log('  node dist/cli.js skills list');
+        console.log('  node dist/cli.js skills search <query>');
+        console.log('  node dist/cli.js skills info <id>');
+        console.log('  node dist/cli.js skills install <id> [--path <dir>]');
+        console.log('  node dist/cli.js skills categories');
+    }
+}
 else {
     console.log('Usage:');
     console.log('  node dist/cli.js install [--workspace <path>] [--dry-run]');
     console.log('  node dist/cli.js map [--workspace <path>]');
     console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');
+    console.log('  node dist/cli.js skills [list|search|info|install|categories]');
 }
 //# sourceMappingURL=cli.js.map
