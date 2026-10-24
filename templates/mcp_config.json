@@ -1,8 +1,17 @@
 {
   "mcpServers": {
     "agent-guard": {
-      "command": "/Users/sarvesh/.local/node-v24/bin/node",
-      "args": ["/Users/sarvesh/Downloads/mcp/agent-guard/dist/index.js"]
+      "command": "{{NODE_BIN}}",
+      "args": ["{{SERVER_PATH}}"],
+      "disabled": false,
+      "autoApprove": [
+        "task_start",
+        "task_checkpoint",
+        "task_status",
+        "keep_awake",
+        "repo_brief",
+        "project_map"
+      ]
     }
   }
 }
