@@ -16,18 +16,20 @@ Before installing, ensure your environment meets these requirements:
 
 ---
 
-## ⚡ 1-Click Universal Git Install
+## ⚡ 1-Click Universal Installation
 
-To clone and install Agent Guard with a single command from any terminal:
-
+### One-Command Setup (Auto-Detects All Installed Coding Apps):
 ```bash
-git clone https://github.com/anksarvesh-lgtm/agent-guard.git ~/.agent-guard && ~/.agent-guard/install.sh
+curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/install.sh | bash
 ```
 
-If you already cloned the repository locally:
+### The Universal Agent Prompt (Copy-Paste to Any AI Agent):
+> **"Please install and activate the Agent Guard MCP supervisor (https://github.com/anksarvesh-lgtm/agent-guard.git). Run `curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/install.sh | bash` in the terminal, verify with `node ~/.agent-guard/dist/cli.js doctor`, and adopt the `@agent-guard` rules to supervise all my development tasks with atomic ledger checkpoints and keep-awake protection."**
+
+### If already cloned locally:
 ```bash
-cd agent-guard
-./install.sh
+./install.sh        # Auto-detects all installed apps
+./install.sh --all  # Explicitly configures Antigravity, Claude, Cursor, Codex, Windsurf, Cline, Zed
 ```
 
 ---

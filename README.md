@@ -25,6 +25,21 @@
 
 ---
 
+## ⚡ Instant Setup (One Command / One Prompt)
+
+### 💻 One Terminal Command (Auto-Detects All Installed Coding Apps):
+```bash
+curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/install.sh | bash
+```
+*Auto-detects and configures **Antigravity**, **Claude Code**, **Cursor**, **Codex CLI**, **Gemini CLI**, **Windsurf**, **VS Code (Cline/Roo)**, and **Zed**.*
+
+### 🤖 The Universal Agent Prompt (Copy & Paste to Any AI Agent):
+> **"Please install and activate the Agent Guard MCP supervisor (https://github.com/anksarvesh-lgtm/agent-guard.git). Run `curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/install.sh | bash` in the terminal, verify with `node ~/.agent-guard/dist/cli.js doctor`, and adopt the `@agent-guard` rules to supervise all my development tasks with atomic ledger checkpoints and keep-awake protection."**
+
+📖 *See **[UNIVERSAL_INSTALL_PROMPT.md](UNIVERSAL_INSTALL_PROMPT.md)** for app-by-app guides and configuration paths.*
+
+---
+
 ## Why Agent Guard?
 
 Autonomous AI coding agents in modern IDEs like Google Antigravity excel at single-turn instructions, but frequently encounter catastrophic failure modes during extended, multi-step work:
