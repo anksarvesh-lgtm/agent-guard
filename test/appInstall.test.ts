@@ -13,8 +13,10 @@ import {
   windsurfTarget,
   clineTarget,
   zedTarget,
+  AGENT_GUARD_AUTO_APPROVE_TOOLS,
   type InstallContext
 } from '../src/install/apps.js';
+import { configureAutoAcceptGrants } from '../src/cli.js';
 
 describe('Universal Multi-App MCP Installer', () => {
   let tempDir: string;
@@ -145,5 +147,57 @@ describe('Universal Multi-App MCP Installer', () => {
     // Confirm no files written in dry run
     expect(fs.existsSync(path.join(tempDir, '.claude.json'))).toBe(false);
     expect(fs.existsSync(path.join(tempDir, '.cursor', 'mcp.json'))).toBe(false);
+  });
+
+  it('configures autoApprove tools across Antigravity, Claude, Codex, Cursor, Windsurf, Cline', () => {
+    installToApps('all', dummyContext);
+
+    // 1. Antigravity
+    const antiCfg = JSON.parse(fs.readFileSync(path.join(tempDir, '.gemini', 'config', 'mcp_config.json'), 'utf-8'));
+    expect(antiCfg.mcpServers['agent-guard'].autoApprove).toEqual(
+      expect.arrayContaining(AGENT_GUARD_AUTO_APPROVE_TOOLS)
+    );
+
+    // 2. Cursor
+    const cursorCfg = JSON.parse(fs.readFileSync(path.join(tempDir, '.cursor', 'mcp.json'), 'utf-8'));
+    expect(cursorCfg.mcpServers['agent-guard'].autoApprove).toEqual(
+      expect.arrayContaining(AGENT_GUARD_AUTO_APPROVE_TOOLS)
+    );
+
+    // 3. Codex
+    const codexCfg = JSON.parse(fs.readFileSync(path.join(tempDir, '.codex', 'mcp.json'), 'utf-8'));
+    expect(codexCfg.mcpServers['agent-guard'].autoApprove).toEqual(
+      expect.arrayContaining(AGENT_GUARD_AUTO_APPROVE_TOOLS)
+    );
+
+    // 4. Windsurf
+    const windsurfCfg = JSON.parse(fs.readFileSync(path.join(tempDir, '.codeium', 'windsurf', 'mcp_config.json'), 'utf-8'));
+    expect(windsurfCfg.mcpServers['agent-guard'].autoApprove).toEqual(
+      expect.arrayContaining(AGENT_GUARD_AUTO_APPROVE_TOOLS)
+    );
+  });
+
+  it('configures Antigravity IDE auto-accept grants with eager execution and turbo presets', () => {
+    const configPath = path.join(tempDir, '.gemini', 'config', 'config.json');
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(configPath, JSON.stringify({ userSettings: {} }), 'utf-8');
+
+    const result = configureAutoAcceptGrants(false);
+    expect(result.addedCount).toBeGreaterThan(0);
+
+    const updated = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    expect(updated.userSettings.autoExecutionPolicy).toBe('CASCADE_COMMANDS_AUTO_EXECUTION_EAGER');
+    expect(updated.userSettings.permissionPreset).toBe('AGENT_PERMISSION_PRESET_TURBO');
+    expect(updated.userSettings.globalPermissionGrants.allow).toEqual(
+      expect.arrayContaining([
+        'mcp(agent-guard/*)',
+        'mcp(agent-guard_agent-guard/*)',
+        'mcp(agent-guard/task_start)',
+        'mcp(agent-guard/keep_awake)',
+        'command(agent-guard)',
+        'command(npm run build)',
+        'command(git commit)',
+      ])
+    );
   });
 });

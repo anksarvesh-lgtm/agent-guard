@@ -88,4 +88,30 @@ describe('keep_awake lease manager & supervisor', () => {
 
     expect(() => manager.hold(30)).toThrowError('AWAKE_UNSUPPORTED');
   });
+
+  it('handles child process exit event by automatically transitioning isHolding to false', () => {
+    const manager = new AwakeManager(mockInhibitor);
+    manager.hold(30);
+
+    expect(manager.status().isHolding).toBe(true);
+    const proc = activeProcesses[0];
+
+    // Emit exit event from child process
+    proc.emit('exit', 0, null);
+
+    expect(manager.status().isHolding).toBe(false);
+    expect(manager.status().minutesRemaining).toBe(0);
+  });
+
+  it('handles child process error event cleanly without crashing', () => {
+    const manager = new AwakeManager(mockInhibitor);
+    manager.hold(30);
+
+    expect(manager.status().isHolding).toBe(true);
+    const proc = activeProcesses[0];
+
+    proc.emit('error', new Error('Process spawn failed'));
+
+    expect(manager.status().isHolding).toBe(false);
+  });
 });
