@@ -51,14 +51,20 @@ The automated installer configures Antigravity automatically. To configure manua
 }
 ```
 
-#### Antigravity Stop Hook (`.agents/hooks.json` in your workspace)
+#### Antigravity Supervisor Hooks (`.agents/hooks.json` in your workspace)
 ```json
 {
-  "agent-guard-stop": {
+  "agent-guard-supervisor": {
     "Stop": [
       {
         "type": "command",
         "command": "node /absolute/path/to/agent-guard/dist/hook/stop-hook.js"
+      }
+    ],
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "node /absolute/path/to/agent-guard/dist/hook/post-invocation-hook.js"
       }
     ]
   }
@@ -233,11 +239,12 @@ npm run doctor
 • Auto-Accept IDE: [OK] Tool and command permissions granted
 • Auto-Update:     [OK] Up to date with origin/main
 • Server Binary:   [OK] dist/index.js
-• Hook Binary:     [OK] dist/hook/stop-hook.js
+• Stop Hook:       [OK] dist/hook/stop-hook.js
+• Enforce Hook:    [OK] dist/hook/post-invocation-hook.js
 • Sleep Inhibitor: [OK] macOS caffeinate available
 ```
 
-Run automated tests (45/45 tests):
+Run automated tests (50/50 tests):
 ```bash
 npm test
 ```

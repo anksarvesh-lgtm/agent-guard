@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
-  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-45%2F45%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
+  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-50%2F50%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
   <a href="#zero-telemetry"><img src="https://img.shields.io/badge/Telemetry-Zero%20%2F%20100%25%20Local-success.svg" alt="Zero Telemetry" /></a>
   <a href="#mention-agent-guard"><img src="https://img.shields.io/badge/Mention-%40agent--guard-orange.svg" alt="Mention @agent-guard" /></a>
   <a href="#auto-update"><img src="https://img.shields.io/badge/Auto--Update-Enabled-blue.svg" alt="Auto-Update Enabled" /></a>
@@ -134,7 +134,8 @@ flowchart TD
 | `task_checkpoint` | Reports progress (`in_progress`, `done`, `failed`), verifies proof, extends lease | ~60 tokens | `step_id`, `status`, `note`, `error?`, `add_steps?`, `project_path?` |
 | `task_status` | Read-only inspection of active step, blocked items, and next action | < 500 tokens | `project_path?` |
 | `keep_awake` | Explicitly holds, releases, or inspects sleep inhibition lease | ~40 tokens | `action` (`hold`/`release`/`status`), `minutes?`, `reason?` |
-| `repo_brief` | Fast project overview (stack, layout, entry points, rules, traps) | < 1,500 tokens | `refresh?`, `project_path?` |
+| `repo_brief` | Fast project overview with ASCII directory map & architecture chart | < 1,500 tokens | `refresh?`, `project_path?` |
+| `agent_enforce` | Communicates directives with active agents and forces task completion | ~60 tokens | `action` (`status`/`broadcast`/`force_next`), `directive?`, `target_agent?` |
 
 ---
 
@@ -401,7 +402,8 @@ npm run doctor
 • Auto-Accept IDE: [OK] Tool and command permissions granted
 • Auto-Update:     [OK] Up to date with origin/main
 • Server Binary:   [OK] dist/index.js
-• Hook Binary:     [OK] dist/hook/stop-hook.js
+• Stop Hook:       [OK] dist/hook/stop-hook.js
+• Enforce Hook:    [OK] dist/hook/post-invocation-hook.js
 • Sleep Inhibitor: [OK] macOS caffeinate available
 ```
 
@@ -412,9 +414,9 @@ npm test
 ```
 
 ```
-Test Files  8 passed (8)
-     Tests  45 passed (45)
-  Duration  2.30s
+Test Files  9 passed (9)
+     Tests  50 passed (50)
+  Duration  1.52s
 ```
 
 ---
