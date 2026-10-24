@@ -3,6 +3,7 @@ import path from 'node:path';
 import { getBriefPath, getTrapsPath } from '../util/paths.js';
 import { getProjectFreshness, FreshnessInfo } from './stale.js';
 import { isSensitiveOrIgnored } from './sanitize.js';
+import { generateDirectoryTreeMap, generateArchitectureChart, generateFullProjectMap } from './map.js';
 
 const HARD_CHAR_LIMIT = 8000;
 
@@ -18,7 +19,7 @@ export function buildRepoBrief(projectPath: string, freshness?: FreshnessInfo): 
   lines.push(`# Project Brief: ${projectName}`);
   lines.push(`- **Commit**: \`${fresh.commit}\` | **Updated**: ${now} | **Files Tracked**: ${fresh.fileCount}\n`);
 
-  // 1. What it is: First paragraph of README
+  // 1. What it is: Clean description from README
   lines.push(`## Overview`);
   let overview = 'No README.md found.';
   for (const readmeName of ['README.md', 'readme.md', 'README', 'Readme.md']) {
@@ -26,13 +27,19 @@ export function buildRepoBrief(projectPath: string, freshness?: FreshnessInfo): 
     if (fs.existsSync(readmePath)) {
       try {
         const raw = fs.readFileSync(readmePath, 'utf-8');
-        const paragraphs = raw
+        const stripped = raw
+          .replace(/<!--[\s\S]*?-->/g, '')
+          .replace(/<[^>]+>/g, ' ')
+          .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+          .replace(/\r\n/g, '\n');
+
+        const paragraphs = stripped
           .split(/\n\s*\n/)
-          .map((p) => p.trim())
-          .filter((p) => p.length > 0);
+          .map((p) => p.replace(/\s+/g, ' ').trim())
+          .filter((p) => p.length >= 20 && !p.startsWith('#') && !p.startsWith('---'));
+
         if (paragraphs.length > 0) {
-          const nonHeader = paragraphs.find((p) => !p.startsWith('#'));
-          overview = (nonHeader || paragraphs[0].replace(/^#+\s*/, '')).slice(0, 300);
+          overview = paragraphs[0].slice(0, 350);
         }
       } catch {}
       break;
@@ -71,27 +78,19 @@ export function buildRepoBrief(projectPath: string, freshness?: FreshnessInfo): 
   }
   lines.push('');
 
-  // 3. Folder map: top 2 levels with counts
-  lines.push(`## Folder Layout (Top 2 Levels)`);
-  const dirCounts: Record<string, number> = {};
-  for (const f of fresh.files) {
-    const parts = f.split('/');
-    if (parts.length === 1) {
-      dirCounts['.'] = (dirCounts['.'] || 0) + 1;
-    } else {
-      const top2 = parts.length >= 2 ? `${parts[0]}/${parts[1]}` : parts[0];
-      dirCounts[top2] = (dirCounts[top2] || 0) + 1;
-    }
-  }
-  const sortedDirs = Object.entries(dirCounts)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .slice(0, 40);
-  for (const [dir, count] of sortedDirs) {
-    lines.push(`- \`${dir}\`: ${count} file${count === 1 ? '' : 's'}`);
-  }
+  // 3. Project Map: Clean ASCII directory tree
+  lines.push(`## Project Map (Directory Tree)`);
+  lines.push('```text');
+  lines.push(generateDirectoryTreeMap(fresh.files, 2));
+  lines.push('```');
   lines.push('');
 
-  // 4. Entry points
+  // 4. Project Architecture Chart
+  lines.push(`## Architecture Chart`);
+  lines.push(generateArchitectureChart(projectPath, fresh.files));
+  lines.push('');
+
+  // 5. Entry points
   lines.push(`## Likely Entry Points`);
   const entryPoints = fresh.files
     .filter((f) => {
@@ -164,10 +163,14 @@ export function buildRepoBrief(projectPath: string, freshness?: FreshnessInfo): 
     finalOutput = finalOutput.slice(0, HARD_CHAR_LIMIT - 40) + '\n\n[Brief capped at 8,000 characters]';
   }
 
-  // Cache to .agent/brief.md
+  // Cache to .agent/brief.md and .agent/project_map.md
   try {
     const briefPath = getBriefPath(projectPath);
     fs.writeFileSync(briefPath, finalOutput, 'utf-8');
+
+    const agentDir = path.dirname(briefPath);
+    const mapPath = path.join(agentDir, 'project_map.md');
+    fs.writeFileSync(mapPath, generateFullProjectMap(projectPath, fresh.files), 'utf-8');
   } catch {}
 
   return finalOutput;
