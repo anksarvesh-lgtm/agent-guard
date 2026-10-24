@@ -10,7 +10,8 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
-  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-50%2F50%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
+  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-60%2F60%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
+  <a href="AWESOME_SKILLS.md"><img src="https://img.shields.io/badge/Skills-2%2C740%2B%20Curated-blueviolet.svg" alt="Awesome Skills" /></a>
   <a href="#zero-telemetry"><img src="https://img.shields.io/badge/Telemetry-Zero%20%2F%20100%25%20Local-success.svg" alt="Zero Telemetry" /></a>
   <a href="#mention-agent-guard"><img src="https://img.shields.io/badge/Mention-%40agent--guard-orange.svg" alt="Mention @agent-guard" /></a>
   <a href="#auto-update"><img src="https://img.shields.io/badge/Auto--Update-Enabled-blue.svg" alt="Auto-Update Enabled" /></a>
@@ -414,10 +415,49 @@ npm test
 ```
 
 ```
-Test Files  9 passed (9)
-     Tests  50 passed (50)
-  Duration  1.52s
+Test Files  10 passed (10)
+     Tests  60 passed (60)
+  Duration  1.85s
 ```
+
+---
+
+## 🌟 Curated Awesome Skills Catalog (2,740+ Skills)
+
+Agent Guard bundles a massive reverse-engineered collection of **2,740+ curated agentic skills** across 100+ domains, featuring `@agent-guard` as the apex autonomous supervisor.
+
+Explore the complete catalog in **[AWESOME_SKILLS.md](AWESOME_SKILLS.md)**.
+
+### Built-in Skills Manager CLI:
+```bash
+# List featured & core skills
+npm run skills list
+
+# Search skills by domain or keyword
+npm run skills search security
+npm run skills search devops
+npm run skills search "ai agent"
+
+# Inspect detailed metadata for any skill
+npm run skills info ai-agents-architect
+
+# Install a skill into your Antigravity skills directory
+npm run skills install clean-architecture
+npm run skills install security-audit --path ~/.gemini/antigravity/skills
+
+# View all available categories
+npm run skills categories
+```
+
+### Pre-bundled Core Skills:
+* 🤖 **`agent-guard`**: Autonomous task supervisor, DAG checkpoints, OS keep-awake, multi-agent completion enforcer.
+* 🧠 **`ai-agents-architect`**: Multi-agent system architecture, tool routing, ReAct loops, fail-safe degradation.
+* 🛡️ **`security-audit`**: Zero-trust vulnerability audit, secret leakage detection, OWASP hardening.
+* 🏛️ **`clean-architecture`**: Domain-driven boundaries, hexagonal ports & adapters, interface segregation.
+* 🚀 **`devops-automation`**: GitHub Actions workflows, multi-stage Docker builds, container orchestration.
+* 🧪 **`test-driven-development`**: Red-Green-Refactor enforcement with verifiable test proofs.
+* ⚡ **`performance-profiling`**: Node/V8 heap analysis, event-loop lag monitoring, hot-path optimization.
+* 🔍 **`reverse-engineering`**: Static AST reconstruction, binary inspection, and protocol analysis with REA.
 
 ---
 

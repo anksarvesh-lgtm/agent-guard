@@ -244,9 +244,31 @@ npm run doctor
 • Sleep Inhibitor: [OK] macOS caffeinate available
 ```
 
-Run automated tests (50/50 tests):
+Run automated tests (60/60 tests):
 ```bash
 npm test
+```
+
+---
+
+## 🌟 Managing Awesome Skills (2,740+ Skills)
+
+Agent Guard includes a built-in skills manager CLI to search and install curated agentic skills:
+
+```bash
+# List featured & core skills
+npm run skills list
+
+# Search skills by domain
+npm run skills search security
+npm run skills search devops
+
+# Inspect skill details
+npm run skills info ai-agents-architect
+
+# Install skill to Antigravity skills folder
+npm run skills install clean-architecture
+npm run skills install security-audit --path ~/.gemini/antigravity/skills
 ```
 
 ---

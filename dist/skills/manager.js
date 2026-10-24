@@ -22,17 +22,47 @@ export function getRepoRoot(customRoot) {
 export function loadSkillsIndex(repoRoot) {
     const root = getRepoRoot(repoRoot);
     const indexPath = path.join(root, 'templates', 'skills', 'skills_index.json');
-    if (!fs.existsSync(indexPath)) {
-        return [];
+    let entries = [];
+    if (fs.existsSync(indexPath)) {
+        try {
+            const raw = fs.readFileSync(indexPath, 'utf-8');
+            entries = JSON.parse(raw);
+        }
+        catch (err) {
+            console.error(`Failed to parse skills_index.json: ${err.message}`);
+        }
     }
-    try {
-        const raw = fs.readFileSync(indexPath, 'utf-8');
-        return JSON.parse(raw);
+    // Ensure all curated skills in templates/skills/curated are registered and marked featured
+    const curatedDir = path.join(root, 'templates', 'skills', 'curated');
+    if (fs.existsSync(curatedDir)) {
+        const curatedEntries = fs.readdirSync(curatedDir, { withFileTypes: true });
+        for (const d of curatedEntries) {
+            if (d.isDirectory()) {
+                const existing = entries.find((s) => s.id === d.name);
+                if (existing) {
+                    existing.featured = true;
+                }
+                else {
+                    entries.push({
+                        id: d.name,
+                        name: d.name,
+                        category: d.name.includes('architecture')
+                            ? 'architecture'
+                            : d.name.includes('devops')
+                                ? 'devops'
+                                : 'development',
+                        description: `Curated Agent Guard core skill: ${d.name}`,
+                        tags: ['curated', 'agent-guard', d.name],
+                        risk: 'safe',
+                        source: 'agent-guard (Apache-2.0)',
+                        author: 'Sarvesh (@anksarvesh-lgtm)',
+                        featured: true,
+                    });
+                }
+            }
+        }
     }
-    catch (err) {
-        console.error(`Failed to parse skills_index.json: ${err.message}`);
-        return [];
-    }
+    return entries;
 }
 export function listFeaturedSkills(repoRoot) {
     const all = loadSkillsIndex(repoRoot);
