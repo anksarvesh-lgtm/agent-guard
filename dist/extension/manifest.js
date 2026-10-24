@@ -182,6 +182,12 @@ export function generateExtensionManifest(version = '1.0.0') {
                     icon: '$(camera)',
                 },
                 {
+                    command: 'agentGuard.importStockAuth',
+                    title: 'Save & Import Stock Auth Session Cache',
+                    category: 'Agent Guard',
+                    icon: '$(save)',
+                },
+                {
                     command: 'agentGuard.refresh',
                     title: 'Refresh Status',
                     category: 'Agent Guard',

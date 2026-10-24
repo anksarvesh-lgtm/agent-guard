@@ -8,7 +8,8 @@ import {
   AutoRotateCheckResult,
   RotationStrategy,
   AccountProvider,
-  AccountAuthType
+  AccountAuthType,
+  StockAuthCache
 } from './types.js';
 import {
   getStateDbPath,
@@ -341,6 +342,142 @@ export class AccountManager {
   }
 
   /**
+   * Imports stock auth credentials and session caches from Antigravity IDE / CLI or other coding apps.
+   * Automatically captures both jetski-standalone-oauth-token and SQLite state.vscdb entries,
+   * generates an auth cache bundle, and registers the account profile.
+   */
+  public importStockAuth(options?: {
+    id?: string;
+    name?: string;
+    sourceApp?: 'antigravity' | 'vscode' | 'cursor' | 'windsurf' | 'other';
+  }): { success: boolean; message: string; account?: AccountProfile } {
+    const live = getLiveQuotaSummarySync(true);
+    const sourceApp = options?.sourceApp || 'antigravity';
+
+    // 1. Read live token content if available
+    let liveTokenContent: string | undefined;
+    if (fs.existsSync(this.liveTokenPath)) {
+      try {
+        liveTokenContent = fs.readFileSync(this.liveTokenPath, 'utf-8');
+      } catch {}
+    }
+
+    // 2. Read state.vscdb credentials
+    const stateDb = getStateDbPath(path.dirname(path.dirname(this.baseDir)));
+    let creds: StateDbCredentials | undefined;
+    if (stateDb && fs.existsSync(stateDb)) {
+      try {
+        creds = readStateDbCredentials(stateDb);
+      } catch {}
+    }
+
+    if (!liveTokenContent && (!creds || !creds.oauthToken)) {
+      return {
+        success: false,
+        message: 'No active stock auth session or tokens found to import.',
+      };
+    }
+
+    const email = live.userEmail || (creds?.userStatus?.includes('@') ? 'user@antigravity' : undefined);
+    const cleanId = options?.id
+      ? options.id.toLowerCase().replace(/[^a-z0-9-_]/g, '-')
+      : email
+        ? email.split('@')[0].toLowerCase().replace(/[^a-z0-9-_]/g, '-')
+        : `auth-${Date.now().toString().slice(-4)}`;
+
+    const displayName = options?.name || (live.userName ? `${live.userName} (${email || cleanId})` : `Stock Auth (${cleanId})`);
+
+    const tokenFile = path.join(this.tokensDir, `${cleanId}.token`);
+    const cacheFile = path.join(this.tokensDir, `${cleanId}.auth-cache.json`);
+    const stateFile = path.join(this.tokensDir, `${cleanId}.state.json`);
+
+    if (liveTokenContent) {
+      try {
+        fs.writeFileSync(tokenFile, liveTokenContent, 'utf-8');
+        if (process.platform !== 'win32') {
+          try { fs.chmodSync(tokenFile, 0o600); } catch {}
+        }
+      } catch {}
+    }
+
+    if (creds && (creds.oauthToken || creds.userStatus)) {
+      try {
+        fs.writeFileSync(stateFile, JSON.stringify(creds, null, 2), 'utf-8');
+      } catch {}
+    }
+
+    const authCache: StockAuthCache = {
+      id: cleanId,
+      name: displayName,
+      email,
+      provider: 'antigravity',
+      tokenJson: liveTokenContent,
+      stateDb: creds,
+      savedAt: new Date().toISOString(),
+      sourceApp,
+      profileUrl: creds?.profileUrl,
+    };
+
+    try {
+      fs.writeFileSync(cacheFile, JSON.stringify(authCache, null, 2), 'utf-8');
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(cacheFile, 0o600); } catch {}
+      }
+    } catch {}
+
+    const cfg = this.loadConfig();
+    const existingIdx = cfg.accounts.findIndex((a) => a.id === cleanId);
+    let targetAccount: AccountProfile;
+
+    const now = new Date().toISOString();
+    if (existingIdx !== -1) {
+      targetAccount = {
+        ...cfg.accounts[existingIdx],
+        name: displayName,
+        email,
+        tokenFilePath: tokenFile,
+        authCachePath: cacheFile,
+        remainingPercent: live.isReachable ? live.lowestRemainingPercent : cfg.accounts[existingIdx].remainingPercent,
+        lastUsedAt: now,
+      };
+      cfg.accounts[existingIdx] = targetAccount;
+    } else {
+      targetAccount = {
+        id: cleanId,
+        name: displayName,
+        email,
+        provider: 'antigravity',
+        type: 'oauth_token',
+        tokenFilePath: tokenFile,
+        authCachePath: cacheFile,
+        isActive: cfg.accounts.length === 0,
+        usedTokens: 0,
+        remainingPercent: live.isReachable ? live.lowestRemainingPercent : 100,
+        status: cfg.accounts.length === 0 ? 'active' : 'standby',
+        priority: cfg.accounts.length + 1,
+        createdAt: now,
+        lastUsedAt: now,
+        requestCount: 0,
+        errorCount: 0,
+      };
+      cfg.accounts.push(targetAccount);
+    }
+
+    if (cfg.accounts.length === 1) {
+      cfg.activeAccountId = targetAccount.id;
+    }
+
+    this.saveConfig(cfg);
+    this.logRotation(`Stock auth session imported and cached: "${targetAccount.name}" (${targetAccount.id})`);
+
+    return {
+      success: true,
+      message: `Stock auth session cached as "${targetAccount.name}" (${targetAccount.id}) with both token and state.vscdb entries preserved.`,
+      account: targetAccount,
+    };
+  }
+
+  /**
    * Imports an account credentials token file from disk.
    */
   public importAccountFile(
@@ -394,6 +531,31 @@ export class AccountManager {
   }
 
   private applyLiveCredential(account: AccountProfile): void {
+    // 1. Restore from full AuthCache bundle if available
+    if (account.authCachePath && fs.existsSync(account.authCachePath)) {
+      try {
+        const bundle: StockAuthCache = JSON.parse(fs.readFileSync(account.authCachePath, 'utf-8'));
+        if (bundle.tokenJson) {
+          const tmpFile = `${this.liveTokenPath}.tmp.${Date.now()}`;
+          fs.writeFileSync(tmpFile, bundle.tokenJson, 'utf-8');
+          if (process.platform !== 'win32') {
+            try { fs.chmodSync(tmpFile, 0o600); } catch {}
+          }
+          fs.renameSync(tmpFile, this.liveTokenPath);
+        }
+        if (bundle.stateDb) {
+          const stateDb = getStateDbPath(path.dirname(path.dirname(this.baseDir)));
+          if (stateDb && fs.existsSync(stateDb)) {
+            writeStateDbCredentials(stateDb, bundle.stateDb as any);
+          }
+        }
+        this.logRotation(`Restored auth cache bundle for "${account.name}" (${account.id})`);
+      } catch (err: any) {
+        this.logRotation(`Warning: Failed to restore authCache: ${err.message}`);
+      }
+    }
+
+    // 2. Fallback / direct token file restore
     if (account.type === 'oauth_token' && account.tokenFilePath && fs.existsSync(account.tokenFilePath)) {
       try {
         // Atomic credential swap via temp file
@@ -412,7 +574,7 @@ export class AccountManager {
       }
     }
 
-    // Layer 2: Antigravity IDE state.vscdb synchronization
+    // 3. Layer 2: Antigravity IDE state.vscdb synchronization
     const stateFile = path.join(this.tokensDir, `${account.id}.state.json`);
     const stateDb = getStateDbPath(path.dirname(path.dirname(this.baseDir)));
     if (fs.existsSync(stateFile) && stateDb && fs.existsSync(stateDb)) {
@@ -445,13 +607,18 @@ export class AccountManager {
 
     // Backup current live credentials & state.vscdb into previous account's store
     if (currentAccount && currentAccount.type === 'oauth_token') {
+      let liveContent: string | undefined;
       if (currentAccount.tokenFilePath && fs.existsSync(this.liveTokenPath)) {
-        try { fs.copyFileSync(this.liveTokenPath, currentAccount.tokenFilePath); } catch {}
+        try {
+          fs.copyFileSync(this.liveTokenPath, currentAccount.tokenFilePath);
+          liveContent = fs.readFileSync(this.liveTokenPath, 'utf-8');
+        } catch {}
       }
       const stateDb = getStateDbPath(path.dirname(path.dirname(this.baseDir)));
+      let creds: StateDbCredentials | undefined;
       if (stateDb && fs.existsSync(stateDb)) {
         try {
-          const creds = readStateDbCredentials(stateDb);
+          creds = readStateDbCredentials(stateDb);
           if (creds.oauthToken || creds.userStatus) {
             fs.writeFileSync(
               path.join(this.tokensDir, `${currentAccount.id}.state.json`),
@@ -459,6 +626,25 @@ export class AccountManager {
               'utf-8'
             );
           }
+        } catch {}
+      }
+
+      // Preserve full auth cache bundle for future sign-ins
+      if (liveContent || creds) {
+        const cacheFile = path.join(this.tokensDir, `${currentAccount.id}.auth-cache.json`);
+        const bundle: StockAuthCache = {
+          id: currentAccount.id,
+          name: currentAccount.name,
+          email: currentAccount.email,
+          provider: currentAccount.provider,
+          tokenJson: liveContent,
+          stateDb: creds,
+          savedAt: new Date().toISOString(),
+          sourceApp: 'antigravity',
+        };
+        try {
+          fs.writeFileSync(cacheFile, JSON.stringify(bundle, null, 2), 'utf-8');
+          currentAccount.authCachePath = cacheFile;
         } catch {}
       }
     }

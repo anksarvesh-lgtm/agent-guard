@@ -246,8 +246,8 @@ export const AGENT_GUARD_TOOLS: ToolDefinition[] = [
       properties: {
         action: {
           type: 'string',
-          enum: ['status', 'switch', 'list', 'add', 'snapshot', 'remove', 'auto_rotate', 'configure'],
-          description: 'Action: status, switch to account, list all accounts, add account, snapshot active session, remove account, trigger auto_rotate check, or configure threshold.',
+          enum: ['status', 'switch', 'list', 'add', 'snapshot', 'import_stock', 'remove', 'auto_rotate', 'configure'],
+          description: 'Action: status, switch to account, list all accounts, add account, snapshot active session, import_stock auth cache, remove account, trigger auto_rotate check, or configure threshold.',
         },
         account_id: {
           type: 'string',

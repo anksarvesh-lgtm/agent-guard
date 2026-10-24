@@ -14,6 +14,7 @@ import { handleTokenCounter } from './tools/tokenCounter.js';
 import { handleAccountSwitcher } from './tools/accountSwitcher.js';
 import { handleModelCompressor } from './tools/modelCompressor.js';
 import { globalAccountManager } from './accounts/index.js';
+import { detectAllStateDatabases } from './accounts/stateDb.js';
 import { installExtensionToAllDetected, getExtensionStatus } from './extension/index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -769,6 +770,44 @@ else if (command === 'accounts') {
             process.exit(1);
         }
     }
+    else if (sub === 'import-stock') {
+        const rawName = args[2] && !args[2].startsWith('--') ? args[2] : undefined;
+        const idIdx = args.indexOf('--id');
+        const customId = idIdx !== -1 ? args[idIdx + 1] : undefined;
+        const nameIdx = args.indexOf('--name');
+        const customName = nameIdx !== -1 ? args[nameIdx + 1] : rawName;
+        const res = globalAccountManager.importStockAuth({ id: customId, name: customName });
+        if (res.success) {
+            console.log(`✅ ${res.message}`);
+            console.log(`• ID: "${res.account?.id}"`);
+            console.log(`• Display Name: "${res.account?.name}"`);
+            console.log(`• Token Saved: ${res.account?.tokenFilePath}`);
+            console.log(`• Auth Cache Saved: ${res.account?.authCachePath}`);
+            console.log(`• Headroom: ${res.account?.remainingPercent}%`);
+        }
+        else {
+            console.error(`❌ Import failed: ${res.message}`);
+            process.exit(1);
+        }
+    }
+    else if (sub === 'detect') {
+        console.log('🔍 Scanning coding apps for stock authentication state databases...\n');
+        const dbs = detectAllStateDatabases();
+        if (dbs.length === 0) {
+            console.log('No state.vscdb databases detected.');
+        }
+        else {
+            for (const d of dbs) {
+                const mark = d.hasCredentials ? '🟢 ACTIVE CREDENTIALS' : '⚪ Database present (No OAuth tokens)';
+                console.log(`• ${d.appName}: ${mark}`);
+                console.log(`  Path: ${d.dbPath}`);
+                if (d.credentials?.userStatus) {
+                    console.log(`  User Status: Present`);
+                }
+            }
+        }
+        console.log('\nTip: Run `node dist/cli.js accounts import-stock` to snapshot active credentials.');
+    }
     else if (sub === 'remove') {
         const accId = args[2];
         if (!accId) {
@@ -807,6 +846,8 @@ else if (command === 'accounts') {
         console.log('  node dist/cli.js accounts list');
         console.log('  node dist/cli.js accounts status');
         console.log('  node dist/cli.js accounts snapshot [name] [--id <id>]');
+        console.log('  node dist/cli.js accounts import-stock [name] [--id <id>]');
+        console.log('  node dist/cli.js accounts detect');
         console.log('  node dist/cli.js accounts switch <account-id>');
         console.log('  node dist/cli.js accounts add <id> [--name <name>] [--token <json>] [--token-file <file>] [--api-key <key>] [--snapshot]');
         console.log('  node dist/cli.js accounts import <file-path> [--id <id>] [--name <name>]');

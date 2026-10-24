@@ -561,8 +561,24 @@ function switchAccount(targetId, reason) {
       }
     }
 
-    // 2. Layer 1: Copy target jetski token
-    if (target.tokenFilePath && fs.existsSync(target.tokenFilePath)) {
+    // 1. Restore from full AuthCache bundle if available
+    if (target.authCachePath && fs.existsSync(target.authCachePath)) {
+      try {
+        const bundle = JSON.parse(fs.readFileSync(target.authCachePath, 'utf-8'));
+        if (bundle.tokenJson) {
+          const tmp = liveTokenPath + '.tmp.' + Date.now();
+          fs.writeFileSync(tmp, bundle.tokenJson, 'utf-8');
+          if (process.platform !== 'win32') {
+            try { fs.chmodSync(tmp, 0o600); } catch (e) {}
+          }
+          fs.renameSync(tmp, liveTokenPath);
+        }
+        if (bundle.stateDb) {
+          writeStateDbCredentials(bundle.stateDb);
+        }
+      } catch (e) {}
+    } else if (target.tokenFilePath && fs.existsSync(target.tokenFilePath)) {
+      // 2. Layer 1: Copy target jetski token
       const tmp = liveTokenPath + '.tmp.' + Date.now();
       fs.copyFileSync(target.tokenFilePath, tmp);
       if (process.platform !== 'win32') {
@@ -642,35 +658,63 @@ function snapshotCurrentAccount(id, name) {
       accounts: []
     };
 
-    const cleanId = id.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+    const live = queryLiveQuota(true);
+    const cleanId = (id ? id : (live && live.userEmail ? live.userEmail.split('@')[0] : 'session-' + Date.now().toString().slice(-4))).toLowerCase().replace(/[^a-z0-9-_]/g, '-');
     const tokenFile = path.join(tokensDir, cleanId + '.token');
     const stateFile = path.join(tokensDir, cleanId + '.state.json');
+    const cacheFile = path.join(tokensDir, cleanId + '.auth-cache.json');
 
     // Copy live token
     const liveToken = getLiveJetskiTokenPath();
+    let liveTokenContent = '';
     if (fs.existsSync(liveToken)) {
-      fs.copyFileSync(liveToken, tokenFile);
-      if (process.platform !== 'win32') {
-        try { fs.chmodSync(tokenFile, 0o600); } catch (e) {}
-      }
+      try {
+        fs.copyFileSync(liveToken, tokenFile);
+        liveTokenContent = fs.readFileSync(liveToken, 'utf-8');
+        if (process.platform !== 'win32') {
+          try { fs.chmodSync(tokenFile, 0o600); } catch (e) {}
+        }
+      } catch (e) {}
     }
 
     // Capture state.vscdb
     const creds = readStateDbCredentials();
     if (creds.oauthToken || creds.userStatus) {
-      fs.writeFileSync(stateFile, JSON.stringify(creds, null, 2), 'utf-8');
+      try {
+        fs.writeFileSync(stateFile, JSON.stringify(creds, null, 2), 'utf-8');
+      } catch (e) {}
     }
 
-    const live = queryLiveQuota(true);
     const displayName = name || (live && live.userName ? live.userName + ' (' + (live.userEmail || cleanId) + ')' : cleanId);
+
+    // Save full AuthCache bundle
+    const bundle = {
+      id: cleanId,
+      name: displayName,
+      email: live ? live.userEmail : undefined,
+      provider: 'antigravity',
+      tokenJson: liveTokenContent,
+      stateDb: creds,
+      savedAt: new Date().toISOString(),
+      sourceApp: 'antigravity',
+      profileUrl: creds ? creds.profileUrl : undefined
+    };
+    try {
+      fs.writeFileSync(cacheFile, JSON.stringify(bundle, null, 2), 'utf-8');
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(cacheFile, 0o600); } catch (e) {}
+      }
+    } catch (e) {}
 
     const existingIdx = data.accounts.findIndex(a => a.id === cleanId);
     const newAcc = {
       id: cleanId,
       name: displayName,
+      email: live ? live.userEmail : undefined,
       provider: 'antigravity',
       type: 'oauth_token',
       tokenFilePath: tokenFile,
+      authCachePath: cacheFile,
       isActive: true,
       usedTokens: 0,
       remainingPercent: live ? live.lowestRemainingPercent : 100,
@@ -1568,7 +1612,7 @@ function getWebviewContent() {
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
       <h3>Registered Account Pool (\${data.accounts.length})</h3>
       <div>
-        <button class="btn" onclick="post('snapshotAccount')">📸 Snapshot Active Session</button>
+        <button class="btn" onclick="post('importStockAuth')">📥 Save Current Auth Cache</button>
         <button class="btn btn-secondary" onclick="toggleAddAccountPanel()">➕ Add Account</button>
         <button class="btn btn-secondary" onclick="post('testTripwire')">Simulate 1% Rotation</button>
       </div>
@@ -1624,6 +1668,7 @@ function getWebviewContent() {
       <div class="acc-item \${a.isActive ? 'active' : ''}">
         <div>
           <strong>\${a.name}</strong> <span style="font-size: 11px; opacity: 0.6;">(\${a.id})</span>
+          \${a.authCachePath || a.tokenFilePath ? '<span class="badge badge-green" style="font-size:10px; margin-left:4px;">💾 AUTH CACHED</span>' : ''}
           <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">
             Quota: <strong>\${a.remainingPercent || 100}%</strong> | Provider: \${a.provider} (\${a.type}) | Status: \${a.status}
           </div>
@@ -1795,6 +1840,20 @@ function handleWebviewMessage(message) {
     showAccountPicker();
   } else if (command === 'snapshotAccount') {
     promptSnapshotAccount();
+  } else if (command === 'importStockAuth') {
+    const res = snapshotCurrentAccount(undefined, undefined);
+    if (res.success) {
+      vscode.window.showInformationMessage('✅ Agent Guard: Stock auth session cached for sign-in!');
+    } else {
+      vscode.window.showErrorMessage('Failed to cache stock auth: ' + res.message);
+    }
+  } else if (command === 'importStockAuthCustom') {
+    const res = snapshotCurrentAccount(payload?.id, payload?.name);
+    if (res.success) {
+      vscode.window.showInformationMessage('✅ Agent Guard: Stock auth session cached for sign-in!');
+    } else {
+      vscode.window.showErrorMessage('Failed to cache stock auth: ' + res.message);
+    }
   } else if (command === 'snapshotAccountCustom') {
     const res = snapshotCurrentAccount(payload?.id, payload?.name);
     if (res.success) {
@@ -1999,6 +2058,14 @@ function activate(context) {
     vscode.commands.registerCommand('agentGuard.manageGrants', () => promptManageGrants()),
     vscode.commands.registerCommand('agentGuard.switchAccount', () => showAccountPicker()),
     vscode.commands.registerCommand('agentGuard.snapshotAccount', () => promptSnapshotAccount()),
+    vscode.commands.registerCommand('agentGuard.importStockAuth', () => {
+      const res = snapshotCurrentAccount(undefined, undefined);
+      if (res.success) {
+        vscode.window.showInformationMessage('✅ Agent Guard: Stock auth session cached for sign-in!');
+      } else {
+        vscode.window.showErrorMessage('Failed to cache stock auth: ' + res.message);
+      }
+    }),
     vscode.commands.registerCommand('agentGuard.addAccount', () => promptAddAccount()),
     vscode.commands.registerCommand('agentGuard.removeAccount', () => {
       const data = readAccountsData();

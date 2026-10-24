@@ -9,6 +9,84 @@ export interface StateDbCredentials {
   profileUrl?: string;
 }
 
+export interface DetectedAppStateDb {
+  appName: string;
+  appId: 'antigravity-ide' | 'antigravity' | 'vscode' | 'cursor' | 'windsurf';
+  dbPath: string;
+  hasCredentials: boolean;
+  credentials?: StateDbCredentials;
+}
+
+export function detectAllStateDatabases(customHome?: string): DetectedAppStateDb[] {
+  const home = customHome || process.env.AGENT_GUARD_HOME || os.homedir();
+  const results: DetectedAppStateDb[] = [];
+
+  const candidates = [
+    {
+      appName: 'Antigravity IDE',
+      appId: 'antigravity-ide' as const,
+      subPath: process.platform === 'darwin'
+        ? ['Library', 'Application Support', 'Antigravity IDE', 'User', 'globalStorage', 'state.vscdb']
+        : process.platform === 'win32'
+          ? ['AppData', 'Roaming', 'Antigravity IDE', 'User', 'globalStorage', 'state.vscdb']
+          : ['.config', 'Antigravity IDE', 'User', 'globalStorage', 'state.vscdb']
+    },
+    {
+      appName: 'Antigravity',
+      appId: 'antigravity' as const,
+      subPath: process.platform === 'darwin'
+        ? ['Library', 'Application Support', 'Antigravity', 'User', 'globalStorage', 'state.vscdb']
+        : process.platform === 'win32'
+          ? ['AppData', 'Roaming', 'Antigravity', 'User', 'globalStorage', 'state.vscdb']
+          : ['.config', 'Antigravity', 'User', 'globalStorage', 'state.vscdb']
+    },
+    {
+      appName: 'VS Code',
+      appId: 'vscode' as const,
+      subPath: process.platform === 'darwin'
+        ? ['Library', 'Application Support', 'Code', 'User', 'globalStorage', 'state.vscdb']
+        : process.platform === 'win32'
+          ? ['AppData', 'Roaming', 'Code', 'User', 'globalStorage', 'state.vscdb']
+          : ['.config', 'Code', 'User', 'globalStorage', 'state.vscdb']
+    },
+    {
+      appName: 'Cursor',
+      appId: 'cursor' as const,
+      subPath: process.platform === 'darwin'
+        ? ['Library', 'Application Support', 'Cursor', 'User', 'globalStorage', 'state.vscdb']
+        : process.platform === 'win32'
+          ? ['AppData', 'Roaming', 'Cursor', 'User', 'globalStorage', 'state.vscdb']
+          : ['.config', 'Cursor', 'User', 'globalStorage', 'state.vscdb']
+    },
+    {
+      appName: 'Windsurf',
+      appId: 'windsurf' as const,
+      subPath: process.platform === 'darwin'
+        ? ['Library', 'Application Support', 'Windsurf', 'User', 'globalStorage', 'state.vscdb']
+        : process.platform === 'win32'
+          ? ['AppData', 'Roaming', 'Windsurf', 'User', 'globalStorage', 'state.vscdb']
+          : ['.config', 'Windsurf', 'User', 'globalStorage', 'state.vscdb']
+    }
+  ];
+
+  for (const c of candidates) {
+    const p = path.join(home, ...c.subPath);
+    if (fs.existsSync(p)) {
+      const creds = readStateDbCredentials(p);
+      const hasCreds = !!(creds.oauthToken || creds.userStatus);
+      results.push({
+        appName: c.appName,
+        appId: c.appId,
+        dbPath: p,
+        hasCredentials: hasCreds,
+        credentials: hasCreds ? creds : undefined,
+      });
+    }
+  }
+
+  return results;
+}
+
 export function getStateDbPath(customHome?: string): string | null {
   const home = customHome || process.env.AGENT_GUARD_HOME || os.homedir();
 

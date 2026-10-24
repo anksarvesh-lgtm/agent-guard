@@ -40,6 +40,20 @@ export declare class AccountManager {
         account?: AccountProfile;
     };
     /**
+     * Imports stock auth credentials and session caches from Antigravity IDE / CLI or other coding apps.
+     * Automatically captures both jetski-standalone-oauth-token and SQLite state.vscdb entries,
+     * generates an auth cache bundle, and registers the account profile.
+     */
+    importStockAuth(options?: {
+        id?: string;
+        name?: string;
+        sourceApp?: 'antigravity' | 'vscode' | 'cursor' | 'windsurf' | 'other';
+    }): {
+        success: boolean;
+        message: string;
+        account?: AccountProfile;
+    };
+    /**
      * Imports an account credentials token file from disk.
      */
     importAccountFile(filePath: string, id?: string, name?: string): {

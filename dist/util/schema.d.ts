@@ -137,7 +137,7 @@ export declare const TokenCounterSchema: z.ZodObject<{
     compare_all?: boolean | undefined;
 }>;
 export declare const AccountSwitcherSchema: z.ZodObject<{
-    action: z.ZodEnum<["status", "switch", "list", "add", "snapshot", "remove", "auto_rotate", "configure", "proxy", "failover_proxy"]>;
+    action: z.ZodEnum<["status", "switch", "list", "add", "snapshot", "import_stock", "remove", "auto_rotate", "configure", "proxy", "failover_proxy"]>;
     account_id: z.ZodOptional<z.ZodString>;
     name: z.ZodOptional<z.ZodString>;
     provider: z.ZodDefault<z.ZodOptional<z.ZodEnum<["antigravity", "gemini", "claude", "openai", "custom"]>>>;
@@ -149,7 +149,7 @@ export declare const AccountSwitcherSchema: z.ZodObject<{
     reason: z.ZodOptional<z.ZodString>;
     project_path: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    action: "status" | "switch" | "list" | "add" | "snapshot" | "remove" | "auto_rotate" | "configure" | "proxy" | "failover_proxy";
+    action: "status" | "switch" | "list" | "add" | "snapshot" | "import_stock" | "remove" | "auto_rotate" | "configure" | "proxy" | "failover_proxy";
     provider: "antigravity" | "gemini" | "claude" | "openai" | "custom";
     threshold_percent: number;
     account_id?: string | undefined;
@@ -161,7 +161,7 @@ export declare const AccountSwitcherSchema: z.ZodObject<{
     api_key?: string | undefined;
     enabled?: boolean | undefined;
 }, {
-    action: "status" | "switch" | "list" | "add" | "snapshot" | "remove" | "auto_rotate" | "configure" | "proxy" | "failover_proxy";
+    action: "status" | "switch" | "list" | "add" | "snapshot" | "import_stock" | "remove" | "auto_rotate" | "configure" | "proxy" | "failover_proxy";
     account_id?: string | undefined;
     project_path?: string | undefined;
     reason?: string | undefined;

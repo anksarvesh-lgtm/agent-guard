@@ -103,6 +103,15 @@ export function handleAccountSwitcher(rawArgs: any): string {
       return `❌ **Snapshot Failed**: ${snapRes.message}`;
     }
 
+    if (action === 'import_stock') {
+      const importRes = globalAccountManager.importStockAuth({ id: account_id, name });
+      logToolCall('account_switcher', null, importRes.success ? 'IMPORT_STOCK_OK' : 'IMPORT_STOCK_FAILED', validatedProject);
+      if (importRes.success && importRes.account) {
+        return `✅ **Stock Auth Cache Preserved**\n• Account ID: "${importRes.account.id}"\n• Display Name: "${importRes.account.name}"\n• Auth Cache Bundle: ${importRes.account.authCachePath || 'Saved'}\n• Session Ready for Instant Switch/Sign-In`;
+      }
+      return `❌ **Import Stock Auth Failed**: ${importRes.message}`;
+    }
+
     if (action === 'remove') {
       if (!account_id) {
         return 'BAD_INPUT: "account_id" is required to remove an account.';

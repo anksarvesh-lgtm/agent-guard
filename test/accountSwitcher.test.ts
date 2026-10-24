@@ -204,5 +204,23 @@ describe('Antigravity Account Switcher & 1% Auto-Rotator', () => {
       expect(output).toContain('Transparent In-Memory Replay');
       expect(output).toContain('Intra-Account Model Fallback');
     });
+
+    it('imports stock auth and preserves full auth-cache bundle via MCP tool', () => {
+      const output = handleAccountSwitcher({
+        action: 'import_stock',
+        account_id: 'stock-test-acc',
+        name: 'Stock Test Account',
+      });
+      expect(output).toContain('Stock Auth Cache Preserved');
+      expect(output).toContain('stock-test-acc');
+
+      const accounts = manager.listAccounts();
+      const imported = accounts.find((a) => a.id === 'stock-test-acc');
+      expect(imported).toBeDefined();
+      expect(imported?.authCachePath).toBeDefined();
+      if (imported?.authCachePath) {
+        expect(fs.existsSync(imported.authCachePath)).toBe(true);
+      }
+    });
   });
 });

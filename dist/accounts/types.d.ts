@@ -2,12 +2,25 @@ export type AccountProvider = 'antigravity' | 'gemini' | 'claude' | 'openai' | '
 export type AccountAuthType = 'oauth_token' | 'api_key';
 export type AccountStatus = 'active' | 'standby' | 'exhausted' | 'cooldown';
 export type RotationStrategy = 'round_robin' | 'least_used' | 'priority';
+export interface StockAuthCache {
+    id: string;
+    name: string;
+    email?: string;
+    provider: AccountProvider;
+    tokenJson?: string;
+    stateDb?: any;
+    savedAt: string;
+    sourceApp: 'antigravity' | 'vscode' | 'cursor' | 'windsurf' | 'other';
+    profileUrl?: string;
+}
 export interface AccountProfile {
     id: string;
     name: string;
+    email?: string;
     provider: AccountProvider;
     type: AccountAuthType;
     tokenFilePath?: string;
+    authCachePath?: string;
     apiKeyMasked?: string;
     isActive: boolean;
     usedTokens: number;

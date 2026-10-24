@@ -71,7 +71,7 @@ export const TokenCounterSchema = z.object({
 });
 
 export const AccountSwitcherSchema = z.object({
-  action: z.enum(['status', 'switch', 'list', 'add', 'snapshot', 'remove', 'auto_rotate', 'configure', 'proxy', 'failover_proxy']),
+  action: z.enum(['status', 'switch', 'list', 'add', 'snapshot', 'import_stock', 'remove', 'auto_rotate', 'configure', 'proxy', 'failover_proxy']),
   account_id: z.string().optional(),
   name: z.string().optional(),
   provider: z.enum(['antigravity', 'gemini', 'claude', 'openai', 'custom']).optional().default('antigravity'),
