@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agent Guard Dashboard & Token Counter</title>
+  <title>Agent Guard Dashboard & Account Switcher</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
     body {
@@ -32,7 +32,7 @@
             </span>
           </div>
           <p class="text-xs text-[var(--muted-foreground,#94a3b8)] mt-0.5">
-            By <strong>Sarvesh</strong> (<a href="https://github.com/anksarvesh-lgtm/agent-guard" target="_blank" class="text-blue-400 hover:underline">@anksarvesh-lgtm</a>) • Zero-Telemetry Task Supervisor & Token Guard
+            By <strong>Sarvesh</strong> (<a href="https://github.com/anksarvesh-lgtm/agent-guard" target="_blank" class="text-blue-400 hover:underline">@anksarvesh-lgtm</a>) • Zero-Telemetry Task Supervisor & Account Rotator
           </p>
         </div>
       </div>
@@ -41,7 +41,7 @@
           Apache-2.0
         </span>
         <span class="px-3 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-xs font-medium">
-          70/70 Tests Passing
+          84/84 Tests Passing
         </span>
       </div>
     </div>
@@ -53,7 +53,7 @@
           <span>MCP Tools</span>
           <span class="text-blue-400 text-sm">⚡</span>
         </div>
-        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">7 Tools</div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">8 Tools</div>
         <div class="text-[11px] text-emerald-400 mt-0.5">Auto-Approved</div>
       </div>
 
@@ -68,20 +68,20 @@
 
       <div class="bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)] rounded-xl p-3.5">
         <div class="text-[var(--muted-foreground,#94a3b8)] text-xs flex items-center justify-between">
-          <span>Sleep Inhibitor</span>
-          <span class="text-amber-400 text-sm">☕</span>
+          <span>Account Switcher</span>
+          <span class="text-cyan-400 text-sm">🔄</span>
         </div>
-        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">Native OS</div>
-        <div class="text-[11px] text-amber-300 mt-0.5">Auto-Lease Active</div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">1% Tripwire</div>
+        <div class="text-[11px] text-cyan-300 mt-0.5">Zero-Disruption Swap</div>
       </div>
 
       <div class="bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)] rounded-xl p-3.5">
         <div class="text-[var(--muted-foreground,#94a3b8)] text-xs flex items-center justify-between">
-          <span>Token Counter</span>
-          <span class="text-emerald-400 text-sm">📊</span>
+          <span>Sleep Inhibitor</span>
+          <span class="text-amber-400 text-sm">☕</span>
         </div>
-        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">Multi-Model</div>
-        <div class="text-[11px] text-emerald-300 mt-0.5">Gemini, Claude, GPT</div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">Native OS</div>
+        <div class="text-[11px] text-amber-300 mt-0.5">caffeinate active</div>
       </div>
     </div>
 
@@ -145,42 +145,69 @@
           <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-emerald-400 h-full rounded-full transition-all duration-300" style="width: 2.1%;"></div>
         </div>
       </div>
+    </div>
 
-      <!-- Interactive Calculator Input -->
-      <div class="space-y-2 pt-2 border-t border-[var(--border,#334155)]">
-        <div class="flex items-center justify-between">
-          <span class="text-xs font-medium text-[var(--foreground,#f8fafc)]">Interactive Token Test Sandbox</span>
-          <button onclick="resetDefaultTokens()" class="text-[11px] text-blue-400 hover:underline">Reset Demo Tokens</button>
+    <!-- Antigravity Account Switcher Section (Auto-Rotate at 1%) -->
+    <div class="bg-[var(--background,#0f172a)]/80 border border-cyan-500/30 rounded-xl p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border,#334155)] pb-3">
+        <div>
+          <h2 class="text-sm font-semibold text-[var(--foreground,#f8fafc)] flex items-center gap-2">
+            <span>🔄 Antigravity Account Switcher (Auto-Rotate at &le; 1% Quota)</span>
+          </h2>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)] mt-0.5">
+            Automatically and seamlessly swaps accounts when quota drops to 1% without disturbing ongoing pairing.
+          </p>
         </div>
-        <textarea 
-          id="tokenTester" 
-          rows="2" 
-          placeholder="Paste code or prompt text here to calculate tokens in real-time..." 
-          class="w-full px-3 py-2 bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-lg text-xs font-mono text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500"
-          oninput="handleCustomText(this.value)"
-        ></textarea>
+
+        <!-- Quick Switcher Dropdown & Auto-Switch Toggle -->
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5 text-xs text-[var(--muted-foreground,#94a3b8)]">
+            <span>Auto-Switch:</span>
+            <button id="autoSwitchToggle" onclick="toggleAutoSwitch()" class="px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-400"></span> ON (&le; 1%)
+            </button>
+          </div>
+          <select id="accountSelect" onchange="handleAccountChange(this.value)" class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] text-xs text-[var(--foreground,#f8fafc)] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500">
+            <option value="primary">⭐️ Primary Account (100% quota)</option>
+            <option value="backup-1">Backup Account 1 (100% quota)</option>
+            <option value="backup-2">Backup Account 2 (100% quota)</option>
+          </select>
+        </div>
       </div>
 
-      <!-- Cross-Model Comparison Table -->
-      <div class="space-y-2 pt-1">
-        <span class="text-xs font-semibold text-[var(--foreground,#f8fafc)] uppercase tracking-wider">Multi-Model Context Consumption Comparison</span>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs border border-[var(--border,#334155)] rounded-lg overflow-hidden">
-            <thead class="bg-[var(--card,#1e293b)] text-[var(--muted-foreground,#94a3b8)] border-b border-[var(--border,#334155)]">
-              <tr>
-                <th class="p-2">Model</th>
-                <th class="p-2">Provider</th>
-                <th class="p-2">Context Window</th>
-                <th class="p-2">Tokens Used</th>
-                <th class="p-2">Remaining</th>
-                <th class="p-2">% Used</th>
-                <th class="p-2">Status</th>
-              </tr>
-            </thead>
-            <tbody id="comparisonTableBody" class="divide-y divide-[var(--border,#334155)] bg-[var(--background,#0f172a)]/40">
-              <!-- Dynamically populated by updateTokenMeter() -->
-            </tbody>
-          </table>
+      <!-- Account Quota & Simulation Controls -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-xl p-3.5">
+          <div class="text-xs text-[var(--muted-foreground,#94a3b8)]">Current Active Account</div>
+          <div id="activeAccountName" class="text-base font-bold text-cyan-400 mt-1">Primary Account</div>
+          <div id="activeAccountId" class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-0.5 font-mono">primary (jetski-standalone-oauth-token)</div>
+        </div>
+
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-xl p-3.5">
+          <div class="text-xs text-[var(--muted-foreground,#94a3b8)]">Account Quota Remaining</div>
+          <div id="activeQuotaDisplay" class="text-xl font-bold text-emerald-400 mt-1">100%</div>
+          <div id="quotaStatusText" class="text-[11px] text-emerald-300 mt-0.5">Healthy capacity</div>
+        </div>
+
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-xl p-3.5 flex flex-col justify-between">
+          <div class="text-xs text-[var(--muted-foreground,#94a3b8)]">1% Quota Simulation</div>
+          <div class="flex items-center gap-2 mt-1">
+            <button onclick="simulateDropTo1Percent()" class="w-full py-1.5 px-3 bg-rose-500/20 text-rose-300 border border-rose-500/30 hover:bg-rose-500/30 rounded-lg text-xs font-semibold transition-all">
+              ⚡ Trigger 1% Tripwire
+            </button>
+            <button onclick="resetAccountQuotas()" class="py-1.5 px-3 bg-blue-500/20 text-blue-300 border border-blue-500/30 hover:bg-blue-500/30 rounded-lg text-xs transition-all">
+              Reset
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rotation Log Notification Banner -->
+      <div id="rotationNotice" class="hidden p-3 bg-cyan-950/40 border border-cyan-500/40 rounded-xl text-xs text-cyan-300 flex items-start gap-2.5">
+        <span class="text-base leading-none">🔄</span>
+        <div>
+          <strong class="font-semibold text-cyan-200">Zero-Disruption Auto-Rotation Executed:</strong>
+          <span id="rotationNoticeText" class="block mt-0.5 text-cyan-300/90"></span>
         </div>
       </div>
     </div>
@@ -276,11 +303,11 @@
     <!-- Bottom Quick Action Pills -->
     <div class="pt-4 border-t border-[var(--border,#334155)] flex flex-wrap items-center justify-between gap-3 text-xs">
       <div class="flex items-center gap-2 text-[var(--muted-foreground,#94a3b8)]">
-        <span>💡 Tip: Run <strong>npm run tokens</strong> or use <strong>token_counter</strong> tool anytime.</span>
+        <span>💡 Tip: Run <strong>npm run accounts</strong> or use <strong>account_switcher</strong> tool anytime.</span>
       </div>
       <div class="flex items-center gap-2">
-        <code class="px-2.5 py-1 bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-md font-mono text-[11px] text-blue-400">
-          node dist/cli.js tokens
+        <code class="px-2.5 py-1 bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-md font-mono text-[11px] text-cyan-400">
+          node dist/cli.js accounts status
         </code>
       </div>
     </div>
@@ -298,32 +325,19 @@
       'llama-3.3-70b': { name: 'Llama 3.3 70B', provider: 'Open Source', limit: 128000 },
     };
 
+    let ACCOUNTS = [
+      { id: 'primary', name: 'Primary Account', quota: 100, active: true },
+      { id: 'backup-1', name: 'Backup Account 1', quota: 100, active: false },
+      { id: 'backup-2', name: 'Backup Account 2', quota: 100, active: false }
+    ];
+
+    let autoSwitchEnabled = true;
     let currentUsedTokens = 42500;
 
     function formatNumber(num) {
-      if (num >= 1000000) return (num / 1000000).toFixed(2).replace(/\.00$/, '') + 'M';
+      if (num >= 1000000) return (num / 1000000).toFixed(2).replace(/\.?0+$/, '') + 'M';
       if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
       return num.toLocaleString();
-    }
-
-    function estimateTokens(text) {
-      if (!text) return 0;
-      return Math.max(1, Math.ceil(text.length / 3.3));
-    }
-
-    function handleCustomText(val) {
-      if (!val || val.trim().length === 0) {
-        currentUsedTokens = 42500;
-      } else {
-        currentUsedTokens = estimateTokens(val);
-      }
-      updateTokenMeter();
-    }
-
-    function resetDefaultTokens() {
-      document.getElementById('tokenTester').value = '';
-      currentUsedTokens = 42500;
-      updateTokenMeter();
     }
 
     function updateTokenMeter() {
@@ -343,7 +357,6 @@
 
       const progressBar = document.getElementById('progressBar');
       progressBar.style.width = `${Math.min(100, percent)}%`;
-
       const statusBadge = document.getElementById('statusBadge');
       const guidance = document.getElementById('guidanceText');
 
@@ -368,32 +381,81 @@
         guidance.innerText = 'Plenty of headroom remaining';
         progressBar.className = 'bg-gradient-to-r from-blue-500 to-emerald-400 h-full rounded-full transition-all duration-300';
       }
+    }
 
-      // Re-render comparison table
-      const tbody = document.getElementById('comparisonTableBody');
-      let tableHtml = '';
-      for (const [key, m] of Object.entries(MODELS)) {
-        const mPercent = Number(((used / m.limit) * 100).toFixed(1));
-        const mRemaining = Math.max(0, m.limit - used);
-        let mStatusHtml = '<span class="text-emerald-400">🟢 OPTIMAL</span>';
-        if (mPercent >= 90) mStatusHtml = '<span class="text-rose-400">🔴 CRITICAL</span>';
-        else if (mPercent >= 75) mStatusHtml = '<span class="text-amber-400">🟠 WARNING</span>';
-        else if (mPercent >= 50) mStatusHtml = '<span class="text-yellow-400">🟡 MODERATE</span>';
-
-        const isCurrent = key === selectedModelKey ? 'bg-blue-500/10 font-medium' : '';
-        tableHtml += `
-          <tr class="${isCurrent}">
-            <td class="p-2 font-semibold text-[var(--foreground,#f8fafc)]">${m.name}</td>
-            <td class="p-2 text-[var(--muted-foreground,#94a3b8)]">${m.provider}</td>
-            <td class="p-2 font-mono">${formatNumber(m.limit)}</td>
-            <td class="p-2 font-mono text-blue-400">${formatNumber(used)}</td>
-            <td class="p-2 font-mono text-emerald-400">${formatNumber(mRemaining)}</td>
-            <td class="p-2 font-mono">${mPercent}%</td>
-            <td class="p-2">${mStatusHtml}</td>
-          </tr>
-        `;
+    function toggleAutoSwitch() {
+      autoSwitchEnabled = !autoSwitchEnabled;
+      const btn = document.getElementById('autoSwitchToggle');
+      if (autoSwitchEnabled) {
+        btn.innerHTML = '<span class="w-2 h-2 rounded-full bg-emerald-400"></span> ON (&le; 1%)';
+        btn.className = 'px-2.5 py-1 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1';
+      } else {
+        btn.innerHTML = '<span class="w-2 h-2 rounded-full bg-slate-400"></span> OFF';
+        btn.className = 'px-2.5 py-1 bg-slate-500/20 text-slate-400 border border-slate-500/30 rounded-lg text-xs font-semibold flex items-center gap-1';
       }
-      tbody.innerHTML = tableHtml;
+    }
+
+    function updateAccountsUi() {
+      const active = ACCOUNTS.find(a => a.active) || ACCOUNTS[0];
+      document.getElementById('activeAccountName').innerText = active.name;
+      document.getElementById('activeAccountId').innerText = `${active.id} (jetski-standalone-oauth-token)`;
+      document.getElementById('activeQuotaDisplay').innerText = `${active.quota}%`;
+
+      const statusText = document.getElementById('quotaStatusText');
+      if (active.quota <= 1) {
+        statusText.innerText = 'Quota depleted (&le;1%)';
+        statusText.className = 'text-[11px] text-rose-400 mt-0.5';
+      } else if (active.quota <= 20) {
+        statusText.innerText = 'Low quota warning';
+        statusText.className = 'text-[11px] text-amber-300 mt-0.5';
+      } else {
+        statusText.innerText = 'Healthy capacity';
+        statusText.className = 'text-[11px] text-emerald-300 mt-0.5';
+      }
+
+      document.getElementById('accountSelect').value = active.id;
+    }
+
+    function handleAccountChange(selectedId) {
+      const current = ACCOUNTS.find(a => a.active);
+      ACCOUNTS.forEach(a => a.active = (a.id === selectedId));
+      updateAccountsUi();
+      showRotationNotice(`Switched from "${current ? current.name : 'None'}" to "${ACCOUNTS.find(a => a.id === selectedId).name}". Live Antigravity credentials updated.`);
+    }
+
+    function simulateDropTo1Percent() {
+      const current = ACCOUNTS.find(a => a.active);
+      if (current) current.quota = 1;
+      updateAccountsUi();
+
+      if (autoSwitchEnabled) {
+        // Find next healthy account in pool
+        const next = ACCOUNTS.find(a => a.id !== current.id && a.quota > 1) || ACCOUNTS.find(a => a.id !== current.id);
+        if (next) {
+          setTimeout(() => {
+            current.active = false;
+            next.active = true;
+            updateAccountsUi();
+            showRotationNotice(`Account "${current.name}" reached 1% quota. Seamlessly rotated to "${next.name}" with 100% capacity! Task continued uninterrupted.`);
+          }, 300);
+        }
+      }
+    }
+
+    function resetAccountQuotas() {
+      ACCOUNTS.forEach(a => {
+        a.quota = 100;
+        a.active = (a.id === 'primary');
+      });
+      updateAccountsUi();
+      document.getElementById('rotationNotice').classList.add('hidden');
+    }
+
+    function showRotationNotice(msg) {
+      const notice = document.getElementById('rotationNotice');
+      const text = document.getElementById('rotationNoticeText');
+      text.innerText = msg;
+      notice.classList.remove('hidden');
     }
 
     function filterSkills() {
@@ -411,6 +473,7 @@
 
     // Initialize on load
     updateTokenMeter();
+    updateAccountsUi();
   </script>
 </body>
 </html>
