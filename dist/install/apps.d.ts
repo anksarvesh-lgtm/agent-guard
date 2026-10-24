@@ -21,6 +21,7 @@ export interface AppTarget {
     install: (ctx: InstallContext) => AppInstallResult;
 }
 export declare function getHomeDir(): string;
+export declare function deploySkillsToDirectory(skillsSourceDir: string, targetSkillsDir: string, dryRun?: boolean): number;
 export declare const antigravityTarget: AppTarget;
 export declare const claudeTarget: AppTarget;
 export declare const codexTarget: AppTarget;
