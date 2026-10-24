@@ -1,6 +1,6 @@
 {
   "name": "agent-guard",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Resilient, zero-telemetry local MCP server, keep-awake supervisor, and Antigravity Stop hook for reliable autonomous pairing.",
   "type": "module",
   "main": "dist/index.js",
@@ -24,6 +24,9 @@
     "map": "node dist/cli.js map",
     "skills": "node dist/cli.js skills",
     "doctor": "node dist/cli.js doctor",
+    "bump": "node scripts/bump.js",
+    "release": "node scripts/release.js",
+    "push:next": "node scripts/release.js",
     "test": "vitest run",
     "test:watch": "vitest"
   },

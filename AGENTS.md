@@ -12,7 +12,7 @@ Work
 5. After every error call task_checkpoint with status failed and the error text. Fix the cause and retry the same step. Do not start another step while this one has tries left.
 6. If a step is reported blocked, write why and go on with the next allowed step.
 7. Do not stop while unblocked steps remain. Ask the user only about choices that change what the product does, never about things you can find out by reading code or running a test.
-8. Commit to git after each finished step.
+8. Commit to git after each finished step. Every time you push to git, always bump the version by .1 (+0.0.1 patch bump via npm run bump) before pushing.
 
 Finish
 9. When task_status says the task is done, reply with 3 lines: what changed, what you tested, what is blocked.
