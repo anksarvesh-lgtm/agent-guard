@@ -69,6 +69,7 @@ const SUPPORTED_EXTS = new Set([
  * Extract symbols, imports, and exports from source code using high-speed lexical analysis.
  */
 export function parseSourceFile(filePath: string, content: string): FileIndex {
+  filePath = filePath.replace(/\\/g, '/');
   const ext = path.extname(filePath).toLowerCase();
   const lines = content.split('\n');
   const lineCount = lines.length;
@@ -474,14 +475,15 @@ export function buildCodeGraph(projectPath: string, options: { forceRefresh?: bo
   const maxFiles = options.maxFiles || 2000;
   let parsedCount = 0;
 
-  for (const relFile of fresh.files) {
+  for (const rawRelFile of fresh.files) {
     if (parsedCount >= maxFiles) break;
 
+    const relFile = rawRelFile.replace(/\\/g, '/');
     const ext = path.extname(relFile).toLowerCase();
     if (!SUPPORTED_EXTS.has(ext)) continue;
     if (isSensitiveOrIgnored(relFile)) continue;
 
-    const fullPath = path.join(resolved, relFile);
+    const fullPath = path.join(resolved, rawRelFile);
     try {
       const stat = fs.statSync(fullPath);
       if (stat.size > 500 * 1024) continue; // Skip files > 500KB
@@ -573,7 +575,7 @@ export function getGraphOverview(graph: CodeGraph): string {
  * List symbols inside a specific file or directory.
  */
 export function listFileSymbols(graph: CodeGraph, fileOrPattern: string): string {
-  const norm = fileOrPattern.replace(/^[./]+/, '').toLowerCase();
+  const norm = fileOrPattern.replace(/\\/g, '/').replace(/^[./]+/, '').toLowerCase();
   const matchedFiles = Object.keys(graph.files).filter(f => f.toLowerCase().includes(norm));
 
   if (matchedFiles.length === 0) {
@@ -662,7 +664,7 @@ export function sliceSymbol(projectPath: string, graph: CodeGraph, symbolName: s
   let matches = graph.symbolIndex[key] || [];
 
   if (targetFile) {
-    const norm = targetFile.replace(/^[./]+/, '').toLowerCase();
+    const norm = targetFile.replace(/\\/g, '/').replace(/^[./]+/, '').toLowerCase();
     matches = matches.filter(m => m.filePath.toLowerCase().includes(norm));
   }
 

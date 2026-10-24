@@ -22,6 +22,7 @@ const SUPPORTED_EXTS = new Set([
  * Extract symbols, imports, and exports from source code using high-speed lexical analysis.
  */
 export function parseSourceFile(filePath, content) {
+    filePath = filePath.replace(/\\/g, '/');
     const ext = path.extname(filePath).toLowerCase();
     const lines = content.split('\n');
     const lineCount = lines.length;
@@ -407,15 +408,16 @@ export function buildCodeGraph(projectPath, options = {}) {
     let totalSymbols = 0;
     const maxFiles = options.maxFiles || 2000;
     let parsedCount = 0;
-    for (const relFile of fresh.files) {
+    for (const rawRelFile of fresh.files) {
         if (parsedCount >= maxFiles)
             break;
+        const relFile = rawRelFile.replace(/\\/g, '/');
         const ext = path.extname(relFile).toLowerCase();
         if (!SUPPORTED_EXTS.has(ext))
             continue;
         if (isSensitiveOrIgnored(relFile))
             continue;
-        const fullPath = path.join(resolved, relFile);
+        const fullPath = path.join(resolved, rawRelFile);
         try {
             const stat = fs.statSync(fullPath);
             if (stat.size > 500 * 1024)
@@ -496,7 +498,7 @@ export function getGraphOverview(graph) {
  * List symbols inside a specific file or directory.
  */
 export function listFileSymbols(graph, fileOrPattern) {
-    const norm = fileOrPattern.replace(/^[./]+/, '').toLowerCase();
+    const norm = fileOrPattern.replace(/\\/g, '/').replace(/^[./]+/, '').toLowerCase();
     const matchedFiles = Object.keys(graph.files).filter(f => f.toLowerCase().includes(norm));
     if (matchedFiles.length === 0) {
         return `No indexed files matched pattern: "${fileOrPattern}".`;
@@ -571,7 +573,7 @@ export function sliceSymbol(projectPath, graph, symbolName, targetFile) {
     const key = symbolName.trim().toLowerCase();
     let matches = graph.symbolIndex[key] || [];
     if (targetFile) {
-        const norm = targetFile.replace(/^[./]+/, '').toLowerCase();
+        const norm = targetFile.replace(/\\/g, '/').replace(/^[./]+/, '').toLowerCase();
         matches = matches.filter(m => m.filePath.toLowerCase().includes(norm));
     }
     if (matches.length === 0) {
