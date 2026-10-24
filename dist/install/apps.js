@@ -30,10 +30,7 @@ export function deploySkillsToDirectory(skillsSourceDir, targetSkillsDir, dryRun
             const destSkillDir = path.join(targetSkillsDir, entry.name);
             if (!dryRun) {
                 fs.mkdirSync(destSkillDir, { recursive: true });
-                const files = fs.readdirSync(srcSkillDir);
-                for (const file of files) {
-                    fs.copyFileSync(path.join(srcSkillDir, file), path.join(destSkillDir, file));
-                }
+                fs.cpSync(srcSkillDir, destSkillDir, { recursive: true });
             }
             count++;
         }
