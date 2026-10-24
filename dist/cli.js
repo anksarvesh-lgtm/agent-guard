@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { checkForUpdates, performUpdate } from './update.js';
 import { generateFullProjectMap } from './brief/map.js';
 import { getProjectFreshness } from './brief/stale.js';
+import { installToApps } from './install/apps.js';
 import { loadSkillsIndex, listFeaturedSkills, searchSkills, getSkillInfo, getCategories, installSkill, formatSkillsTable } from './skills/manager.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -174,13 +175,12 @@ function detectNodeBinary() {
         return 'node';
     }
 }
-export function installToAntigravity(options = {}) {
+export function installAgentGuard(options = {}) {
     const nodeBin = detectNodeBinary();
     const serverPath = path.join(REPO_ROOT, 'dist', 'index.js');
     const hookPath = path.join(REPO_ROOT, 'dist', 'hook', 'stop-hook.js');
     const enforceHookPath = path.join(REPO_ROOT, 'dist', 'hook', 'post-invocation-hook.js');
-    const mcpConfigFile = getGeminiConfigPath();
-    console.log('🛡️  Agent Guard — Antigravity Automated Installer\n');
+    console.log('🛡️  Agent Guard — Universal MCP & Multi-App Installer\n');
     console.log(`• Repository:    ${REPO_ROOT}`);
     console.log(`• Node binary:   ${nodeBin}`);
     console.log(`• MCP Server:    ${serverPath}`);
@@ -190,51 +190,30 @@ export function installToAntigravity(options = {}) {
         console.error('❌ Error: dist/index.js not found. Run `npm run build` before installing.');
         process.exit(1);
     }
-    // 1. Update ~/.gemini/config/mcp_config.json
-    console.log(`1. Configuring MCP server in ${mcpConfigFile}...`);
-    let config = { mcpServers: {} };
-    if (fs.existsSync(mcpConfigFile)) {
-        try {
-            const raw = fs.readFileSync(mcpConfigFile, 'utf-8');
-            config = JSON.parse(raw);
-            if (!config.mcpServers)
-                config.mcpServers = {};
-        }
-        catch (err) {
-            console.warn(`⚠️ Warning: Could not parse existing config: ${err.message}. Creating backup.`);
-            fs.copyFileSync(mcpConfigFile, `${mcpConfigFile}.bak-${Date.now()}`);
-            config = { mcpServers: {} };
-        }
-    }
-    else {
-        fs.mkdirSync(path.dirname(mcpConfigFile), { recursive: true });
-    }
-    config.mcpServers = config.mcpServers || {};
-    config.mcpServers['agent-guard'] = {
-        command: nodeBin,
-        args: [serverPath],
-        autoApprove: [
-            'task_start',
-            'task_checkpoint',
-            'task_status',
-            'keep_awake',
-            'repo_brief',
-            'project_map'
-        ],
-        disabled: false
+    const ctx = {
+        nodeBin,
+        serverPath,
+        hookPath,
+        enforceHookPath,
+        repoRoot: REPO_ROOT,
+        dryRun: options.dryRun,
     };
-    if (!options.dryRun) {
-        fs.writeFileSync(mcpConfigFile, JSON.stringify(config, null, 2) + '\n', 'utf-8');
-        console.log('   ✅ Successfully registered `agent-guard` MCP server.');
-    }
-    else {
-        console.log('   [Dry Run] Would write updated mcp_config.json');
+    const appSelection = options.apps || 'auto';
+    console.log(`1. Configuring MCP server for target applications (${appSelection === 'auto' ? 'auto-detecting installed apps' : appSelection})...`);
+    const installResults = installToApps(appSelection, ctx);
+    for (const res of installResults) {
+        if (res.installed) {
+            console.log(`   ✅ [${res.appName}] ${res.message}`);
+        }
+        else {
+            console.log(`   ⚠️ [${res.appName}] ${res.message}`);
+        }
     }
     // 2. Configure target workspace (if provided or current dir)
     const workspace = path.resolve(options.targetWorkspace || process.cwd());
     const hasGit = fs.existsSync(path.join(workspace, '.git'));
     if (hasGit || options.targetWorkspace) {
-        console.log(`\n2. Configuring workspace at ${workspace}...`);
+        console.log(`\n2. Configuring workspace supervisor at ${workspace}...`);
         // Setup .agents/hooks.json
         const agentsDir = path.join(workspace, '.agents');
         const hooksFile = path.join(agentsDir, 'hooks.json');
@@ -286,12 +265,13 @@ export function installToAntigravity(options = {}) {
     installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPath, options.dryRun);
     // 4. Configure auto-accept in IDE
     configureAutoAcceptGrants(options.dryRun);
-    console.log('\n🎉 Installation Complete!');
+    console.log('\n🎉 Universal Installation Complete!');
     console.log('----------------------------------------------------');
-    console.log('Restart or reload Antigravity to activate Agent Guard.');
-    console.log('You can now mention `@agent-guard` directly in chat.');
-    console.log('Verify with: `npm run doctor` or `node dist/cli.js doctor`\n');
+    console.log('Agent Guard is now active across your coding environments.');
+    console.log('Restart your IDE / coding CLI to load new MCP tools.');
+    console.log('Verify at any time with: `npm run doctor` or `node dist/cli.js doctor`\n');
 }
+export const installToAntigravity = installAgentGuard;
 export function doctorCheck() {
     console.log('🩺 Agent Guard Readiness Doctor\n');
     const nodeBin = detectNodeBinary();
@@ -389,7 +369,31 @@ if (command === 'install') {
     const targetIdx = args.indexOf('--workspace');
     const targetWorkspace = targetIdx !== -1 ? args[targetIdx + 1] : undefined;
     const dryRun = args.includes('--dry-run');
-    installToAntigravity({ targetWorkspace, dryRun });
+    const all = args.includes('--all');
+    let apps = 'auto';
+    if (all) {
+        apps = 'all';
+    }
+    else {
+        const selected = [];
+        if (args.includes('--antigravity') || args.includes('--gemini'))
+            selected.push('antigravity');
+        if (args.includes('--claude'))
+            selected.push('claude');
+        if (args.includes('--cursor'))
+            selected.push('cursor');
+        if (args.includes('--codex'))
+            selected.push('codex');
+        if (args.includes('--windsurf'))
+            selected.push('windsurf');
+        if (args.includes('--cline') || args.includes('--roo'))
+            selected.push('cline');
+        if (args.includes('--zed'))
+            selected.push('zed');
+        if (selected.length > 0)
+            apps = selected;
+    }
+    installAgentGuard({ targetWorkspace, dryRun, apps });
 }
 else if (command === 'update') {
     console.log('🔄 Checking for Agent Guard updates...\n');
@@ -510,7 +514,7 @@ else if (command === 'skills') {
 }
 else {
     console.log('Usage:');
-    console.log('  node dist/cli.js install [--workspace <path>] [--dry-run]');
+    console.log('  node dist/cli.js install [--all|--claude|--cursor|--codex|--antigravity|--windsurf|--cline|--zed] [--workspace <path>] [--dry-run]');
     console.log('  node dist/cli.js map [--workspace <path>]');
     console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');
