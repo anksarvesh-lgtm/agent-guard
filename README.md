@@ -10,10 +10,10 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
-  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-123%2F123%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
-  <a href="docs/AWESOME_SKILLS.md"><img src="https://img.shields.io/badge/Skills-2%2C740%2B%20Curated-blueviolet.svg" alt="Awesome Skills" /></a>
+  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-124%2F124%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
+  <a href="#-active-skills-catalog-78-active--3500-library"><img src="https://img.shields.io/badge/Skills-78%20Active%20%2F%203%2C500%2B%20Catalog-blueviolet.svg" alt="78 Active Skills" /></a>
   <a href="#zero-telemetry"><img src="https://img.shields.io/badge/Telemetry-Zero%20%2F%20100%25%20Local-success.svg" alt="Zero Telemetry" /></a>
-  <img src="https://img.shields.io/badge/Version-v0.2.10-informational.svg" alt="Version 0.2.10" />
+  <img src="https://img.shields.io/badge/Version-v0.2.13-informational.svg" alt="Version 0.2.13" />
   <a href="#mention-agent-guard"><img src="https://img.shields.io/badge/Mention-%40agent--guard-orange.svg" alt="Mention @agent-guard" /></a>
   <a href="#auto-update"><img src="https://img.shields.io/badge/Auto--Update-Enabled-blue.svg" alt="Auto-Update Enabled" /></a>
   <a href="#prerequisites"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-green.svg" alt="Node >= 20" /></a>
@@ -160,9 +160,11 @@ flowchart TD
 | `keep_awake` | Explicitly holds, releases, or inspects sleep inhibition lease | ~40 tokens | `action` (`hold`/`release`/`status`), `minutes?`, `reason?` |
 | `repo_brief` | Fast project overview with ASCII directory map & architecture chart | < 1,500 tokens | `refresh?`, `project_path?` |
 | `agent_enforce` | Communicates directives with active agents and forces task completion | ~60 tokens | `action` (`status`/`broadcast`/`force_next`), `directive?` |
+| `project_map` | Generates AST codebase map and structural symbol relationships | < 1,000 tokens | `project_path?`, `max_depth?` |
 | `token_counter` | Measures tokens and costs across Gemini, Claude, GPT-4o, and DeepSeek | ~80 tokens | `model?`, `text?`, `file_path?`, `transcript_path?`, `compare_all?` |
-| `account_switcher` | Rotates accounts and manages auto-rotation when quota hits 1% | ~70 tokens | `action` (`status`/`switch`/`add`/`auto_rotate`), `account_id?` |
+| `account_switcher` | Rotates accounts, preserves stock auth caches, and manages 1% auto-rotation | ~70 tokens | `action` (`status`/`switch`/`add`/`detect`/`import_stock`), `account_id?` |
 | `model_compressor` | Quantizes models, prunes tokens, and estimates memory savings | ~90 tokens | `action` (`estimate`/`recommend`/`generate_config`), `param_billions?` |
+| `rea` *(MCP Suite)* | Reverse engineering, binary decompilation, AST recovery, protocol inspection | Varies | Native REA tool arguments |
 
 ---
 
@@ -410,31 +412,131 @@ npm test
  ✓ test/keepAwake.test.ts (7 tests)
 
  Test Files  16 passed (16)
-      Tests  123 passed (123)
-   Duration  3.11s
+      Tests  124 passed (124)
+   Duration  2.58s
 ```
 
 ---
 
-## 🌟 Curated Skills Catalog (14 Bundled / 2,740+ Awesome Catalog)
+## 🌟 Active Skills Catalog (78 Active / 3,500+ Library)
 
-Agent Guard automatically deploys **14 curated core skills** to all detected IDEs:
-1. `agent-guard`: Autonomous task supervisor and keep-awake lease guard.
-2. `ai-agents-architect`: Multi-agent system architecture and ReAct tool routing.
-3. `clean-architecture`: Domain-driven boundaries and decoupled modularity.
-4. `devops-automation`: CI/CD workflows, Docker containerization, and automated releases.
-5. `security-audit`: Zero-trust vulnerability audit and secret leakage prevention.
-6. `test-driven-development`: Red-Green-Refactor enforcement with verifiable test proofs.
-7. `performance-profiling`: V8 heap analysis, event-loop latency, and hot-path tuning.
-8. `reverse-engineering`: Binary inspection, AST reconstruction, and protocol analysis.
-9. `ui-ux-pro-max`: Design intelligence tokens, typography, and styling systems.
-10. `frontend-design`: Aesthetic direction and bespoke design components.
-11. `web-artifacts-builder`: Modern frontend interactive artifact generation (React/Tailwind/shadcn).
-12. `mcp-builder`: FastMCP and TypeScript MCP server development guide.
-13. `code-review-and-quality`: Multi-axis quality and security PR review engine.
-14. `debugging-and-error-recovery`: Systematic root-cause debugging and fault localization.
+Agent Guard automatically deploys **78 production skills** directly into `~/.gemini/config/skills/`, workspace `.gemini/skills.json`, and plugin directories, making them immediately discoverable and callable by AI agents in Google Antigravity, Claude Code, Cursor, Windsurf, and VS Code.
 
-Explore the broader collection of **2,740+ skills** in [docs/AWESOME_SKILLS.md](docs/AWESOME_SKILLS.md).
+### 📄 1. Official Office Document & API Skills (`anthropics/skills`)
+| Skill | Description & Workflows |
+| :--- | :--- |
+| **`docx`** | Create, format, manipulate, and edit Microsoft Word (.docx) files, redlining, XML schemas, and table styling. |
+| **`pdf`** | Comprehensive PDF creation, text/table extraction, merging, splitting, watermarking, and form filling. |
+| **`pptx`** | Professional PowerPoint (.pptx/.potx) slide creation, typography, shape alignment, and layout templates. |
+| **`xlsx`** | Advanced Excel (.xlsx) manipulation, formulas, data sheets, and formatting via openpyxl/soffice. |
+| **`claude-api`** | Authoritative integration patterns, streaming endpoints, and tool-use recipes for the Claude API. |
+
+### 🎨 2. Design Intelligence, UI/UX & Web Artifacts (`nextlevelbuilder/ui-ux-pro-max-skill`)
+| Skill | Description & Workflows |
+| :--- | :--- |
+| **`ui-ux-pro-max`** | Complete enterprise UI/UX design intelligence, design tokens, component libraries, typography, color palettes, and WCAG accessibility. |
+| **`canvas-design`** | High-aesthetic static art, poster design, and visual document generation in PNG and PDF formats. |
+| **`frontend-design`** | Distinctive, intentional aesthetic direction, bespoke typography pairings, and layout choices. |
+| **`frontend-ui-engineering`** | Production-quality responsive frontend components, state management, and accessibility conformance. |
+| **`artifacts-builder`** | Elaborate multi-component HTML/React/Tailwind artifacts using shadcn/ui. |
+| **`web-artifacts-builder`** | Complex web components with state routing, animations, and interactive controls. |
+| **`theme-factory`** | Theme generator with curated color palettes and typography presets for documents and dashboards. |
+| **`algorithmic-art`** | Generative art using p5.js with seeded randomness and interactive parameter exploration. |
+| **`brand-guidelines`** | Official brand colors, logos, and typographic formatting systems. |
+| **`image-enhancer`** | Screenshot resolution and sharpness enhancement. |
+| **`slack-gif-creator`** | Animated GIF generation optimized for Slack emoji/reaction standards. |
+
+### 🛡️ 3. Core Architecture, TDD & Supervised Engineering (`agent-guard` & `addyosmani/agent-skills`)
+| Skill | Description & Workflows |
+| :--- | :--- |
+| **`agent-guard`** | Task supervisor, atomic ledger engine, and keep-awake lease guard. |
+| **`ai-agents-architect`** | Multi-agent orchestration, ReAct tool routing, and failure-tolerant execution. |
+| **`clean-architecture`** | Domain-driven design, boundary enforcement, and maintainable decoupled modularity. |
+| **`test-driven-development`** | Red-Green-Refactor development loop, high-coverage unit and integration test suites. |
+| **`debugging-and-error-recovery`** | Systematic root-cause debugging, stack trace analysis, and regression prevention. |
+| **`code-review-and-quality`** | Multi-axis code reviews (correctness, performance, security, architecture). |
+| **`code-simplification`** | Refactoring for clarity and readability without changing functionality. |
+| **`security-audit`** | Zero-trust vulnerability audit, secret leak detection, and OWASP compliance. |
+| **`security-and-hardening`** | Hardening code against injection, CSRF, and authorization bypasses. |
+| **`performance-profiling`** | V8 heap analysis, event-loop latency tracking, and hot-path bottleneck tuning. |
+| **`performance-optimization`** | Frontend Web Vitals, database queries, and backend throughput optimization. |
+| **`devops-automation`** | CI/CD pipelines, Docker containerization, Kubernetes manifests, and automated releases. |
+| **`ci-cd-and-automation`** | Quality gate automation, automated test runners, and deployment staging. |
+| **`browser-testing-with-devtools`**| Real browser automated testing, DOM inspection, and network analysis via Chrome DevTools MCP. |
+| **`webapp-testing`** | Playwright test automation, browser screenshot verification, and UI validation. |
+| **`mcp-builder`** | FastMCP (Python) and TypeScript Model Context Protocol server development guide. |
+| **`api-and-interface-design`** | Stable REST, GraphQL, and typed interface boundary contracts. |
+| **`context-engineering`** | Model context optimization, token budget monitoring, and session memory tuning. |
+| **`constraint-driven-development`** | Quality contracts in `CONSTRAINTS.md` that prevent agents from lowering test standards. |
+| **`doubt-driven-development`** | Adversarial cross-examination of high-stakes architectural choices. |
+| **`spec-driven-development`** | PRD drafting and specification before writing code. |
+| **`source-driven-development`** | Grounding implementations in verified official library documentation. |
+| **`incremental-implementation`** | Thin-slice verifiable changes behind feature flags. |
+| **`git-workflow-and-versioning`** | Clean atomic commits, semantic version bumps (+0.0.1 via `npm run bump`), and changelogs. |
+| **`observability-and-instrumentation`** | Metrics, distributed tracing, structured logging, and health alerts. |
+| **`reverse-engineering`** | Binary, AST package, and protocol analysis under Agent Guard supervision. |
+| **`reverse-engineer-anything`** | Decompilation of native, managed, Electron/JS bundles, and firmware via REA. |
+| **`documentation-and-adrs`** | Architecture Decision Records (ADR) and maintainer runbooks. |
+| **`deprecation-and-migration`** | Zero-downtime database schema expand/contract migrations. |
+| **`shipping-and-launch`** | Pre-launch checklists, canary releases, and rollback plans. |
+
+### ⚡ 4. Productivity, Workflow & External Connectors (`addyosmani/agent-skills`)
+| Skill | Description & Workflows |
+| :--- | :--- |
+| **`connect`** | Real-world external actions (Gmail, Slack, GitHub, Notion, databases). |
+| **`connect-apps`** | External application connectors and workflow automation. |
+| **`content-research-writer`** | Deep research, citations, hook improvements, and section outlining. |
+| **`developer-growth-analysis`** | Analyzes chat history for development gaps and curates learning resources. |
+| **`discernment-nudge`** | Trade-off evaluations and assumption stress-testing. |
+| **`doc-coauthoring`** | Structured co-authoring workflow for proposals and design specs. |
+| **`domain-name-brainstormer`** | Creative domain ideation and multi-TLD availability checks. |
+| **`file-organizer`** | Intelligent file and folder organization, deduplication, and cleanup. |
+| **`idea-refine`** | Divergent and convergent structured thinking to sharpen raw concepts. |
+| **`internal-comms`** | Leadership updates, 3P reports, company newsletters, and postmortems. |
+| **`interview-me`** | Interactive one-question-at-a-time interview to unpack true requirements. |
+| **`invoice-organizer`** | Automatic invoice and receipt OCR, parsing, and tax folder organization. |
+| **`langsmith-fetch`** | LangChain / LangGraph execution trace debugging. |
+| **`lead-research-assistant`** | Target company prospect analysis and B2B contact strategies. |
+| **`meeting-insights-analyzer`** | Meeting transcript behavioral analysis and communication feedback. |
+| **`planning-and-task-breakdown`** | Ordered task breakdown and dependency sequencing. |
+| **`raffle-winner-picker`** | Provably fair random winner selection from lists and spreadsheets. |
+| **`skill-creator`** | Author, test, benchmark, and evaluate new agent skills. |
+| **`skill-share`** | Automatically share newly created agent skills to team Slack channels. |
+| **`tailored-resume-generator`** | Tailors resumes to job descriptions with highlighted achievements. |
+| **`twitter-algorithm-optimizer`** | Tweet engagement optimization using open-source algorithm insights. |
+| **`video-downloader`** | Multi-quality video and audio download utility (MP4, MP3, 1080p). |
+| **`changelog-generator`** | Transforms technical commits into customer-facing release notes. |
+| **`academy-guide`** | Structured training paths and curricula. |
+| **`using-agent-skills`** | Orchestration meta-skill that discovers and activates relevant skills. |
+| **`template-skill`** | Canonical starter scaffold for authoring new skills. |
+
+### 🦹 5. Lazy Senior Dev Mode (`DietrichGebert/ponytail` Plugin)
+| Skill | Description & Workflows |
+| :--- | :--- |
+| **`ponytail`** | Lazy senior dev mode: minimal code changes, zero bloat, YAGNI enforcement. |
+| **`ponytail-audit`** | Full-repo audit of bugs, bloat, untested paths, and dead code. |
+| **`ponytail-debt`** | Technical debt and `shortcut:` comment tracking ledger. |
+| **`ponytail-gain`** | Benchmark measurement of code and token savings. |
+| **`ponytail-help`** | Quick reference for ponytail execution levels (lite, full, ultra). |
+| **`ponytail-review`** | Multi-file PR review focused on necessity and simplicity. |
+
+---
+
+## 📚 Searchable Skill Catalogs (3,500+ Skills Available On-Demand)
+
+To prevent saturating the model's prompt context with tens of thousands of tokens, additional large collections are preserved in local indexed catalogs:
+
+* **832 Composio Application Skills** (`awesome-claude-skills`): Stored in `agent-skills/skills/composio-skills/` with ready-to-use recipes for 800+ SaaS platforms (Salesforce, Stripe, Jira, Linear, HubSpot, Airtable, etc.).
+* **2,749 Awesome Community Skills** (`agentic-awesome-skills`): Cataloged in `templates/skills/skills_index.json`.
+
+Search and install any skill from the catalog on-demand:
+```bash
+# Search the 3,500+ skill catalog
+node dist/cli.js skills search "stripe"
+
+# Install a specific skill into your active IDE skills directory
+node dist/cli.js skills install "stripe-payments"
+```
 
 ---
 
