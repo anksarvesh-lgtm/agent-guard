@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { execSync } from 'node:child_process';
+import { syncMcpSchemaFiles, refreshAntigravityLsMcp } from '../tools/definitions.js';
 
 export interface InstallContext {
   nodeBin: string;
@@ -38,6 +39,7 @@ export const AGENT_GUARD_AUTO_APPROVE_TOOLS = [
   'project_map',
   'token_counter',
   'account_switcher',
+  'model_compressor',
 ];
 
 export function getHomeDir(): string {
@@ -114,12 +116,17 @@ export const antigravityTarget: AppTarget = {
     const globalSkillsDir = path.join(getHomeDir(), '.gemini', 'config', 'skills');
     const skillCount = deploySkillsToDirectory(skillsSource, globalSkillsDir, ctx.dryRun);
 
+    if (!ctx.dryRun) {
+      syncMcpSchemaFiles();
+      refreshAntigravityLsMcp().catch(() => {});
+    }
+
     return {
       appId: 'antigravity',
       appName: 'Google Antigravity & Gemini CLI',
       installed: true,
       configPath,
-      message: `Configured agent-guard MCP server in ${configPath} and deployed ${skillCount} skills to ${globalSkillsDir}`,
+      message: `Configured agent-guard MCP server in ${configPath}, deployed ${skillCount} skills, and synced schemas`,
     };
   },
 };

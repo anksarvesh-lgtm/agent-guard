@@ -61,8 +61,8 @@ export declare const TaskCheckpointSchema: z.ZodObject<{
     }>, "many">>;
     project_path: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    status: "in_progress" | "done" | "failed";
     step_id: string;
+    status: "in_progress" | "done" | "failed";
     note: string;
     error?: string | undefined;
     project_path?: string | undefined;
@@ -71,8 +71,8 @@ export declare const TaskCheckpointSchema: z.ZodObject<{
         depends_on: string[];
     }[] | undefined;
 }, {
-    status: "in_progress" | "done" | "failed";
     step_id: string;
+    status: "in_progress" | "done" | "failed";
     note: string;
     error?: string | undefined;
     project_path?: string | undefined;
@@ -95,13 +95,13 @@ export declare const KeepAwakeSchema: z.ZodObject<{
     project_path: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     action: "status" | "hold" | "release";
-    project_path?: string | undefined;
     minutes?: number | undefined;
+    project_path?: string | undefined;
     reason?: string | undefined;
 }, {
     action: "status" | "hold" | "release";
-    project_path?: string | undefined;
     minutes?: number | undefined;
+    project_path?: string | undefined;
     reason?: string | undefined;
 }>;
 export declare const RepoBriefSchema: z.ZodObject<{
@@ -111,8 +111,8 @@ export declare const RepoBriefSchema: z.ZodObject<{
     refresh: boolean;
     project_path?: string | undefined;
 }, {
-    project_path?: string | undefined;
     refresh?: boolean | undefined;
+    project_path?: string | undefined;
 }>;
 export declare const TokenCounterSchema: z.ZodObject<{
     model: z.ZodDefault<z.ZodOptional<z.ZodString>>;
@@ -129,8 +129,8 @@ export declare const TokenCounterSchema: z.ZodObject<{
     file_path?: string | undefined;
     transcript_path?: string | undefined;
 }, {
-    project_path?: string | undefined;
     model?: string | undefined;
+    project_path?: string | undefined;
     text?: string | undefined;
     file_path?: string | undefined;
     transcript_path?: string | undefined;
@@ -150,11 +150,11 @@ export declare const AccountSwitcherSchema: z.ZodObject<{
     project_path: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     action: "status" | "switch" | "list" | "add" | "snapshot" | "remove" | "auto_rotate" | "configure" | "proxy" | "failover_proxy";
-    provider: "antigravity" | "claude" | "custom" | "gemini" | "openai";
+    provider: "antigravity" | "gemini" | "claude" | "openai" | "custom";
     threshold_percent: number;
+    account_id?: string | undefined;
     project_path?: string | undefined;
     reason?: string | undefined;
-    account_id?: string | undefined;
     name?: string | undefined;
     token_content?: string | undefined;
     token_source_file?: string | undefined;
@@ -162,11 +162,11 @@ export declare const AccountSwitcherSchema: z.ZodObject<{
     enabled?: boolean | undefined;
 }, {
     action: "status" | "switch" | "list" | "add" | "snapshot" | "remove" | "auto_rotate" | "configure" | "proxy" | "failover_proxy";
+    account_id?: string | undefined;
     project_path?: string | undefined;
     reason?: string | undefined;
-    account_id?: string | undefined;
     name?: string | undefined;
-    provider?: "antigravity" | "claude" | "custom" | "gemini" | "openai" | undefined;
+    provider?: "antigravity" | "gemini" | "claude" | "openai" | "custom" | undefined;
     token_content?: string | undefined;
     token_source_file?: string | undefined;
     api_key?: string | undefined;

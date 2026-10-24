@@ -81,7 +81,7 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
       expect(props['agentGuard.defaultModel'].default).toBe('gemini-2.5-flash');
     });
 
-    it('generates runtime script containing all feature controllers and tabbed webview', () => {
+    it('generates runtime script containing all feature controllers, tabbed webview, and interactive MCP tab', () => {
       const script = generateExtensionRuntimeScript();
       expect(script).toContain('module.exports = {');
       expect(script).toContain('activate');
@@ -124,6 +124,14 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
 
       // 1% tripwire
       expect(script).toContain('Automatic 1% Quota Rotation Tripwire');
+
+      // Webview MCP tab & actions
+      expect(script).toContain('⚡ MCP Tools');
+      expect(script).toContain('id="tab-mcp"');
+      expect(script).toContain('refreshAntigravityLsMcpDirect');
+      expect(script).toContain('copyMcpConfigToClipboard');
+      expect(script).toContain('autoApproveAllMcp');
+      expect(script).toContain('AGENT_GUARD_MCP_TOOLS_INFO');
     });
 
     it('resolves dynamic package version from package.json', () => {

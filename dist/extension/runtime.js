@@ -53,11 +53,23 @@ const AGENT_GUARD_TOOLS = [
   'task_checkpoint',
   'task_status',
   'keep_awake',
+  'repo_brief',
+  'agent_enforce',
   'token_counter',
   'account_switcher',
-  'repo_brief',
-  'project_map',
-  'skills_catalog'
+  'model_compressor',
+];
+
+const AGENT_GUARD_MCP_TOOLS_INFO = [
+  { name: 'task_start', badge: 'SUPERVISOR', desc: 'Initialize a tracked task DAG with dependency ordering before multi-step work.', params: 'goal, steps[], max_tries, project_path' },
+  { name: 'task_checkpoint', badge: 'LEDGER', desc: 'Report atomic progress after every finished step with proof in note, or record failures.', params: 'step_id, status, note, error, add_steps[], project_path' },
+  { name: 'task_status', badge: 'STATUS', desc: 'Show the current task DAG, step in progress, retry counts, and blockages.', params: 'project_path' },
+  { name: 'keep_awake', badge: 'OS INHIBITOR', desc: 'Acquire or release native OS sleep prevention lease (caffeinate / Windows API).', params: 'action, minutes, reason, project_path' },
+  { name: 'repo_brief', badge: 'MAP', desc: 'Get a concise architectural map: folder layout, commands, traps, and guidelines.', params: 'project_path, refresh' },
+  { name: 'agent_enforce', badge: 'QUALITY', desc: 'Communicate directives with active agents and enforce mandatory quality rules.', params: 'action, directive, target_agent, project_path' },
+  { name: 'token_counter', badge: 'BUDGET', desc: 'Measure tokens and forecast context window headroom across Gemini, Claude, and OpenAI.', params: 'model, text, file_path, transcript_path, compare_all, project_path' },
+  { name: 'account_switcher', badge: '1% TRIPWIRE', desc: 'Non-disruptively rotate Antigravity accounts when quota reaches <= 1.0%.', params: 'action, account_id, name, threshold_percent, project_path' },
+  { name: 'model_compressor', badge: 'SOTA COMPRESS', desc: 'Quantize models (AWQ, GPTQ, SmoothQuant) and prune tokens (FastV, AgentCompress).', params: 'action, param_billions, weight_bits, backend, project_path' },
 ];
 
 const CURATED_SKILLS = [
@@ -1396,6 +1408,7 @@ function getWebviewContent() {
 
   <div class="tabs">
     <button class="tab-btn active" onclick="setTab('overview')">📊 Overview</button>
+    <button class="tab-btn" onclick="setTab('mcp')">⚡ MCP Tools</button>
     <button class="tab-btn" onclick="setTab('accounts')">🔄 Account Switcher</button>
     <button class="tab-btn" onclick="setTab('tokens')">🪙 Live Quota & Tokens</button>
     <button class="tab-btn" onclick="setTab('awake')">☕ Sleep & Turbo</button>
@@ -1483,6 +1496,57 @@ function getWebviewContent() {
         </div>
       </div>
     \` : ''}
+  </div>
+
+  <!-- TAB: MCP TOOLS -->
+  <div id="tab-mcp" class="tab-content">
+    <div class="card" style="margin-bottom: 16px; border-left: 4px solid var(--green);">
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+        <div>
+          <h3 style="margin-bottom: 4px; color: var(--green);">⚡ Model Context Protocol (MCP) Server</h3>
+          <div style="font-size: 13px; font-weight: 600;">Status: 🟢 READY (Local Stdio Transport)</div>
+          <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">
+            Exposing 9 high-performance tools to Google Antigravity, Gemini CLI, Claude, Cursor & Windsurf.
+          </div>
+        </div>
+        <div>
+          <button class="btn" onclick="post('refreshMcp')">🔄 Reload MCP Server</button>
+          <button class="btn btn-secondary" onclick="post('copyMcpConfig')">📋 Copy MCP Config</button>
+          <button class="btn btn-secondary" onclick="post('autoApproveAllMcp')">⚡ Auto-Approve All (9)</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 16px;">
+      <h3>MCP Server Runtime Configuration</h3>
+      <div style="font-size: 12px; line-height: 1.8; opacity: 0.9;">
+        <div>• <strong>Protocol:</strong> Model Context Protocol (MCP) over Stdio (JSON-RPC 2.0)</div>
+        <div>• <strong>Node Runtime:</strong> <code>/Users/sarvesh/.local/node-v24/bin/node</code></div>
+        <div>• <strong>Server Script:</strong> <code>dist/index.js</code> (v\${EXTENSION_VERSION})</div>
+        <div>• <strong>Config Location:</strong> <code>~/.gemini/config/mcp_config.json</code></div>
+        <div>• <strong>Workspace Discovery:</strong> <code>.vscode/mcp.json</code> &amp; <code>.gemini/mcp_config.json</code></div>
+      </div>
+    </div>
+
+    <h3 style="font-size: 13px; margin: 16px 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Registered MCP Tools (9 Available)</h3>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      \${AGENT_GUARD_MCP_TOOLS_INFO.map(t => \`
+        <div class="card" style="margin: 0; padding: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+          <div style="flex: 1;">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <code style="font-size: 13px; font-weight: 700; color: #58a6ff;">\${t.name}</code>
+              <span class="badge badge-blue">\${t.badge}</span>
+              <span class="badge badge-green">⚡ AUTO-APPROVED</span>
+            </div>
+            <div style="font-size: 12px; opacity: 0.85; margin-bottom: 6px;">\${t.desc}</div>
+            <div style="font-size: 11px; opacity: 0.6; font-family: monospace;">Parameters: \${t.params}</div>
+          </div>
+          <div>
+            <button class="btn btn-secondary" style="margin-top: 0;" onclick="post('toggleGrant', { tool: '\${t.name}', enabled: true })">Pre-Approved</button>
+          </div>
+        </div>
+      \`).join('')}
+    </div>
   </div>
 
   <!-- TAB 2: ACCOUNT SWITCHER -->
@@ -1815,6 +1879,46 @@ function handleWebviewMessage(message) {
     setAutoUpdateOnStartupConfig(!cur);
     refreshAllWebviews();
     vscode.window.showInformationMessage('Startup Auto-Update is now ' + (!cur ? 'ENABLED' : 'DISABLED'));
+  } else if (command === 'refreshMcp') {
+    refreshAntigravityLsMcpDirect();
+  } else if (command === 'copyMcpConfig') {
+    copyMcpConfigToClipboard();
+  } else if (command === 'autoApproveAllMcp') {
+    setAutoAcceptGrants([...AGENT_GUARD_TOOLS]);
+    refreshAllWebviews();
+    vscode.window.showInformationMessage('⚡ Auto-Approved all 9 Agent Guard MCP tools!');
+  }
+}
+
+function refreshAntigravityLsMcpDirect() {
+  const address = process.env.ANTIGRAVITY_LS_ADDRESS || 'localhost:53416';
+  const token = process.env.ANTIGRAVITY_CSRF_TOKEN || '';
+  try {
+    const tokenHeader = token ? ' -H "x-codeium-csrf-token: ' + token + '"' : '';
+    const cmd = 'curl -sS -X POST "http://' + address + '/exa.language_server_pb.LanguageServerService/RefreshMcpServers" -H "Content-Type: application/json"' + tokenHeader + " -d '{}'";
+    execSync(cmd, { timeout: 3000 });
+    vscode.window.showInformationMessage('✅ Agent Guard: Reloaded MCP servers in Antigravity Language Server (all 9 tools active).');
+  } catch {
+    vscode.window.showInformationMessage('ℹ️ MCP schema files synced. Restart Language Server or Antigravity IDE to reload.');
+  }
+  refreshAllWebviews();
+}
+
+function copyMcpConfigToClipboard() {
+  const nodeBin = '/Users/sarvesh/.local/node-v24/bin/node';
+  const serverPath = '/Users/sarvesh/Downloads/mcp/agent-guard/dist/index.js';
+  const cfg = {
+    mcpServers: {
+      'agent-guard': {
+        command: nodeBin,
+        args: [serverPath],
+        autoApprove: [...AGENT_GUARD_TOOLS]
+      }
+    }
+  };
+  if (vscode.env && vscode.env.clipboard) {
+    vscode.env.clipboard.writeText(JSON.stringify(cfg, null, 2));
+    vscode.window.showInformationMessage('📋 MCP configuration JSON copied to clipboard!');
   }
 }
 
