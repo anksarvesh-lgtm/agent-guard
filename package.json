@@ -16,6 +16,7 @@
     "install:antigravity": "node dist/cli.js install",
     "auto-accept": "node dist/cli.js auto-accept",
     "awake": "node dist/cli.js awake",
+    "tokens": "node dist/cli.js tokens",
     "update": "node dist/cli.js update",
     "map": "node dist/cli.js map",
     "skills": "node dist/cli.js skills",

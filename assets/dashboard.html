@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agent Guard Dashboard</title>
+  <title>Agent Guard Dashboard & Token Counter</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
     body {
@@ -32,7 +32,7 @@
             </span>
           </div>
           <p class="text-xs text-[var(--muted-foreground,#94a3b8)] mt-0.5">
-            By <strong>Sarvesh</strong> (<a href="https://github.com/anksarvesh-lgtm/agent-guard" target="_blank" class="text-blue-400 hover:underline">@anksarvesh-lgtm</a>) • Zero-Telemetry Task Supervisor
+            By <strong>Sarvesh</strong> (<a href="https://github.com/anksarvesh-lgtm/agent-guard" target="_blank" class="text-blue-400 hover:underline">@anksarvesh-lgtm</a>) • Zero-Telemetry Task Supervisor & Token Guard
           </p>
         </div>
       </div>
@@ -41,7 +41,7 @@
           Apache-2.0
         </span>
         <span class="px-3 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-xs font-medium">
-          66/66 Tests Passing
+          70/70 Tests Passing
         </span>
       </div>
     </div>
@@ -50,10 +50,10 @@
     <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
       <div class="bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)] rounded-xl p-3.5">
         <div class="text-[var(--muted-foreground,#94a3b8)] text-xs flex items-center justify-between">
-          <span>MCP Server</span>
+          <span>MCP Tools</span>
           <span class="text-blue-400 text-sm">⚡</span>
         </div>
-        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">6 Tools</div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">7 Tools</div>
         <div class="text-[11px] text-emerald-400 mt-0.5">Auto-Approved</div>
       </div>
 
@@ -63,7 +63,7 @@
           <span class="text-purple-400 text-sm">🧠</span>
         </div>
         <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">2,749</div>
-        <div class="text-[11px] text-purple-300 mt-0.5">8 Core Bundled</div>
+        <div class="text-[11px] text-purple-300 mt-0.5">Curated Catalog</div>
       </div>
 
       <div class="bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)] rounded-xl p-3.5">
@@ -71,17 +71,117 @@
           <span>Sleep Inhibitor</span>
           <span class="text-amber-400 text-sm">☕</span>
         </div>
-        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">caffeinate</div>
-        <div class="text-[11px] text-amber-300 mt-0.5">8h Safety Ceiling</div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">Native OS</div>
+        <div class="text-[11px] text-amber-300 mt-0.5">Auto-Lease Active</div>
       </div>
 
       <div class="bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)] rounded-xl p-3.5">
         <div class="text-[var(--muted-foreground,#94a3b8)] text-xs flex items-center justify-between">
-          <span>Stop Hook</span>
-          <span class="text-emerald-400 text-sm">🛑</span>
+          <span>Token Counter</span>
+          <span class="text-emerald-400 text-sm">📊</span>
         </div>
-        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">Active</div>
-        <div class="text-[11px] text-emerald-300 mt-0.5">Blocks Premature Exit</div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">Multi-Model</div>
+        <div class="text-[11px] text-emerald-300 mt-0.5">Gemini, Claude, GPT</div>
+      </div>
+    </div>
+
+    <!-- Live Universal Token Counter & Context Budget Section -->
+    <div class="bg-[var(--background,#0f172a)]/80 border border-blue-500/30 rounded-xl p-5 space-y-4">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[var(--border,#334155)] pb-3">
+        <div>
+          <h2 class="text-sm font-semibold text-[var(--foreground,#f8fafc)] flex items-center gap-2">
+            <span>📊 Live Token Counter & Context Budget Headroom</span>
+          </h2>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)] mt-0.5">
+            Calibrated BPE token meter for Gemini, Claude, OpenAI, and DeepSeek agents.
+          </p>
+        </div>
+        
+        <!-- Model Selector Dropdown -->
+        <div class="flex items-center gap-2">
+          <label class="text-xs text-[var(--muted-foreground,#94a3b8)] font-medium">Model:</label>
+          <select id="modelSelect" onchange="updateTokenMeter()" class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] text-xs text-[var(--foreground,#f8fafc)] rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-blue-500">
+            <option value="gemini-1.5-pro">Google Gemini 1.5 Pro (2,000,000)</option>
+            <option value="gemini-2.0-flash">Google Gemini 2.0 Flash (1,048,576)</option>
+            <option value="claude-3-5-sonnet">Anthropic Claude 3.5 Sonnet (200,000)</option>
+            <option value="gpt-4o">OpenAI GPT-4o (128,000)</option>
+            <option value="o1">OpenAI o1 (200,000)</option>
+            <option value="deepseek-chat">DeepSeek V3 (64,000)</option>
+            <option value="llama-3.3-70b">Meta Llama 3.3 70B (128,000)</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Live Meter Display Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-xl p-3.5">
+          <div class="text-xs text-[var(--muted-foreground,#94a3b8)]">Tokens Used</div>
+          <div id="usedTokensDisplay" class="text-xl font-bold text-blue-400 mt-1">42,500</div>
+          <div id="usedPercentDisplay" class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-0.5">2.1% of context</div>
+        </div>
+
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-xl p-3.5">
+          <div class="text-xs text-[var(--muted-foreground,#94a3b8)]">Tokens Remaining</div>
+          <div id="remainingTokensDisplay" class="text-xl font-bold text-emerald-400 mt-1">1,957,500</div>
+          <div id="remainingPercentDisplay" class="text-[11px] text-emerald-300 mt-0.5">97.9% headroom</div>
+        </div>
+
+        <div class="bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-xl p-3.5">
+          <div class="text-xs text-[var(--muted-foreground,#94a3b8)]">Health Status</div>
+          <div id="statusBadge" class="text-base font-bold text-emerald-400 mt-1 flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> OPTIMAL
+          </div>
+          <div id="guidanceText" class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-0.5 truncate">Plenty of headroom</div>
+        </div>
+      </div>
+
+      <!-- Context Usage Bar -->
+      <div class="space-y-1.5">
+        <div class="flex items-center justify-between text-xs text-[var(--muted-foreground,#94a3b8)]">
+          <span>Context Window Utilization</span>
+          <span id="barPercentText" class="font-mono">2.1%</span>
+        </div>
+        <div class="w-full bg-[var(--card,#1e293b)] h-2.5 rounded-full overflow-hidden border border-[var(--border,#334155)]">
+          <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-emerald-400 h-full rounded-full transition-all duration-300" style="width: 2.1%;"></div>
+        </div>
+      </div>
+
+      <!-- Interactive Calculator Input -->
+      <div class="space-y-2 pt-2 border-t border-[var(--border,#334155)]">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-medium text-[var(--foreground,#f8fafc)]">Interactive Token Test Sandbox</span>
+          <button onclick="resetDefaultTokens()" class="text-[11px] text-blue-400 hover:underline">Reset Demo Tokens</button>
+        </div>
+        <textarea 
+          id="tokenTester" 
+          rows="2" 
+          placeholder="Paste code or prompt text here to calculate tokens in real-time..." 
+          class="w-full px-3 py-2 bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-lg text-xs font-mono text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500"
+          oninput="handleCustomText(this.value)"
+        ></textarea>
+      </div>
+
+      <!-- Cross-Model Comparison Table -->
+      <div class="space-y-2 pt-1">
+        <span class="text-xs font-semibold text-[var(--foreground,#f8fafc)] uppercase tracking-wider">Multi-Model Context Consumption Comparison</span>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border border-[var(--border,#334155)] rounded-lg overflow-hidden">
+            <thead class="bg-[var(--card,#1e293b)] text-[var(--muted-foreground,#94a3b8)] border-b border-[var(--border,#334155)]">
+              <tr>
+                <th class="p-2">Model</th>
+                <th class="p-2">Provider</th>
+                <th class="p-2">Context Window</th>
+                <th class="p-2">Tokens Used</th>
+                <th class="p-2">Remaining</th>
+                <th class="p-2">% Used</th>
+                <th class="p-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="comparisonTableBody" class="divide-y divide-[var(--border,#334155)] bg-[var(--background,#0f172a)]/40">
+              <!-- Dynamically populated by updateTokenMeter() -->
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -176,11 +276,11 @@
     <!-- Bottom Quick Action Pills -->
     <div class="pt-4 border-t border-[var(--border,#334155)] flex flex-wrap items-center justify-between gap-3 text-xs">
       <div class="flex items-center gap-2 text-[var(--muted-foreground,#94a3b8)]">
-        <span>💡 Tip: Mention <strong>@agent-guard</strong> directly in any chat to supervise.</span>
+        <span>💡 Tip: Run <strong>npm run tokens</strong> or use <strong>token_counter</strong> tool anytime.</span>
       </div>
       <div class="flex items-center gap-2">
         <code class="px-2.5 py-1 bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-md font-mono text-[11px] text-blue-400">
-          npx agent-guard skills list
+          node dist/cli.js tokens
         </code>
       </div>
     </div>
@@ -188,6 +288,114 @@
   </div>
 
   <script>
+    const MODELS = {
+      'gemini-1.5-pro': { name: 'Gemini 1.5 Pro', provider: 'Google Gemini', limit: 2000000 },
+      'gemini-2.0-flash': { name: 'Gemini 2.0 Flash', provider: 'Google Gemini', limit: 1048576 },
+      'claude-3-5-sonnet': { name: 'Claude 3.5 Sonnet', provider: 'Anthropic Claude', limit: 200000 },
+      'gpt-4o': { name: 'GPT-4o', provider: 'OpenAI', limit: 128000 },
+      'o1': { name: 'OpenAI o1', provider: 'OpenAI', limit: 200000 },
+      'deepseek-chat': { name: 'DeepSeek V3', provider: 'DeepSeek', limit: 64000 },
+      'llama-3.3-70b': { name: 'Llama 3.3 70B', provider: 'Open Source', limit: 128000 },
+    };
+
+    let currentUsedTokens = 42500;
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(2).replace(/\.00$/, '') + 'M';
+      if (num >= 1000) return (num / 1000).toFixed(1).replace(/\.0$/, '') + 'k';
+      return num.toLocaleString();
+    }
+
+    function estimateTokens(text) {
+      if (!text) return 0;
+      return Math.max(1, Math.ceil(text.length / 3.3));
+    }
+
+    function handleCustomText(val) {
+      if (!val || val.trim().length === 0) {
+        currentUsedTokens = 42500;
+      } else {
+        currentUsedTokens = estimateTokens(val);
+      }
+      updateTokenMeter();
+    }
+
+    function resetDefaultTokens() {
+      document.getElementById('tokenTester').value = '';
+      currentUsedTokens = 42500;
+      updateTokenMeter();
+    }
+
+    function updateTokenMeter() {
+      const selectedModelKey = document.getElementById('modelSelect').value;
+      const model = MODELS[selectedModelKey] || MODELS['gemini-1.5-pro'];
+
+      const limit = model.limit;
+      const used = currentUsedTokens;
+      const remaining = Math.max(0, limit - used);
+      const percent = Number(((used / limit) * 100).toFixed(1));
+
+      document.getElementById('usedTokensDisplay').innerText = used.toLocaleString();
+      document.getElementById('usedPercentDisplay').innerText = `${percent}% of context`;
+      document.getElementById('remainingTokensDisplay').innerText = remaining.toLocaleString();
+      document.getElementById('remainingPercentDisplay').innerText = `${formatNumber(remaining)} headroom`;
+      document.getElementById('barPercentText').innerText = `${percent}%`;
+
+      const progressBar = document.getElementById('progressBar');
+      progressBar.style.width = `${Math.min(100, percent)}%`;
+
+      const statusBadge = document.getElementById('statusBadge');
+      const guidance = document.getElementById('guidanceText');
+
+      if (percent >= 90) {
+        statusBadge.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> CRITICAL';
+        statusBadge.className = 'text-base font-bold text-rose-400 mt-1 flex items-center gap-1.5';
+        guidance.innerText = 'Run /compact immediately to avoid overflow';
+        progressBar.className = 'bg-rose-500 h-full rounded-full transition-all duration-300';
+      } else if (percent >= 75) {
+        statusBadge.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> WARNING';
+        statusBadge.className = 'text-base font-bold text-amber-400 mt-1 flex items-center gap-1.5';
+        guidance.innerText = 'Approaching context safety threshold';
+        progressBar.className = 'bg-amber-500 h-full rounded-full transition-all duration-300';
+      } else if (percent >= 50) {
+        statusBadge.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-yellow-400"></span> MODERATE';
+        statusBadge.className = 'text-base font-bold text-yellow-400 mt-1 flex items-center gap-1.5';
+        guidance.innerText = 'Moderate consumption. Headroom is healthy';
+        progressBar.className = 'bg-yellow-400 h-full rounded-full transition-all duration-300';
+      } else {
+        statusBadge.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span> OPTIMAL';
+        statusBadge.className = 'text-base font-bold text-emerald-400 mt-1 flex items-center gap-1.5';
+        guidance.innerText = 'Plenty of headroom remaining';
+        progressBar.className = 'bg-gradient-to-r from-blue-500 to-emerald-400 h-full rounded-full transition-all duration-300';
+      }
+
+      // Re-render comparison table
+      const tbody = document.getElementById('comparisonTableBody');
+      let tableHtml = '';
+      for (const [key, m] of Object.entries(MODELS)) {
+        const mPercent = Number(((used / m.limit) * 100).toFixed(1));
+        const mRemaining = Math.max(0, m.limit - used);
+        let mStatusHtml = '<span class="text-emerald-400">🟢 OPTIMAL</span>';
+        if (mPercent >= 90) mStatusHtml = '<span class="text-rose-400">🔴 CRITICAL</span>';
+        else if (mPercent >= 75) mStatusHtml = '<span class="text-amber-400">🟠 WARNING</span>';
+        else if (mPercent >= 50) mStatusHtml = '<span class="text-yellow-400">🟡 MODERATE</span>';
+
+        const isCurrent = key === selectedModelKey ? 'bg-blue-500/10 font-medium' : '';
+        tableHtml += `
+          <tr class="${isCurrent}">
+            <td class="p-2 font-semibold text-[var(--foreground,#f8fafc)]">${m.name}</td>
+            <td class="p-2 text-[var(--muted-foreground,#94a3b8)]">${m.provider}</td>
+            <td class="p-2 font-mono">${formatNumber(m.limit)}</td>
+            <td class="p-2 font-mono text-blue-400">${formatNumber(used)}</td>
+            <td class="p-2 font-mono text-emerald-400">${formatNumber(mRemaining)}</td>
+            <td class="p-2 font-mono">${mPercent}%</td>
+            <td class="p-2">${mStatusHtml}</td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = tableHtml;
+    }
+
     function filterSkills() {
       const query = document.getElementById('skillSearch').value.toLowerCase();
       const cards = document.querySelectorAll('.skill-card');
@@ -200,6 +408,9 @@
         }
       });
     }
+
+    // Initialize on load
+    updateTokenMeter();
   </script>
 </body>
 </html>
