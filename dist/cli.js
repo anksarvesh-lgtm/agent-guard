@@ -12,6 +12,7 @@ import { loadSkillsIndex, listFeaturedSkills, searchSkills, getSkillInfo, getCat
 import { globalAwakeManager } from './awake/manager.js';
 import { handleTokenCounter } from './tools/tokenCounter.js';
 import { handleAccountSwitcher } from './tools/accountSwitcher.js';
+import { handleModelCompressor } from './tools/modelCompressor.js';
 import { globalAccountManager } from './accounts/index.js';
 import { installExtensionToAllDetected, getExtensionStatus } from './extension/index.js';
 const __filename = fileURLToPath(import.meta.url);
@@ -811,6 +812,43 @@ else if (command === 'accounts') {
         console.log('  node dist/cli.js accounts auto-switch <on|off> [--threshold <pct>]');
     }
 }
+else if (command === 'compress') {
+    const sub = args[1] || 'list-algos';
+    if (sub === 'list-algos' || sub === 'algos') {
+        console.log(handleModelCompressor({ action: 'list_algos' }));
+    }
+    else if (sub === 'list-models' || sub === 'models') {
+        console.log(handleModelCompressor({ action: 'list_models' }));
+    }
+    else if (sub === 'estimate') {
+        const params = parseFloat(args[2] || '7');
+        const bitsIdx = args.indexOf('--bits');
+        const bits = bitsIdx !== -1 ? parseInt(args[bitsIdx + 1], 10) : 4;
+        console.log(handleModelCompressor({ action: 'estimate', param_billions: params, weight_bits: bits }));
+    }
+    else if (sub === 'recommend') {
+        const modelType = args[2] || 'llama3';
+        const vramIdx = args.indexOf('--vram');
+        const vram = vramIdx !== -1 ? parseFloat(args[vramIdx + 1]) : 24;
+        console.log(handleModelCompressor({ action: 'recommend', model_type: modelType, available_vram_gb: vram }));
+    }
+    else if (sub === 'generate') {
+        const modelType = args[2] || 'Llama';
+        const pathIdx = args.indexOf('--path');
+        const modelPath = pathIdx !== -1 ? args[pathIdx + 1] : 'meta-llama/Meta-Llama-3-8B';
+        const methodIdx = args.indexOf('--method');
+        const method = methodIdx !== -1 ? args[methodIdx + 1] : 'Awq';
+        console.log(handleModelCompressor({ action: 'generate_config', model_type: modelType, model_path: modelPath, method }));
+    }
+    else {
+        console.log('Usage:');
+        console.log('  node dist/cli.js compress list-algos');
+        console.log('  node dist/cli.js compress list-models');
+        console.log('  node dist/cli.js compress estimate <param-billions> [--bits <2|3|4|8>]');
+        console.log('  node dist/cli.js compress recommend <model-type> [--vram <gb>]');
+        console.log('  node dist/cli.js compress generate <model-type> [--path <path>] [--method <method>]');
+    }
+}
 else if (command === 'extension') {
     const sub = args[1] || 'status';
     if (sub === 'install') {
@@ -853,6 +891,7 @@ else {
     console.log('  node dist/cli.js awake [status|hold <mins>|release]');
     console.log('  node dist/cli.js tokens [file] [--model <name>] [--text <str>] [--no-compare]');
     console.log('  node dist/cli.js accounts [list|status|switch|add|rotate|auto-switch]');
+    console.log('  node dist/cli.js compress [list-algos|list-models|estimate|recommend|generate]');
     console.log('  node dist/cli.js map [--workspace <path>]');
     console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');

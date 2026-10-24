@@ -10,10 +10,11 @@ import { handleRepoBrief } from './tools/repoBrief.js';
 import { handleAgentEnforce } from './tools/agentEnforce.js';
 import { handleTokenCounter } from './tools/tokenCounter.js';
 import { handleAccountSwitcher } from './tools/accountSwitcher.js';
+import { handleModelCompressor } from './tools/modelCompressor.js';
 import { maybeBackgroundUpdate } from './update.js';
 const server = new Server({
     name: 'agent-guard',
-    version: '0.2.2',
+    version: '0.2.3',
 }, {
     capabilities: {
         tools: {},
@@ -281,6 +282,70 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     required: ['action'],
                 },
             },
+            {
+                name: 'model_compressor',
+                description: 'SOTA AIGC Model & Token Compression Suite (AgentCompress / LightCompress). Quantize LLMs, VLMs, and video diffusion models, prune redundant tokens, estimate memory savings, and generate deployment configs.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        action: {
+                            type: 'string',
+                            enum: ['estimate', 'recommend', 'list_algos', 'list_models', 'generate_config'],
+                            description: 'Action: estimate memory footprint, recommend compression strategy, list supported algorithms, list supported models, or generate YAML config.',
+                        },
+                        param_billions: {
+                            type: 'number',
+                            description: 'Model parameters in billions (e.g. 7, 70, 671).',
+                        },
+                        weight_bits: {
+                            type: 'number',
+                            enum: [2, 3, 4, 8],
+                            description: 'Target weight precision bit-width (default: 4).',
+                        },
+                        act_bits: {
+                            type: 'number',
+                            enum: [4, 8, 16],
+                            description: 'Target activation precision bit-width (default: 16).',
+                        },
+                        kv_bits: {
+                            type: 'number',
+                            enum: [2, 4, 8, 16],
+                            description: 'Target KV cache precision bit-width (default: 16).',
+                        },
+                        model_type: {
+                            type: 'string',
+                            description: 'Model architecture family (e.g. "Llama", "Qwen2VL", "DeepSeekV3", "Wan2.1").',
+                        },
+                        available_vram_gb: {
+                            type: 'number',
+                            description: 'Available GPU VRAM in GB (e.g. 24, 80).',
+                        },
+                        optimization_goal: {
+                            type: 'string',
+                            enum: ['balanced', 'maximum_throughput', 'minimum_vram', 'highest_accuracy'],
+                            description: 'Optimization goal (default: balanced).',
+                        },
+                        model_path: {
+                            type: 'string',
+                            description: 'Model identifier or path for configuration generation.',
+                        },
+                        method: {
+                            type: 'string',
+                            description: 'Quantization or token reduction method (e.g. "Awq", "Gptq", "SmoothQuant", "FastV").',
+                        },
+                        backend: {
+                            type: 'string',
+                            enum: ['vllm', 'sglang', 'autoawq', 'lightllm', 'fake_quant', 'lightx2v'],
+                            description: 'Deployment serving backend (default: vllm).',
+                        },
+                        project_path: {
+                            type: 'string',
+                            description: 'Absolute path to workspace directory.',
+                        },
+                    },
+                    required: ['action'],
+                },
+            },
         ],
     };
 });
@@ -313,6 +378,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 break;
             case 'account_switcher':
                 resultText = handleAccountSwitcher(args);
+                break;
+            case 'model_compressor':
+                resultText = handleModelCompressor(args);
                 break;
             default:
                 resultText = `UNKNOWN_TOOL: Tool "${name}" is not supported by agent-guard.`;
