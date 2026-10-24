@@ -63,6 +63,8 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
       expect(commands).toContain('agentGuard.generateProjectMap');
       expect(commands).toContain('agentGuard.runDoctor');
       expect(commands).toContain('agentGuard.checkForUpdates');
+      expect(commands).toContain('agentGuard.performUpdate');
+      expect(commands).toContain('agentGuard.snapshotAccount');
       expect(commands).toContain('agentGuard.refresh');
 
       // Webview & Views Container
@@ -97,6 +99,11 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
       expect(script).toContain('countTokensInActiveEditor()');
       expect(script).toContain('runDoctorDiagnostics()');
       expect(script).toContain('installSkillDirectly(skillId)');
+      expect(script).toContain('checkAgentGuardUpdate()');
+      expect(script).toContain('performAgentGuardUpdate()');
+      expect(script).toContain('promptCheckForUpdates()');
+      expect(script).toContain("post('checkUpdate')");
+      expect(script).toContain("post('performUpdate')");
 
       // Multi-tab Webview structure
       expect(script).toContain('tab-overview');
