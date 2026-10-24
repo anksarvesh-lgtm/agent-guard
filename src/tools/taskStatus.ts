@@ -2,6 +2,13 @@ import { TaskStatusSchema, formatZodError } from '../util/schema.js';
 import { resolveProjectPath } from '../util/paths.js';
 import { readLedger, getNextStep } from '../ledger.js';
 import { logToolCall } from '../util/log.js';
+import { findRecentTranscript } from './tokenCounter.js';
+import {
+  calculateContextBudget,
+  formatTokenNumber,
+  parseTranscriptTokens,
+  estimateTextTokens
+} from '../tokens/index.js';
 
 export function handleTaskStatus(rawArgs: any): string {
   const parseResult = TaskStatusSchema.safeParse(rawArgs);
@@ -63,6 +70,20 @@ export function handleTaskStatus(rawArgs: any): string {
   }
 
   lines.push(`Next Action: ${nextActionLine}`);
+
+  // Context token budget badge
+  try {
+    const recentTranscript = findRecentTranscript(validatedProject);
+    let usedTokens = 1200;
+    if (recentTranscript) {
+      const tBreakdown = parseTranscriptTokens(recentTranscript);
+      usedTokens = tBreakdown.totalEstimatedTokens;
+    } else {
+      usedTokens = estimateTextTokens(JSON.stringify(ledger));
+    }
+    const budget = calculateContextBudget(usedTokens);
+    lines.push(`Context Budget: ${budget.statusEmoji} ${formatTokenNumber(budget.usedTokens)} used / ${formatTokenNumber(budget.remainingTokens)} remaining (${budget.percentUsed}% of ${budget.model.name}) [${budget.status}]`);
+  } catch {}
 
   logToolCall('task_status', inProgressStep?.id || nextCandidate?.id || null, 'OK', validatedProject);
 

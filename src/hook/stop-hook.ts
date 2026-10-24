@@ -8,6 +8,8 @@ import {
 } from '../util/paths.js';
 import { logToolCall } from '../util/log.js';
 import { TaskLedger, HookState } from '../types.js';
+import { findRecentTranscript } from '../tools/tokenCounter.js';
+import { calculateContextBudget, parseTranscriptTokens } from '../tokens/index.js';
 
 function readStdinSilently(): string {
   try {
@@ -126,6 +128,19 @@ export function runStopHook(projectDir?: string, stdinData: string = ''): void {
       );
       return;
     }
+
+    // Context budget guard: if context is >92% full, allow stop to prevent crash/truncation
+    try {
+      const recentTranscript = findRecentTranscript(project);
+      const used = recentTranscript ? parseTranscriptTokens(recentTranscript).totalEstimatedTokens : 0;
+      if (used > 0) {
+        const budget = calculateContextBudget(used);
+        if (budget.percentUsed >= 92) {
+          logToolCall('stop_hook', null, `CONTEXT_OVERFLOW_GUARD_ALLOWED (${budget.percentUsed}% consumed)`, project);
+          return;
+        }
+      }
+    } catch {}
 
     // Increment push counters
     state.pushes_in_a_row += 1;
