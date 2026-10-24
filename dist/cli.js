@@ -5,6 +5,8 @@ import os from 'node:os';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { checkForUpdates, performUpdate } from './update.js';
+import { generateFullProjectMap } from './brief/map.js';
+import { getProjectFreshness } from './brief/stale.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -12,9 +14,67 @@ function getGeminiConfigPath() {
     const home = os.homedir();
     return path.join(home, '.gemini', 'config', 'mcp_config.json');
 }
+function getGeminiSettingsPath() {
+    const home = os.homedir();
+    return path.join(home, '.gemini', 'config', 'config.json');
+}
 function getGeminiPluginsDir() {
     const home = os.homedir();
     return path.join(home, '.gemini', 'config', 'plugins', 'agent-guard');
+}
+export function configureAutoAcceptGrants(dryRun) {
+    const settingsFile = getGeminiSettingsPath();
+    if (!fs.existsSync(settingsFile))
+        return;
+    console.log(`\n4. Enabling automatic tool acceptance in Antigravity IDE...`);
+    if (dryRun) {
+        console.log('   [Dry Run] Would configure globalPermissionGrants in config.json');
+        return;
+    }
+    try {
+        const raw = fs.readFileSync(settingsFile, 'utf-8');
+        const cfg = JSON.parse(raw);
+        cfg.userSettings = cfg.userSettings || {};
+        cfg.userSettings.globalPermissionGrants = cfg.userSettings.globalPermissionGrants || {};
+        cfg.userSettings.globalPermissionGrants.allow = cfg.userSettings.globalPermissionGrants.allow || [];
+        const grantsToAdd = [
+            'mcp(agent-guard/task_start)',
+            'mcp(agent-guard/task_checkpoint)',
+            'mcp(agent-guard/task_status)',
+            'mcp(agent-guard/keep_awake)',
+            'mcp(agent-guard/repo_brief)',
+            'mcp(agent-guard/project_map)',
+            'mcp(agent-guard_agent-guard/task_start)',
+            'mcp(agent-guard_agent-guard/task_checkpoint)',
+            'mcp(agent-guard_agent-guard/task_status)',
+            'mcp(agent-guard_agent-guard/keep_awake)',
+            'mcp(agent-guard_agent-guard/repo_brief)',
+            'mcp(agent-guard_agent-guard/project_map)',
+            'command(npm run build)',
+            'command(npm test)',
+            'command(npm run doctor)',
+            'command(npm run update)',
+            'command(npm run map)',
+            'command(./install.sh)',
+            'command(node dist/cli.js)',
+            'command(node dist/cli.js doctor)',
+            'command(node dist/cli.js install)',
+            'command(node dist/cli.js update)',
+            'command(node dist/cli.js map)'
+        ];
+        let count = 0;
+        for (const grant of grantsToAdd) {
+            if (!cfg.userSettings.globalPermissionGrants.allow.includes(grant)) {
+                cfg.userSettings.globalPermissionGrants.allow.push(grant);
+                count++;
+            }
+        }
+        fs.writeFileSync(settingsFile, JSON.stringify(cfg, null, 2) + '\n', 'utf-8');
+        console.log(`   ✅ Enabled auto-accept for ${grantsToAdd.length} Agent Guard tools and actions (${count} new grants saved).`);
+    }
+    catch (err) {
+        console.warn(`   ⚠️ Warning: Could not update auto-accept grants: ${err.message}`);
+    }
 }
 export function installPluginBundle(nodeBin, serverPath, hookPath, dryRun) {
     const pluginDir = getGeminiPluginsDir();
@@ -116,6 +176,15 @@ export function installToAntigravity(options = {}) {
     config.mcpServers['agent-guard'] = {
         command: nodeBin,
         args: [serverPath],
+        autoApprove: [
+            'task_start',
+            'task_checkpoint',
+            'task_status',
+            'keep_awake',
+            'repo_brief',
+            'project_map'
+        ],
+        disabled: false
     };
     if (!options.dryRun) {
         fs.writeFileSync(mcpConfigFile, JSON.stringify(config, null, 2) + '\n', 'utf-8');
@@ -172,6 +241,8 @@ export function installToAntigravity(options = {}) {
     }
     // 3. Deploy Antigravity @agent-guard plugin
     installPluginBundle(nodeBin, serverPath, hookPath, options.dryRun);
+    // 4. Configure auto-accept in IDE
+    configureAutoAcceptGrants(options.dryRun);
     console.log('\n🎉 Installation Complete!');
     console.log('----------------------------------------------------');
     console.log('Restart or reload Antigravity to activate Agent Guard.');
@@ -205,6 +276,22 @@ export function doctorCheck() {
     const pluginDir = getGeminiPluginsDir();
     const pluginManifest = path.join(pluginDir, 'plugin.json');
     console.log(`• Mention @agent-guard: ${fs.existsSync(pluginManifest) ? '[OK] Plugin active in Antigravity' : '[WARN] Run npm run install:antigravity to enable @agent-guard mention'}`);
+    // Check auto-accept status in IDE
+    const settingsFile = getGeminiSettingsPath();
+    if (fs.existsSync(settingsFile)) {
+        try {
+            const cfg = JSON.parse(fs.readFileSync(settingsFile, 'utf-8'));
+            const allows = cfg.userSettings?.globalPermissionGrants?.allow || [];
+            const hasGrants = allows.some((g) => g.includes('agent-guard'));
+            console.log(`• Auto-Accept IDE: ${hasGrants ? '[OK] Tool and command permissions granted' : '[WARN] Missing auto-accept grants (run npm run install:antigravity)'}`);
+        }
+        catch {
+            console.log('• Auto-Accept IDE: [WARN] Could not parse config.json');
+        }
+    }
+    else {
+        console.log('• Auto-Accept IDE: [INFO] config.json not yet created');
+    }
     // Check Git upstream status for auto-update
     const updateStatus = checkForUpdates(REPO_ROOT);
     if (updateStatus.isGit) {
@@ -277,12 +364,29 @@ else if (command === 'update') {
         process.exit(1);
     }
 }
+else if (command === 'map') {
+    const targetIdx = args.indexOf('--workspace');
+    const targetWorkspace = path.resolve(targetIdx !== -1 ? args[targetIdx + 1] : process.cwd());
+    console.log(`🗺️ Generating project map and architecture chart for ${targetWorkspace}...\n`);
+    const fresh = getProjectFreshness(targetWorkspace);
+    const mapMd = generateFullProjectMap(targetWorkspace, fresh.files);
+    const agentDir = path.join(targetWorkspace, '.agent');
+    if (!fs.existsSync(agentDir)) {
+        fs.mkdirSync(agentDir, { recursive: true });
+    }
+    const mapFile = path.join(agentDir, 'project_map.md');
+    fs.writeFileSync(mapFile, mapMd, 'utf-8');
+    console.log(`✅ Saved project map to: ${mapFile}\n`);
+    console.log('--- Project Map Preview ---');
+    console.log(mapMd);
+}
 else if (command === 'doctor') {
     doctorCheck();
 }
 else {
     console.log('Usage:');
     console.log('  node dist/cli.js install [--workspace <path>] [--dry-run]');
+    console.log('  node dist/cli.js map [--workspace <path>]');
     console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');
 }

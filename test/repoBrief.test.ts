@@ -5,6 +5,7 @@ import os from 'node:os';
 import { buildRepoBrief } from '../src/brief/build.js';
 import { isSensitiveOrIgnored } from '../src/brief/sanitize.js';
 import { parseBriefHeader } from '../src/brief/stale.js';
+import { generateDirectoryTreeMap, generateArchitectureChart, generateFullProjectMap } from '../src/brief/map.js';
 
 describe('repo_brief generator and safety guards', () => {
   const testDir = path.join(os.tmpdir(), `agent-guard-brief-test-${Date.now()}`);
@@ -61,6 +62,34 @@ describe('repo_brief generator and safety guards', () => {
     expect(header).not.toBeNull();
     expect(header?.commit).toBeDefined();
     expect(header?.hash).toBeDefined();
+    expect(brief).toContain('## Project Map (Directory Tree)');
+    expect(brief).toContain('## Architecture Chart');
+    expect(brief).toContain('```mermaid');
+    expect(fs.existsSync(path.join(testDir, '.agent', 'project_map.md'))).toBe(true);
+  });
+
+  it('generates visual directory tree map and architecture chart correctly', () => {
+    const files = [
+      'src/index.ts',
+      'src/tools/taskStart.ts',
+      'src/tools/taskStatus.ts',
+      'test/tools.test.ts',
+      'package.json',
+      'README.md'
+    ];
+
+    const tree = generateDirectoryTreeMap(files, 2);
+    expect(tree).toContain('src/');
+    expect(tree).toContain('test/');
+
+    const chart = generateArchitectureChart(testDir, files);
+    expect(chart).toContain('```mermaid');
+    expect(chart).toContain('App["Application Root"]');
+
+    const fullMap = generateFullProjectMap(testDir, files);
+    expect(fullMap).toContain('# Project Map & Architecture');
+    expect(fullMap).toContain('## Architecture Flowchart');
+    expect(fullMap).toContain('## Directory Structure Map');
   });
 
   it('strictly caps brief output to 8,000 characters', () => {

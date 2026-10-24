@@ -33,13 +33,18 @@ export function buildRepoBrief(projectPath: string, freshness?: FreshnessInfo): 
           .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
           .replace(/\r\n/g, '\n');
 
-        const paragraphs = stripped
+        const allParagraphs = stripped
           .split(/\n\s*\n/)
           .map((p) => p.replace(/\s+/g, ' ').trim())
-          .filter((p) => p.length >= 20 && !p.startsWith('#') && !p.startsWith('---'));
+          .filter((p) => p.length > 0 && !p.startsWith('---'));
 
-        if (paragraphs.length > 0) {
-          overview = paragraphs[0].slice(0, 350);
+        if (allParagraphs.length > 0) {
+          const nonHeader = allParagraphs.find((p) => !p.startsWith('#') && p.length >= 10);
+          if (nonHeader) {
+            overview = nonHeader.slice(0, 350);
+          } else {
+            overview = allParagraphs[0].replace(/^#+\s*/, '').slice(0, 350);
+          }
         }
       } catch {}
       break;
