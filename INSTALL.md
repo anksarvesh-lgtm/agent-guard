@@ -230,13 +230,14 @@ npm run doctor
 • Node version:    v24.22.0 (/Users/sarvesh/.local/node-v24/bin/node)
 • MCP Config:      [OK] agent-guard is registered in mcp_config.json
 • Mention @agent-guard: [OK] Plugin active in Antigravity
+• Auto-Accept IDE: [OK] Tool and command permissions granted
 • Auto-Update:     [OK] Up to date with origin/main
 • Server Binary:   [OK] dist/index.js
 • Hook Binary:     [OK] dist/hook/stop-hook.js
 • Sleep Inhibitor: [OK] macOS caffeinate available
 ```
 
-Run automated tests (44/44 tests):
+Run automated tests (45/45 tests):
 ```bash
 npm test
 ```

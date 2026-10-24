@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
-  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-44%2F44%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
+  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-45%2F45%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
   <a href="#zero-telemetry"><img src="https://img.shields.io/badge/Telemetry-Zero%20%2F%20100%25%20Local-success.svg" alt="Zero Telemetry" /></a>
   <a href="#mention-agent-guard"><img src="https://img.shields.io/badge/Mention-%40agent--guard-orange.svg" alt="Mention @agent-guard" /></a>
   <a href="#auto-update"><img src="https://img.shields.io/badge/Auto--Update-Enabled-blue.svg" alt="Auto-Update Enabled" /></a>
@@ -358,6 +358,32 @@ When running as an MCP server, Agent Guard quietly checks upstream git status in
 
 ---
 
+## 🗺️ Project Map & Architecture Chart
+
+Agent Guard includes a built-in codebase mapper that produces clean directory trees and Mermaid component flowcharts:
+
+```bash
+# Generate and print project map + save .agent/project_map.md:
+npm run map
+
+# Or via CLI for any target workspace:
+node dist/cli.js map --workspace "/path/to/project"
+```
+
+The `repo_brief` tool automatically embeds this map into `.agent/brief.md` (<1,500 tokens), allowing AI coding agents to navigate the codebase instantly without crawling deep directory hierarchies.
+
+---
+
+## ⚡ Seamless IDE Auto-Accept
+
+Never get interrupted by approval popups for supervisor actions. The installer automatically registers `autoApprove` permissions for all Agent Guard MCP tools and terminal actions in Antigravity (`config.json`), Cursor (`mcp.json`), and VS Code / Cline:
+
+```bash
+npm run install:antigravity
+```
+
+---
+
 ## Verification & Doctor
 
 Agent Guard includes a built-in diagnostic doctor to verify all integrations:
@@ -372,7 +398,8 @@ npm run doctor
 • Node version:    v24.22.0 (/Users/sarvesh/.local/node-v24/bin/node)
 • MCP Config:      [OK] agent-guard is registered in mcp_config.json
 • Mention @agent-guard: [OK] Plugin active in Antigravity
-• Auto-Update:     [OK] Up to date with origin/main (88941aa)
+• Auto-Accept IDE: [OK] Tool and command permissions granted
+• Auto-Update:     [OK] Up to date with origin/main
 • Server Binary:   [OK] dist/index.js
 • Hook Binary:     [OK] dist/hook/stop-hook.js
 • Sleep Inhibitor: [OK] macOS caffeinate available
@@ -386,8 +413,8 @@ npm test
 
 ```
 Test Files  8 passed (8)
-     Tests  44 passed (44)
-  Duration  2.02s
+     Tests  45 passed (45)
+  Duration  2.30s
 ```
 
 ---
