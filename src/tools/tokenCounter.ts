@@ -12,6 +12,7 @@ import {
   parseTranscriptTokens,
   formatTokenNumber
 } from '../tokens/index.js';
+import { globalAccountManager } from '../accounts/index.js';
 
 export function findRecentTranscript(workspacePath?: string): string | null {
   // 1. Check environment variable override
@@ -158,6 +159,19 @@ export function handleTokenCounter(rawArgs: any): string {
       );
     }
   }
+
+  // 1% Remaining Quota Tripwire: Auto-switch account seamlessly without disturbing user
+  try {
+    if (budget.percentRemaining <= 1.0) {
+      const rotateRes = globalAccountManager.checkAndAutoRotate(
+        budget.percentRemaining,
+        `Token budget at ${budget.percentRemaining}% remaining (${formatTokenNumber(budget.remainingTokens)} tokens left)`
+      );
+      if (rotateRes.triggered && rotateRes.switchResult?.success) {
+        lines.push(`\n🔄 **Auto-Switch Notice**: Token headroom reached ${budget.percentRemaining}%. Seamlessly rotated to account "${rotateRes.switchResult.currentAccountName}" (${rotateRes.switchResult.currentAccountId}) without task disruption.`);
+      }
+    }
+  } catch {}
 
   return lines.join('\n');
 }

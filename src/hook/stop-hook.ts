@@ -10,6 +10,7 @@ import { logToolCall } from '../util/log.js';
 import { TaskLedger, HookState } from '../types.js';
 import { findRecentTranscript } from '../tools/tokenCounter.js';
 import { calculateContextBudget, parseTranscriptTokens } from '../tokens/index.js';
+import { globalAccountManager } from '../accounts/index.js';
 
 function readStdinSilently(): string {
   try {
@@ -135,6 +136,9 @@ export function runStopHook(projectDir?: string, stdinData: string = ''): void {
       const used = recentTranscript ? parseTranscriptTokens(recentTranscript).totalEstimatedTokens : 0;
       if (used > 0) {
         const budget = calculateContextBudget(used);
+        if (budget.percentRemaining <= 1.0) {
+          globalAccountManager.checkAndAutoRotate(budget.percentRemaining, 'Stop hook intercepted 1% remaining headroom');
+        }
         if (budget.percentUsed >= 92) {
           logToolCall('stop_hook', null, `CONTEXT_OVERFLOW_GUARD_ALLOWED (${budget.percentUsed}% consumed)`, project);
           return;
