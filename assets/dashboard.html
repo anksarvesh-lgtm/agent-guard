@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agent Guard Dashboard</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    body {
+      background-color: var(--background, #0f172a);
+      color: var(--foreground, #f8fafc);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+    }
+  </style>
+</head>
+<body class="p-4 select-none">
+  <div class="max-w-4xl mx-auto bg-[var(--card,#1e293b)] border border-[var(--border,#334155)] rounded-2xl shadow-xl overflow-hidden p-6 space-y-6">
+    
+    <!-- Top Header Banner -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[var(--border,#334155)] pb-5">
+      <div class="flex items-center space-x-4">
+        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg text-2xl">
+          🛡️
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-xl font-bold tracking-tight text-[var(--foreground,#f8fafc)]">Agent Guard</h1>
+            <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> Active
+            </span>
+          </div>
+          <p class="text-xs text-[var(--muted-foreground,#94a3b8)] mt-0.5">
+            By <strong>Sarvesh</strong> (<a href="https://github.com/anksarvesh-lgtm/agent-guard" target="_blank" class="text-blue-400 hover:underline">@anksarvesh-lgtm</a>) • Zero-Telemetry Task Supervisor
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="px-3 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-lg text-xs font-medium">
+          Apache-2.0
+        </span>
+        <span class="px-3 py-1 bg-purple-500/10 text-purple-400 border border-purple-500/20 rounded-lg text-xs font-medium">
+          66/66 Tests Passing
+        </span>
+      </div>
+    </div>
+
+    <!-- Metrics Cards Grid -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)] rounded-xl p-3.5">
+        <div class="text-[var(--muted-foreground,#94a3b8)] text-xs flex items-center justify-between">
+          <span>MCP Server</span>
+          <span class="text-blue-400 text-sm">⚡</span>
+        </div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">6 Tools</div>
+        <div class="text-[11px] text-emerald-400 mt-0.5">Auto-Approved</div>
+      </div>
+
+      <div class="bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)] rounded-xl p-3.5">
+        <div class="text-[var(--muted-foreground,#94a3b8)] text-xs flex items-center justify-between">
+          <span>Awesome Skills</span>
+          <span class="text-purple-400 text-sm">🧠</span>
+        </div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">2,749</div>
+        <div class="text-[11px] text-purple-300 mt-0.5">8 Core Bundled</div>
+      </div>
+
+      <div class="bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)] rounded-xl p-3.5">
+        <div class="text-[var(--muted-foreground,#94a3b8)] text-xs flex items-center justify-between">
+          <span>Sleep Inhibitor</span>
+          <span class="text-amber-400 text-sm">☕</span>
+        </div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">caffeinate</div>
+        <div class="text-[11px] text-amber-300 mt-0.5">8h Safety Ceiling</div>
+      </div>
+
+      <div class="bg-[var(--background,#0f172a)]/60 border border-[var(--border,#334155)] rounded-xl p-3.5">
+        <div class="text-[var(--muted-foreground,#94a3b8)] text-xs flex items-center justify-between">
+          <span>Stop Hook</span>
+          <span class="text-emerald-400 text-sm">🛑</span>
+        </div>
+        <div class="text-lg font-bold text-[var(--foreground,#f8fafc)] mt-1">Active</div>
+        <div class="text-[11px] text-emerald-300 mt-0.5">Blocks Premature Exit</div>
+      </div>
+    </div>
+
+    <!-- Search Bar for Skills -->
+    <div class="space-y-3">
+      <div class="flex items-center justify-between">
+        <h2 class="text-sm font-semibold text-[var(--foreground,#f8fafc)] uppercase tracking-wider">
+          Pre-Bundled Core Skills & Tools
+        </h2>
+        <span class="text-xs text-[var(--muted-foreground,#94a3b8)]">Type to filter</span>
+      </div>
+      <div class="relative">
+        <input 
+          id="skillSearch" 
+          type="text" 
+          placeholder="Filter core skills (e.g. security, devops, architecture)..." 
+          class="w-full px-4 py-2 bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-xl text-xs text-[var(--foreground,#f8fafc)] focus:outline-none focus:border-blue-500 transition-colors"
+          oninput="filterSkills()"
+        />
+      </div>
+    </div>
+
+    <!-- Skills List Grid -->
+    <div id="skillsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+      
+      <div class="skill-card bg-[var(--background,#0f172a)]/40 border border-[var(--border,#334155)] hover:border-blue-500/50 p-3 rounded-xl transition-all" data-name="agent-guard supervisor keep-awake task">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-blue-400">@agent-guard</span>
+          <span class="text-[10px] bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">Supervisor</span>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-1">Autonomous task supervisor, atomic DAG ledger checkpoints, and keep-awake lease guard.</p>
+      </div>
+
+      <div class="skill-card bg-[var(--background,#0f172a)]/40 border border-[var(--border,#334155)] hover:border-blue-500/50 p-3 rounded-xl transition-all" data-name="ai-agents-architect multi-agent react orchestration">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-purple-400">ai-agents-architect</span>
+          <span class="text-[10px] bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded">AI Agents</span>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-1">Enterprise multi-agent systems design, tool routing, ReAct loops, and graceful degradation.</p>
+      </div>
+
+      <div class="skill-card bg-[var(--background,#0f172a)]/40 border border-[var(--border,#334155)] hover:border-blue-500/50 p-3 rounded-xl transition-all" data-name="security-audit owasp hardening secrets vulnerability">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-rose-400">security-audit</span>
+          <span class="text-[10px] bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded">Security</span>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-1">Zero-trust security audit, secret leakage prevention, dependency vetting, and OWASP defense.</p>
+      </div>
+
+      <div class="skill-card bg-[var(--background,#0f172a)]/40 border border-[var(--border,#334155)] hover:border-blue-500/50 p-3 rounded-xl transition-all" data-name="clean-architecture domain design hexagonal ports">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-cyan-400">clean-architecture</span>
+          <span class="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded">Architecture</span>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-1">Clean architecture patterns, domain-driven boundaries, hexagonal ports & adapters.</p>
+      </div>
+
+      <div class="skill-card bg-[var(--background,#0f172a)]/40 border border-[var(--border,#334155)] hover:border-blue-500/50 p-3 rounded-xl transition-all" data-name="devops-automation ci cd docker github actions kubernetes">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-amber-400">devops-automation</span>
+          <span class="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">DevOps</span>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-1">GitHub Actions workflows, multi-stage Docker builds, and zero-downtime releases.</p>
+      </div>
+
+      <div class="skill-card bg-[var(--background,#0f172a)]/40 border border-[var(--border,#334155)] hover:border-blue-500/50 p-3 rounded-xl transition-all" data-name="test-driven-development tdd unit integration vitest">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-emerald-400">test-driven-development</span>
+          <span class="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded">Testing</span>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-1">Red-Green-Refactor cadence, automated test suites, edge case verification, and regression locks.</p>
+      </div>
+
+      <div class="skill-card bg-[var(--background,#0f172a)]/40 border border-[var(--border,#334155)] hover:border-blue-500/50 p-3 rounded-xl transition-all" data-name="performance-profiling latency heap memory event-loop">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-orange-400">performance-profiling</span>
+          <span class="text-[10px] bg-orange-500/20 text-orange-300 px-2 py-0.5 rounded">Performance</span>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-1">Runtime profiling, Node/V8 heap analysis, event-loop latency tracking, and hot-path tuning.</p>
+      </div>
+
+      <div class="skill-card bg-[var(--background,#0f172a)]/40 border border-[var(--border,#334155)] hover:border-blue-500/50 p-3 rounded-xl transition-all" data-name="reverse-engineering rea ast binary decompilation">
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-xs text-indigo-400">reverse-engineering</span>
+          <span class="text-[10px] bg-indigo-500/20 text-indigo-300 px-2 py-0.5 rounded">Reverse Eng</span>
+        </div>
+        <p class="text-[11px] text-[var(--muted-foreground,#94a3b8)] mt-1">Static AST recovery, binary inspection, protocol captures, and application graphs using REA.</p>
+      </div>
+
+    </div>
+
+    <!-- Bottom Quick Action Pills -->
+    <div class="pt-4 border-t border-[var(--border,#334155)] flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div class="flex items-center gap-2 text-[var(--muted-foreground,#94a3b8)]">
+        <span>💡 Tip: Mention <strong>@agent-guard</strong> directly in any chat to supervise.</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <code class="px-2.5 py-1 bg-[var(--background,#0f172a)] border border-[var(--border,#334155)] rounded-md font-mono text-[11px] text-blue-400">
+          npx agent-guard skills list
+        </code>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    function filterSkills() {
+      const query = document.getElementById('skillSearch').value.toLowerCase();
+      const cards = document.querySelectorAll('.skill-card');
+      cards.forEach(card => {
+        const text = card.getAttribute('data-name').toLowerCase() + " " + card.innerText.toLowerCase();
+        if (text.includes(query)) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+  </script>
+</body>
+</html>
