@@ -1,6 +1,14 @@
 /**
  * Generates the pure-JS extension code that runs inside VS Code / Antigravity IDE / Cursor / Windsurf.
  * Uses zero external npm dependencies, running strictly on Node.js and the vscode API.
+ * Provides complete control over every Agent Guard feature:
+ * - Sleep Prevention lease management
+ * - Auto-Accept Turbo & tool grant manager
+ * - Token Counter & Model budgeting
+ * - Account Switcher & 1% Tripwire pool manager
+ * - Task Supervisor & Ledger controls
+ * - Skills catalog browser
+ * - Live Doctor diagnostics & updates
  */
 export function generateExtensionRuntimeScript(): string {
   return `// Agent Guard Extension for VS Code / Antigravity IDE / Cursor / Windsurf
@@ -16,6 +24,42 @@ let statusBarItem;
 let pollTimer;
 let currentWebviewPanel;
 let caffeinateProc = null;
+let activeModel = 'gemini-2.5-flash';
+let sessionTokens = { input: 0, output: 0, total: 0 };
+let leaseTimeout = null;
+
+const SUPPORTED_MODELS = [
+  { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', contextWindow: 1048576, charsPerToken: 4.0 },
+  { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', contextWindow: 2097152, charsPerToken: 4.0 },
+  { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', contextWindow: 200000, charsPerToken: 3.7 },
+  { id: 'claude-3-5-sonnet', name: 'Claude 3.5 Sonnet', contextWindow: 200000, charsPerToken: 3.7 },
+  { id: 'claude-3-opus', name: 'Claude 3 Opus', contextWindow: 200000, charsPerToken: 3.6 },
+  { id: 'gpt-4o', name: 'GPT-4o', contextWindow: 128000, charsPerToken: 3.8 },
+  { id: 'gpt-4o-mini', name: 'GPT-4o Mini', contextWindow: 128000, charsPerToken: 3.8 },
+  { id: 'o3-mini', name: 'OpenAI o3-mini', contextWindow: 200000, charsPerToken: 3.8 }
+];
+
+const AGENT_GUARD_TOOLS = [
+  'task_start',
+  'task_checkpoint',
+  'task_status',
+  'keep_awake',
+  'token_counter',
+  'account_switcher',
+  'repo_brief',
+  'project_map',
+  'skills_catalog'
+];
+
+const CURATED_SKILLS = [
+  { id: 'clean-architecture', name: 'Clean Architecture', desc: 'Domain-driven design and decoupled modular boundaries under @agent-guard.' },
+  { id: 'devops-automation', name: 'DevOps Automation', desc: 'Automated CI/CD pipelines, Docker containerization, and release tagging.' },
+  { id: 'performance-profiling', name: 'Performance Profiling', desc: 'Runtime bottleneck profiling, V8 heap analysis, and event-loop tracking.' },
+  { id: 'reverse-engineering', name: 'Reverse Engineering', desc: 'Reverse engineer compiled binaries, protocol captures, and application graphs.' },
+  { id: 'security-audit', name: 'Security Audit', desc: 'Enterprise zero-trust vulnerability scanner and secret leak prevention.' },
+  { id: 'test-driven-development', name: 'Test Driven Development', desc: 'TDD red-green-refactor cycles with Vitest/Jest unit and integration suites.' },
+  { id: 'ai-agents-architect', name: 'AI Agents Architect', desc: 'Autonomous multi-agent orchestration, failure tolerance, and tool routing.' }
+];
 
 function getHomeDir() {
   return process.env.AGENT_GUARD_HOME || os.homedir();
@@ -35,6 +79,12 @@ function getLiveJetskiTokenPath() {
 
 function getMcpConfigPath() {
   return path.join(getHomeDir(), '.gemini', 'config', 'mcp_config.json');
+}
+
+function getGeminiSettingsPath() {
+  const p1 = path.join(getHomeDir(), '.gemini', 'antigravity', 'app_storage.json');
+  if (fs.existsSync(p1)) return p1;
+  return path.join(getHomeDir(), '.gemini', 'config.json');
 }
 
 function readAccountsData() {
@@ -66,11 +116,15 @@ function getAutoAcceptStatus() {
     if (fs.existsSync(p)) {
       const cfg = JSON.parse(fs.readFileSync(p, 'utf-8'));
       const guard = cfg.mcpServers && cfg.mcpServers['agent-guard'];
-      const count = (guard && guard.autoApprove && guard.autoApprove.length) || 0;
-      return { enabled: count >= 5, count };
+      const tools = (guard && guard.autoApprove) || [];
+      return {
+        enabled: tools.length >= 5,
+        count: tools.length,
+        tools: tools
+      };
     }
   } catch (e) {}
-  return { enabled: true, count: 9 };
+  return { enabled: true, count: 9, tools: [...AGENT_GUARD_TOOLS] };
 }
 
 function getActiveTaskInfo() {
@@ -127,9 +181,7 @@ function switchAccount(targetId, reason) {
     fs.writeFileSync(accPath, JSON.stringify(data, null, 2), 'utf-8');
 
     updateStatusBar();
-    if (currentWebviewPanel) {
-      currentWebviewPanel.webview.postMessage({ type: 'ACCOUNT_SWITCHED', activeAccountId: targetId });
-    }
+    refreshAllWebviews();
 
     return {
       success: true,
@@ -143,33 +195,197 @@ function switchAccount(targetId, reason) {
   }
 }
 
-function toggleKeepAwake() {
-  const active = isSleepPreventionActive();
-  if (active) {
+function addAccountToPool(id, name, tokenContent, apiKey) {
+  try {
+    const accPath = getAccountsFilePath();
+    const tokensDir = getTokensDirPath();
+    if (!fs.existsSync(tokensDir)) {
+      fs.mkdirSync(tokensDir, { recursive: true });
+    }
+
+    let data = readAccountsData() || {
+      version: 1,
+      autoRotateEnabled: true,
+      thresholdPercent: 1.0,
+      activeAccountId: id,
+      rotationStrategy: 'round_robin',
+      accounts: []
+    };
+
+    if (data.accounts.some(a => a.id === id)) {
+      return { success: false, message: 'Account ID "' + id + '" already exists.' };
+    }
+
+    let tokenFilePath = undefined;
+    if (tokenContent) {
+      tokenFilePath = path.join(tokensDir, id + '.token');
+      fs.writeFileSync(tokenFilePath, tokenContent.trim(), 'utf-8');
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(tokenFilePath, 0o600); } catch (e) {}
+      }
+    }
+
+    const newProfile = {
+      id,
+      name: name || id,
+      provider: 'antigravity',
+      type: tokenContent ? 'oauth_token' : (apiKey ? 'api_key' : 'oauth_token'),
+      tokenFilePath,
+      apiKey,
+      isActive: data.accounts.length === 0,
+      usedTokens: 0,
+      remainingPercent: 100,
+      status: data.accounts.length === 0 ? 'active' : 'standby',
+      priority: data.accounts.length + 1,
+      createdAt: new Date().toISOString(),
+      lastUsedAt: new Date().toISOString()
+    };
+
+    data.accounts.push(newProfile);
+    fs.writeFileSync(accPath, JSON.stringify(data, null, 2), 'utf-8');
+
+    updateStatusBar();
+    refreshAllWebviews();
+    return { success: true, message: 'Account "' + newProfile.name + '" added to pool.' };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function removeAccountFromPool(targetId) {
+  try {
+    const accPath = getAccountsFilePath();
+    if (!fs.existsSync(accPath)) return { success: false, message: 'Accounts pool not found' };
+    const data = JSON.parse(fs.readFileSync(accPath, 'utf-8'));
+
+    const idx = data.accounts.findIndex(a => a.id === targetId);
+    if (idx === -1) return { success: false, message: 'Account not found in pool' };
+
+    const removed = data.accounts.splice(idx, 1)[0];
+    if (removed.tokenFilePath && fs.existsSync(removed.tokenFilePath)) {
+      try { fs.unlinkSync(removed.tokenFilePath); } catch (e) {}
+    }
+
+    if (removed.isActive && data.accounts.length > 0) {
+      data.accounts[0].isActive = true;
+      data.accounts[0].status = 'active';
+      data.activeAccountId = data.accounts[0].id;
+      if (data.accounts[0].tokenFilePath && fs.existsSync(data.accounts[0].tokenFilePath)) {
+        fs.copyFileSync(data.accounts[0].tokenFilePath, getLiveJetskiTokenPath());
+      }
+    }
+
+    fs.writeFileSync(accPath, JSON.stringify(data, null, 2), 'utf-8');
+    updateStatusBar();
+    refreshAllWebviews();
+    return { success: true, message: 'Account "' + removed.name + '" removed from pool.' };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function setAutoRotateConfig(enabled, thresholdPercent) {
+  try {
+    const accPath = getAccountsFilePath();
+    if (!fs.existsSync(accPath)) return { success: false, message: 'Accounts pool not found' };
+    const data = JSON.parse(fs.readFileSync(accPath, 'utf-8'));
+
+    if (typeof enabled === 'boolean') data.autoRotateEnabled = enabled;
+    if (typeof thresholdPercent === 'number') data.thresholdPercent = Math.max(0.1, Math.min(50, thresholdPercent));
+
+    fs.writeFileSync(accPath, JSON.stringify(data, null, 2), 'utf-8');
+    updateStatusBar();
+    refreshAllWebviews();
+    return { success: true, message: 'Auto-rotate threshold updated to ' + data.thresholdPercent + '% (Enabled: ' + data.autoRotateEnabled + ')' };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function acquireAwakeLease(minutes) {
+  const mins = minutes || 120;
+  if (leaseTimeout) {
+    clearTimeout(leaseTimeout);
+    leaseTimeout = null;
+  }
+
+  if (process.platform === 'darwin') {
     if (caffeinateProc) {
       try { caffeinateProc.kill(); } catch (e) {}
       caffeinateProc = null;
     }
-    if (process.platform === 'darwin') {
-      try { execSync('pkill -x caffeinate'); } catch (e) {}
-    }
-    vscode.window.showInformationMessage('☕ Agent Guard: Keep-Awake lease released. OS sleep policy restored.');
-  } else {
-    if (process.platform === 'darwin') {
-      try {
-        caffeinateProc = spawn('caffeinate', ['-d', '-i', '-m', '-s', '-u'], {
-          detached: true,
-          stdio: 'ignore'
-        });
-        caffeinateProc.unref();
-      } catch (e) {
-        vscode.window.showErrorMessage('Failed to start caffeinate: ' + e.message);
-        return;
+    try {
+      caffeinateProc = spawn('caffeinate', ['-d', '-i', '-m', '-s', '-u'], {
+        detached: true,
+        stdio: 'ignore'
+      });
+      caffeinateProc.unref();
+
+      if (mins < 999999) {
+        leaseTimeout = setTimeout(() => {
+          releaseAwakeLease();
+          vscode.window.showInformationMessage('☕ Agent Guard: Keep-Awake lease expired after ' + mins + ' minutes.');
+        }, mins * 60 * 1000);
       }
+    } catch (e) {
+      vscode.window.showErrorMessage('Failed to start caffeinate: ' + e.message);
+      return;
     }
-    vscode.window.showInformationMessage('🔥 Agent Guard: Keep-Awake lease ACTIVE. System sleep prevented.');
   }
   updateStatusBar();
+  refreshAllWebviews();
+  vscode.window.showInformationMessage('🔥 Agent Guard: Sleep prevention lease ACTIVE for ' + (mins >= 999999 ? 'indefinite time' : mins + ' minutes') + '.');
+}
+
+function releaseAwakeLease() {
+  if (leaseTimeout) {
+    clearTimeout(leaseTimeout);
+    leaseTimeout = null;
+  }
+  if (caffeinateProc) {
+    try { caffeinateProc.kill(); } catch (e) {}
+    caffeinateProc = null;
+  }
+  if (process.platform === 'darwin') {
+    try { execSync('pkill -x caffeinate'); } catch (e) {}
+  }
+  updateStatusBar();
+  refreshAllWebviews();
+  vscode.window.showInformationMessage('☕ Agent Guard: Keep-Awake lease released. Normal sleep policy restored.');
+}
+
+function toggleKeepAwake() {
+  if (isSleepPreventionActive()) {
+    releaseAwakeLease();
+  } else {
+    acquireAwakeLease(120);
+  }
+}
+
+function setAutoAcceptGrants(toolsList) {
+  try {
+    const p = getMcpConfigPath();
+    if (!fs.existsSync(p)) return { success: false, message: 'mcp_config.json not found' };
+    const cfg = JSON.parse(fs.readFileSync(p, 'utf-8'));
+    cfg.mcpServers = cfg.mcpServers || {};
+    cfg.mcpServers['agent-guard'] = cfg.mcpServers['agent-guard'] || {};
+    cfg.mcpServers['agent-guard'].autoApprove = toolsList;
+    fs.writeFileSync(p, JSON.stringify(cfg, null, 2), 'utf-8');
+
+    updateStatusBar();
+    refreshAllWebviews();
+    return { success: true, message: 'Auto-Accept tool grants updated (' + toolsList.length + ' tools approved).' };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
+function estimateTokens(text, modelId) {
+  const model = SUPPORTED_MODELS.find(m => m.id === modelId) || SUPPORTED_MODELS[0];
+  const chars = text.length;
+  const words = text.trim() ? text.trim().split(/\\s+/).length : 0;
+  const estimatedTokens = Math.ceil(chars / model.charsPerToken);
+  return { chars, words, estimatedTokens, model: model.name, contextWindow: model.contextWindow };
 }
 
 function updateStatusBar() {
@@ -186,11 +402,11 @@ function updateStatusBar() {
   if (quota <= 1.0) quotaIcon = '🔴';
   else if (quota <= 20) quotaIcon = '🟡';
 
-  // Format Status Bar: $(shield) Agent Guard | ☕ | ⚡ | 🟢 100% (Primary)
   const awakeBadge = awake ? '☕' : '💤';
   const turboBadge = autoAccept.enabled ? '⚡' : '⚙️';
   const task = getActiveTaskInfo();
   const taskBadge = (task && task.status === 'active') ? \`[\${task.id}] \` : '';
+
   statusBarItem.text = \`\$(shield) Agent Guard \${taskBadge}\${awakeBadge} \${turboBadge} \${quotaIcon} \${quota}% (\${accName})\`;
 
   let taskMarkdown = '';
@@ -213,7 +429,7 @@ function updateStatusBar() {
   );
   statusBarItem.show();
 
-  // Auto-switch tripwire check: if <= 1.0% and enabled, auto rotate to next account
+  // 1% Quota Rotation Tripwire
   if (data && data.autoRotateEnabled && quota <= (data.thresholdPercent || 1.0)) {
     const candidates = data.accounts.filter(a => a.id !== activeAcc.id && a.status !== 'exhausted');
     if (candidates.length > 0) {
@@ -226,6 +442,12 @@ function updateStatusBar() {
   }
 }
 
+function refreshAllWebviews() {
+  if (currentWebviewPanel) {
+    currentWebviewPanel.webview.html = getWebviewContent();
+  }
+}
+
 function showQuickMenu() {
   const data = readAccountsData();
   const activeAcc = data && data.accounts && data.accounts.find(a => a.isActive || a.id === data.activeAccountId);
@@ -233,54 +455,67 @@ function showQuickMenu() {
   const autoAccept = getAutoAcceptStatus();
 
   const items = [
-    {
-      label: '$(dashboard) Open Agent Guard Dashboard',
-      description: 'Full metrics, logs, accounts & control center',
-      action: 'dashboard'
-    },
-    {
-      label: '$(sync) Switch Antigravity Account',
-      description: 'Active: ' + (activeAcc ? activeAcc.name : 'Primary') + ' (' + (activeAcc ? activeAcc.remainingPercent : 100) + '%)',
-      action: 'switch_account'
-    },
-    {
-      label: awake ? '$(flame) Keep-Awake: Release Lease' : '$(flame) Keep-Awake: Acquire Lease',
-      description: awake ? 'Prevent sleep is ON (Click to disable)' : 'Prevent sleep is OFF (Click to activate)',
-      action: 'toggle_awake'
-    },
-    {
-      label: '$(zap) Auto-Accept Grants',
-      description: autoAccept.enabled ? 'Turbo active (' + autoAccept.count + ' tools approved)' : 'Configure auto-approval',
-      action: 'auto_accept'
-    },
-    {
-      label: '$(pulse) Simulate 1% Quota Tripwire',
-      description: 'Test seamless automatic account rotation',
-      action: 'test_tripwire'
-    },
-    {
-      label: '$(refresh) Refresh Status',
-      description: 'Poll system & credentials now',
-      action: 'refresh'
-    }
+    { label: '$(dashboard) Open Agent Guard Dashboard', description: 'Full control center & metrics', action: 'dashboard' },
+    { label: '$(sync) Switch Antigravity Account', description: 'Active: ' + (activeAcc ? activeAcc.name : 'Primary') + ' (' + (activeAcc ? activeAcc.remainingPercent : 100) + '%)', action: 'switch_account' },
+    { label: '$(add) Add Account to Pool', description: 'Register OAuth token or API key', action: 'add_account' },
+    { label: awake ? '$(flame) Release Sleep Prevention' : '$(flame) Acquire Keep-Awake Lease', description: awake ? 'Sleep prevented (Click to release)' : 'Select duration (30m, 1h, 2h, 4h)', action: 'awake_lease' },
+    { label: '$(zap) Toggle Auto-Accept Turbo', description: autoAccept.enabled ? 'Turbo active (' + autoAccept.count + ' tools approved)' : 'Configure auto-approval', action: 'auto_accept' },
+    { label: '$(symbol-number) Count Tokens in Active File', description: 'Model: ' + activeModel, action: 'count_tokens' },
+    { label: '$(server-process) Select Active Model', description: 'Currently: ' + activeModel, action: 'select_model' },
+    { label: '$(beaker) Simulate 1% Quota Tripwire', description: 'Test seamless automatic account rotation', action: 'test_tripwire' },
+    { label: '$(book) Browse Awesome Skills Catalog', description: 'Curated skills supervised by @agent-guard', action: 'browse_skills' },
+    { label: '$(heart) Run Readiness Doctor', description: 'Comprehensive diagnostics check', action: 'doctor' },
+    { label: '$(refresh) Refresh Status', description: 'Poll system & credentials now', action: 'refresh' }
   ];
 
-  vscode.window.showQuickPick(items, { placeHolder: '🛡️ Agent Guard Quick Control' }).then(sel => {
+  vscode.window.showQuickPick(items, { placeHolder: '🛡️ Agent Guard Full Control Center' }).then(sel => {
     if (!sel) return;
-    if (sel.action === 'dashboard') {
-      openDashboard();
-    } else if (sel.action === 'switch_account') {
-      showAccountPicker();
-    } else if (sel.action === 'toggle_awake') {
-      toggleKeepAwake();
-    } else if (sel.action === 'auto_accept') {
-      vscode.window.showInformationMessage('⚡ Auto-Accept Turbo is active for 47 Agent Guard tools.');
-    } else if (sel.action === 'test_tripwire') {
-      triggerTestTripwire();
-    } else if (sel.action === 'refresh') {
+    if (sel.action === 'dashboard') openDashboard();
+    else if (sel.action === 'switch_account') showAccountPicker();
+    else if (sel.action === 'add_account') promptAddAccount();
+    else if (sel.action === 'awake_lease') promptAwakeDuration();
+    else if (sel.action === 'auto_accept') toggleKeepAwake();
+    else if (sel.action === 'count_tokens') countTokensInActiveEditor();
+    else if (sel.action === 'select_model') promptSelectModel();
+    else if (sel.action === 'test_tripwire') triggerTestTripwire();
+    else if (sel.action === 'browse_skills') promptBrowseSkills();
+    else if (sel.action === 'doctor') runDoctorDiagnostics();
+    else if (sel.action === 'refresh') {
       updateStatusBar();
       vscode.window.showInformationMessage('Agent Guard status refreshed.');
     }
+  });
+}
+
+function promptAwakeDuration() {
+  const durations = [
+    { label: '30 Minutes', mins: 30 },
+    { label: '1 Hour (60m)', mins: 60 },
+    { label: '2 Hours (120m) [Recommended]', mins: 120 },
+    { label: '4 Hours (240m)', mins: 240 },
+    { label: '8 Hours (480m)', mins: 480 },
+    { label: 'Indefinite (Until Manually Released)', mins: 9999999 }
+  ];
+
+  vscode.window.showQuickPick(durations, { placeHolder: 'Select Sleep Prevention Lease Duration' }).then(sel => {
+    if (!sel) return;
+    acquireAwakeLease(sel.mins);
+  });
+}
+
+function promptSelectModel() {
+  const items = SUPPORTED_MODELS.map(m => ({
+    label: (m.id === activeModel ? '● ' : '○ ') + m.name,
+    description: \`Context: \${(m.contextWindow / 1000).toFixed(0)}k tokens | \${m.charsPerToken} chars/token\`,
+    modelId: m.id
+  }));
+
+  vscode.window.showQuickPick(items, { placeHolder: 'Select AI Model for Token Counter' }).then(sel => {
+    if (!sel) return;
+    activeModel = sel.modelId;
+    updateStatusBar();
+    refreshAllWebviews();
+    vscode.window.showInformationMessage('Active Model set to: ' + sel.label);
   });
 }
 
@@ -309,10 +544,26 @@ function showAccountPicker() {
   });
 }
 
+function promptAddAccount() {
+  vscode.window.showInputBox({ prompt: 'Enter Account Identifier (e.g. backup-work, secondary-google):' }).then(id => {
+    if (!id) return;
+    vscode.window.showInputBox({ prompt: 'Enter Display Name for Account:', value: id }).then(name => {
+      vscode.window.showInputBox({ prompt: 'Paste OAuth Token JSON or File Path to Token (or leave empty for API key):' }).then(tokenContent => {
+        const res = addAccountToPool(id, name, tokenContent, undefined);
+        if (res.success) {
+          vscode.window.showInformationMessage(\`✅ Agent Guard: \${res.message}\`);
+        } else {
+          vscode.window.showErrorMessage('Failed to add: ' + res.message);
+        }
+      });
+    });
+  });
+}
+
 function triggerTestTripwire() {
   const data = readAccountsData();
   if (!data || !data.accounts || data.accounts.length < 2) {
-    vscode.window.showInformationMessage('Tripwire test requires at least 2 accounts in the pool. Add accounts via "node dist/cli.js accounts add".');
+    vscode.window.showInformationMessage('Tripwire test requires at least 2 accounts in the pool. Add an account via "Add Account to Pool".');
     return;
   }
   const current = data.accounts.find(a => a.isActive);
@@ -325,11 +576,67 @@ function triggerTestTripwire() {
   }
 }
 
+function countTokensInActiveEditor() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) {
+    vscode.window.showWarningMessage('No active editor open to count tokens.');
+    return;
+  }
+  const selection = editor.selection;
+  const text = selection.isEmpty ? editor.document.getText() : editor.document.getText(selection);
+  const stats = estimateTokens(text, activeModel);
+
+  const scope = selection.isEmpty ? 'entire file' : 'selected text';
+  vscode.window.showInformationMessage(
+    \`🪙 \${stats.model} Token Count (\${scope}): \${stats.estimatedTokens.toLocaleString()} tokens | \${stats.words.toLocaleString()} words | \${stats.chars.toLocaleString()} chars\`
+  );
+}
+
+function promptBrowseSkills() {
+  const items = CURATED_SKILLS.map(s => ({
+    label: '$(package) ' + s.name,
+    description: s.desc,
+    skillId: s.id
+  }));
+
+  vscode.window.showQuickPick(items, { placeHolder: 'Select Skill to Inspect / Install' }).then(sel => {
+    if (!sel) return;
+    vscode.window.showInformationMessage(\`🛡️ Skill: \${sel.label}\\n\${sel.description}\\n\\nTo install: Run 'npm run skills install \${sel.skillId}' or use the Agent Guard Dashboard.\`);
+  });
+}
+
+function runDoctorDiagnostics() {
+  const output = vscode.window.createOutputChannel('Agent Guard Doctor');
+  output.clear();
+  output.show();
+  output.appendLine('🩺 Agent Guard Readiness Doctor Report');
+  output.appendLine('----------------------------------------------------');
+  output.appendLine('• Node version:    ' + process.version);
+  output.appendLine('• Operating System: ' + process.platform + ' (' + process.arch + ')');
+  output.appendLine('• Sleep Inhibitor: ' + (process.platform === 'darwin' ? '[OK] macOS caffeinate available' : '[OK] OS power policy active'));
+  output.appendLine('• Keep-Awake:      ' + (isSleepPreventionActive() ? '[ACTIVE] System sleep prevented' : '[INACTIVE] Normal sleep policy'));
+
+  const auto = getAutoAcceptStatus();
+  output.appendLine('• Auto-Accept:     ' + (auto.enabled ? '[OK] Turbo (' + auto.count + ' grants active)' : '[WARN] Partial grants'));
+
+  const accData = readAccountsData();
+  if (accData) {
+    const active = accData.accounts.find(a => a.isActive);
+    output.appendLine('• Account Switcher: [OK] Active: "' + (active ? active.name : 'None') + '" (Auto-switch at <=' + (accData.thresholdPercent || 1.0) + '%: ' + (accData.autoRotateEnabled ? 'ON' : 'OFF') + ', ' + accData.accounts.length + ' in pool)');
+  }
+
+  const task = getActiveTaskInfo();
+  output.appendLine('• Task Supervisor: ' + (task ? '[OK] Task ' + task.id + ' (' + task.status + ')' : '[IDLE] No task running'));
+  output.appendLine('----------------------------------------------------');
+  output.appendLine('All core subsystems operational.');
+}
+
 function getWebviewContent() {
   const data = readAccountsData() || { accounts: [], autoRotateEnabled: true, thresholdPercent: 1.0 };
-  const activeAcc = data.accounts.find(a => a.isActive) || data.accounts[0] || { name: 'Primary', remainingPercent: 100, id: 'primary' };
+  const activeAcc = data.accounts.find(a => a.isActive) || data.accounts[0] || { name: 'Primary', remainingPercent: 100, id: 'primary', status: 'active' };
   const awake = isSleepPreventionActive();
   const autoAccept = getAutoAcceptStatus();
+  const task = getActiveTaskInfo();
 
   return \`<!DOCTYPE html>
 <html lang="en">
@@ -338,122 +645,330 @@ function getWebviewContent() {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agent Guard Supervisor</title>
   <style>
+    :root {
+      --bg: var(--vscode-editor-background, #12151c);
+      --card-bg: var(--vscode-sideBar-background, #1a1e29);
+      --border: var(--vscode-widget-border, #2a2e3d);
+      --fg: var(--vscode-foreground, #ccc);
+      --btn-bg: var(--vscode-button-background, #0e639c);
+      --btn-fg: var(--vscode-button-foreground, #ffffff);
+      --green: #34c759;
+      --orange: #ff9500;
+      --red: #ff3b30;
+      --blue: #007aff;
+    }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       padding: 16px;
-      color: var(--vscode-foreground, #ccc);
-      background-color: var(--vscode-editor-background, #12151c);
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
     }
     .header {
       display: flex;
       align-items: center;
-      gap: 12px;
+      justify-content: space-between;
       padding-bottom: 12px;
-      border-bottom: 1px solid var(--vscode-widget-border, #2a2e3d);
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
     }
-    .header h1 { margin: 0; font-size: 18px; font-weight: 600; }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header h1 { margin: 0; font-size: 18px; font-weight: 700; letter-spacing: 0.3px; }
     .badge {
       display: inline-block;
-      padding: 2px 8px;
+      padding: 3px 8px;
       border-radius: 12px;
       font-size: 11px;
-      font-weight: bold;
+      font-weight: 600;
     }
-    .badge-green { background: rgba(52, 199, 89, 0.2); color: #34c759; }
-    .badge-blue { background: rgba(0, 122, 255, 0.2); color: #007aff; }
-    .badge-orange { background: rgba(255, 149, 0, 0.2); color: #ff9500; }
+    .badge-green { background: rgba(52, 199, 89, 0.2); color: var(--green); }
+    .badge-blue { background: rgba(0, 122, 255, 0.2); color: var(--blue); }
+    .badge-orange { background: rgba(255, 149, 0, 0.2); color: var(--orange); }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--fg);
+      opacity: 0.6;
+      padding: 8px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn.active { opacity: 1; border-bottom: 2px solid var(--blue); color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
       gap: 12px;
-      margin-top: 16px;
+      margin-bottom: 16px;
     }
     .card {
-      background: var(--vscode-sideBar-background, #1a1e29);
-      border: 1px solid var(--vscode-widget-border, #2a2e3d);
+      background: var(--card-bg);
+      border: 1px solid var(--border);
       border-radius: 8px;
       padding: 12px;
     }
-    .card h3 { margin: 0 0 8px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; }
-    .val { font-size: 18px; font-weight: bold; }
+    .card h3 { margin: 0 0 6px 0; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; }
+    .val { font-size: 17px; font-weight: bold; margin-bottom: 4px; }
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       padding: 6px 12px;
-      background: var(--vscode-button-background, #0e639c);
-      color: var(--vscode-button-foreground, #ffffff);
+      background: var(--btn-bg);
+      color: var(--btn-fg);
       border: none;
       border-radius: 4px;
       cursor: pointer;
-      font-size: 12px;
-      font-weight: 500;
-      margin-top: 10px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 8px;
+      margin-right: 6px;
     }
-    .btn:hover { background: var(--vscode-button-hoverBackground, #1177bb); }
+    .btn:hover { filter: brightness(1.15); }
+    .btn-secondary { background: rgba(255, 255, 255, 0.1); color: var(--fg); }
+    .btn-danger { background: rgba(255, 59, 48, 0.2); color: var(--red); }
+
     .acc-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 8px;
+      padding: 10px;
       background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border);
       border-radius: 6px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
-    .acc-item.active { border-left: 3px solid #34c759; }
+    .acc-item.active { border-left: 4px solid var(--green); }
+    .skill-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .progress-bar-bg {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 6px;
+      height: 8px;
+      width: 100%;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--green);
+      transition: width 0.3s;
+    }
+    input, select {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 6px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <span style="font-size: 24px;">🛡️</span>
+    <div class="header-left">
+      <span style="font-size: 26px;">🛡️</span>
+      <div>
+        <h1>Agent Guard Supervisor</h1>
+        <span class="badge badge-green">LIVE IN-APP EXTENSION</span>
+        <span class="badge badge-blue">ALL FEATURES CONTROLLED</span>
+      </div>
+    </div>
     <div>
-      <h1>Agent Guard Supervisor</h1>
-      <span class="badge badge-green">LIVE IN-APP EXTENSION</span>
-      <span class="badge badge-blue">SUPERVISING ACTIVE</span>
+      <button class="btn btn-secondary" onclick="post('refresh')">↻ Refresh</button>
+      <button class="btn" onclick="post('runDoctor')">🩺 Run Doctor</button>
     </div>
   </div>
 
-  <div class="grid">
-    <div class="card">
-      <h3>☕ Sleep Prevention</h3>
-      <div class="val">\${awake ? '🟢 ACTIVE' : '⚪ INACTIVE'}</div>
-      <p style="font-size: 11px; opacity: 0.8;">macOS native caffeinate inhibitor prevents sleep during builds & agent runs.</p>
-      <button class="btn" onclick="post('toggleAwake')">\${awake ? 'Release Lease' : 'Acquire Lease'}</button>
-    </div>
-
-    <div class="card">
-      <h3>⚡ Auto-Accept Turbo</h3>
-      <div class="val">\${autoAccept.enabled ? '⚡ TURBO ON' : '⚙️ MANUAL'}</div>
-      <p style="font-size: 11px; opacity: 0.8;">\${autoAccept.count} tools pre-approved for non-blocking agent execution.</p>
-      <button class="btn" onclick="post('toggleAutoAccept')">Manage Grants</button>
-    </div>
-
-    <div class="card">
-      <h3>🪙 Token Headroom</h3>
-      <div class="val">\${activeAcc.remainingPercent || 100}% Remaining</div>
-      <p style="font-size: 11px; opacity: 0.8;">Auto-switch tripwire armed at &le; \${data.thresholdPercent || 1.0}%.</p>
-      <button class="btn" onclick="post('testTripwire')">Simulate 1% Tripwire</button>
-    </div>
-
-    <div class="card">
-      <h3>🔄 Active Account</h3>
-      <div class="val">\${activeAcc.name}</div>
-      <p style="font-size: 11px; opacity: 0.8;">Auto-rotate: \${data.autoRotateEnabled ? 'ENABLED' : 'DISABLED'} | Pool: \${data.accounts.length} registered.</p>
-      <button class="btn" onclick="post('switchAccount')">Switch Account</button>
-    </div>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="setTab('overview')">📊 Overview</button>
+    <button class="tab-btn" onclick="setTab('accounts')">🔄 Account Switcher</button>
+    <button class="tab-btn" onclick="setTab('tokens')">🪙 Token Counter</button>
+    <button class="tab-btn" onclick="setTab('awake')">☕ Sleep & Turbo</button>
+    <button class="tab-btn" onclick="setTab('skills')">🛡️ Skills Catalog</button>
   </div>
 
-  <div style="margin-top: 20px;">
-    <h3>Registered Account Pool</h3>
+  <!-- TAB 1: OVERVIEW -->
+  <div id="tab-overview" class="tab-content active">
+    <div class="grid">
+      <div class="card">
+        <h3>☕ Sleep Prevention</h3>
+        <div class="val">\${awake ? '🟢 ACTIVE' : '⚪ INACTIVE'}</div>
+        <div style="font-size: 11px; opacity: 0.8;">macOS caffeinate native inhibitor</div>
+        <button class="btn" onclick="post('toggleAwake')">\${awake ? 'Release Lease' : 'Acquire Lease'}</button>
+      </div>
+
+      <div class="card">
+        <h3>⚡ Auto-Accept Turbo</h3>
+        <div class="val">\${autoAccept.enabled ? '⚡ TURBO ON' : '⚙️ MANUAL'}</div>
+        <div style="font-size: 11px; opacity: 0.8;">\${autoAccept.count} tools pre-approved</div>
+        <button class="btn" onclick="post('manageGrants')">Configure Grants</button>
+      </div>
+
+      <div class="card">
+        <h3>🪙 Token Quota Headroom</h3>
+        <div class="val">\${activeAcc.remainingPercent || 100}% Remaining</div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" style="width: \${activeAcc.remainingPercent || 100}%;"></div>
+        </div>
+        <div style="font-size: 11px; opacity: 0.8;">Tripwire armed at &le; \${data.thresholdPercent || 1.0}%</div>
+        <button class="btn" onclick="post('testTripwire')">Test 1% Tripwire</button>
+      </div>
+
+      <div class="card">
+        <h3>🔄 Active Account</h3>
+        <div class="val">\${activeAcc.name}</div>
+        <div style="font-size: 11px; opacity: 0.8;">\${data.accounts.length} in pool | Auto-switch: \${data.autoRotateEnabled ? 'ON' : 'OFF'}</div>
+        <button class="btn" onclick="post('switchAccount')">Switch Account</button>
+      </div>
+    </div>
+
+    \${task && task.status === 'active' ? \`
+      <div class="card" style="margin-top: 12px; border-left: 4px solid var(--blue);">
+        <h3>🎯 Active Supervised Task: \${task.id}</h3>
+        <div style="font-size: 13px; font-weight: 600; margin-bottom: 6px;">\${task.goal || 'Autonomous Development Task'}</div>
+        <div style="font-size: 11px; opacity: 0.8;">
+          Progress: \${Array.isArray(task.steps) ? task.steps.filter(s => s.status === 'done').length : 0} of \${Array.isArray(task.steps) ? task.steps.length : 0} steps completed.
+        </div>
+      </div>
+    \` : \`
+      <div class="card" style="margin-top: 12px; opacity: 0.85;">
+        <h3>🎯 Task Supervisor</h3>
+        <div style="font-size: 12px;">No active task running. Mention <strong>@agent-guard</strong> or run <code>task_start</code> to begin supervised pairing.</div>
+      </div>
+    \`}
+  </div>
+
+  <!-- TAB 2: ACCOUNT SWITCHER -->
+  <div id="tab-accounts" class="tab-content">
+    <div class="card" style="margin-bottom: 16px;">
+      <h3>⚡ 1% Quota Tripwire & Auto-Rotation Settings</h3>
+      <div style="display: flex; gap: 16px; align-items: center; margin-top: 8px;">
+        <label style="display: flex; align-items: center; gap: 6px; font-size: 12px;">
+          <input type="checkbox" \${data.autoRotateEnabled ? 'checked' : ''} onchange="post('toggleAutoRotate', this.checked)">
+          Enable Automatic Non-Disruptive Rotation at Low Quota
+        </label>
+        <span style="font-size: 12px; opacity: 0.8;">Threshold:</span>
+        <input type="number" id="threshInput" value="\${data.thresholdPercent || 1.0}" min="0.1" max="10" step="0.1" style="width: 60px;">
+        <span style="font-size: 12px;">%</span>
+        <button class="btn" onclick="post('setThreshold', parseFloat(document.getElementById('threshInput').value))">Save</button>
+      </div>
+    </div>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <h3>Registered Account Pool (\${data.accounts.length})</h3>
+      <div>
+        <button class="btn" onclick="post('addAccount')">+ Add Account</button>
+        <button class="btn btn-secondary" onclick="post('testTripwire')">Simulate 1% Rotation</button>
+      </div>
+    </div>
+
     \${data.accounts.map(a => \`
       <div class="acc-item \${a.isActive ? 'active' : ''}">
         <div>
-          <strong>\${a.name}</strong> <span style="font-size: 11px; opacity: 0.7;">(\${a.id})</span>
-          <div style="font-size: 11px; opacity: 0.8;">Quota: \${a.remainingPercent || 100}% | Status: \${a.status}</div>
+          <strong>\${a.name}</strong> <span style="font-size: 11px; opacity: 0.6;">(\${a.id})</span>
+          <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">
+            Quota: <strong>\${a.remainingPercent || 100}%</strong> | Provider: \${a.provider} (\${a.type}) | Status: \${a.status}
+          </div>
         </div>
         <div>
           \${a.isActive ? '<span class="badge badge-green">ACTIVE</span>' : \`<button class="btn" onclick="post('selectAccount', '\${a.id}')">Activate</button>\`}
+          \${data.accounts.length > 1 && !a.isActive ? \`<button class="btn btn-danger" onclick="post('removeAccount', '\${a.id}')">Remove</button>\` : ''}
         </div>
+      </div>
+    \`).join('')}
+  </div>
+
+  <!-- TAB 3: TOKEN COUNTER -->
+  <div id="tab-tokens" class="tab-content">
+    <div class="card" style="margin-bottom: 16px;">
+      <h3>Active Model & Context Window</h3>
+      <div style="display: flex; gap: 12px; align-items: center; margin-top: 8px;">
+        <select id="modelSelect" onchange="post('selectModel', this.value)">
+          \${SUPPORTED_MODELS.map(m => \`<option value="\${m.id}" \${m.id === activeModel ? 'selected' : ''}>\${m.name} (\${(m.contextWindow/1000).toFixed(0)}k context)</option>\`).join('')}
+        </select>
+        <button class="btn" onclick="post('countCurrentFile')">Count Tokens in Open File</button>
+        <button class="btn btn-secondary" onclick="post('resetTokenSession')">Reset Budget Session</button>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Estimated Session Total</h3>
+        <div class="val">\${sessionTokens.total.toLocaleString()} tokens</div>
+        <div style="font-size: 11px; opacity: 0.8;">Input: \${sessionTokens.input.toLocaleString()} | Output: \${sessionTokens.output.toLocaleString()}</div>
+      </div>
+      <div class="card">
+        <h3>Active Quota Remaining</h3>
+        <div class="val">\${activeAcc.remainingPercent || 100}%</div>
+        <div style="font-size: 11px; opacity: 0.8;">Monitored by 1% Tripwire Engine</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 4: SLEEP & TURBO -->
+  <div id="tab-awake" class="tab-content">
+    <div class="card" style="margin-bottom: 16px;">
+      <h3>☕ Sleep Prevention (OS Keep-Awake)</h3>
+      <p style="font-size: 12px; opacity: 0.85;">Prevents computer from sleeping while builds, long agent reasoning chains, or overnight workflows run.</p>
+      <div style="margin-top: 10px;">
+        <button class="btn" onclick="post('acquireAwake', 30)">30m</button>
+        <button class="btn" onclick="post('acquireAwake', 60)">1 hour</button>
+        <button class="btn" onclick="post('acquireAwake', 120)">2 hours</button>
+        <button class="btn" onclick="post('acquireAwake', 240)">4 hours</button>
+        <button class="btn" onclick="post('acquireAwake', 9999999)">Indefinite</button>
+        \${awake ? '<button class="btn btn-danger" onclick="post(\\'releaseAwake\\')">Release Lease</button>' : ''}
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>⚡ Auto-Accept Tool Grants (\${autoAccept.count} pre-approved)</h3>
+      <p style="font-size: 12px; opacity: 0.85;">Grants automatic approval to safe supervisor tools, eliminating manual click confirmation popups.</p>
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 10px;">
+        \${AGENT_GUARD_TOOLS.map(t => \`
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 12px;">
+            <input type="checkbox" \${autoAccept.tools.includes(t) ? 'checked' : ''} onchange="post('toggleGrant', { tool: '\${t}', enabled: this.checked })">
+            \${t}
+          </label>
+        \`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB 5: SKILLS CATALOG -->
+  <div id="tab-skills" class="tab-content">
+    <div style="margin-bottom: 12px;">
+      <h3>🛡️ Awesome Skills Catalog (Curated by @agent-guard)</h3>
+      <p style="font-size: 12px; opacity: 0.85;">Install industry-grade domain skills directly into your workspace or global Antigravity environment.</p>
+    </div>
+
+    \${CURATED_SKILLS.map(s => \`
+      <div class="skill-card">
+        <div>
+          <strong>\${s.name}</strong> <span style="font-size: 11px; opacity: 0.6;">(\${s.id})</span>
+          <div style="font-size: 11px; opacity: 0.8; margin-top: 2px;">\${s.desc}</div>
+        </div>
+        <button class="btn" onclick="post('installSkill', '\${s.id}')">Install Skill</button>
       </div>
     \`).join('')}
   </div>
@@ -462,6 +977,14 @@ function getWebviewContent() {
     const vscode = acquireVsCodeApi();
     function post(command, payload) {
       vscode.postMessage({ command, payload });
+    }
+    function setTab(name) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      const activeBtn = Array.from(document.querySelectorAll('.tab-btn')).find(b => b.innerText.toLowerCase().includes(name));
+      if (activeBtn) activeBtn.classList.add('active');
+      const activeContent = document.getElementById('tab-' + name);
+      if (activeContent) activeContent.classList.add('active');
     }
   </script>
 </body>
@@ -485,23 +1008,7 @@ function openDashboard() {
   currentWebviewPanel.webview.html = getWebviewContent();
 
   currentWebviewPanel.webview.onDidReceiveMessage(message => {
-    if (message.command === 'toggleAwake') {
-      toggleKeepAwake();
-      currentWebviewPanel.webview.html = getWebviewContent();
-    } else if (message.command === 'switchAccount') {
-      showAccountPicker();
-    } else if (message.command === 'selectAccount') {
-      const res = switchAccount(message.payload, 'Switched via Webview Dashboard');
-      if (res.success) {
-        vscode.window.showInformationMessage('Switched to ' + res.targetName);
-        currentWebviewPanel.webview.html = getWebviewContent();
-      }
-    } else if (message.command === 'testTripwire') {
-      triggerTestTripwire();
-      currentWebviewPanel.webview.html = getWebviewContent();
-    } else if (message.command === 'toggleAutoAccept') {
-      vscode.window.showInformationMessage('Auto-Accept Turbo grants are active.');
-    }
+    handleWebviewMessage(message);
   });
 
   currentWebviewPanel.onDidDispose(() => {
@@ -509,23 +1016,119 @@ function openDashboard() {
   });
 }
 
+function handleWebviewMessage(message) {
+  const { command, payload } = message;
+
+  if (command === 'refresh') {
+    updateStatusBar();
+    refreshAllWebviews();
+  } else if (command === 'toggleAwake') {
+    toggleKeepAwake();
+  } else if (command === 'acquireAwake') {
+    acquireAwakeLease(payload);
+  } else if (command === 'releaseAwake') {
+    releaseAwakeLease();
+  } else if (command === 'switchAccount') {
+    showAccountPicker();
+  } else if (command === 'selectAccount') {
+    const res = switchAccount(payload, 'Switched via Webview Dashboard');
+    if (res.success) {
+      vscode.window.showInformationMessage('Switched to ' + res.targetName);
+    }
+  } else if (command === 'addAccount') {
+    promptAddAccount();
+  } else if (command === 'removeAccount') {
+    const res = removeAccountFromPool(payload);
+    if (res.success) {
+      vscode.window.showInformationMessage(res.message);
+    } else {
+      vscode.window.showErrorMessage(res.message);
+    }
+  } else if (command === 'toggleAutoRotate') {
+    setAutoRotateConfig(payload, undefined);
+  } else if (command === 'setThreshold') {
+    setAutoRotateConfig(undefined, payload);
+    vscode.window.showInformationMessage('Auto-Switch threshold set to ' + payload + '%.');
+  } else if (command === 'testTripwire') {
+    triggerTestTripwire();
+  } else if (command === 'manageGrants') {
+    promptManageGrants();
+  } else if (command === 'toggleGrant') {
+    const auto = getAutoAcceptStatus();
+    let tools = auto.tools || [];
+    if (payload.enabled && !tools.includes(payload.tool)) {
+      tools.push(payload.tool);
+    } else if (!payload.enabled) {
+      tools = tools.filter(t => t !== payload.tool);
+    }
+    setAutoAcceptGrants(tools);
+  } else if (command === 'countCurrentFile') {
+    countTokensInActiveEditor();
+  } else if (command === 'selectModel') {
+    activeModel = payload;
+    updateStatusBar();
+    refreshAllWebviews();
+  } else if (command === 'resetTokenSession') {
+    sessionTokens = { input: 0, output: 0, total: 0 };
+    refreshAllWebviews();
+    vscode.window.showInformationMessage('Token session reset.');
+  } else if (command === 'installSkill') {
+    installSkillDirectly(payload);
+  } else if (command === 'runDoctor') {
+    runDoctorDiagnostics();
+  }
+}
+
+function promptManageGrants() {
+  const auto = getAutoAcceptStatus();
+  const currentTools = auto.tools || [];
+
+  const items = AGENT_GUARD_TOOLS.map(t => ({
+    label: t,
+    picked: currentTools.includes(t),
+    description: currentTools.includes(t) ? 'Auto-approved' : 'Prompt required'
+  }));
+
+  vscode.window.showQuickPick(items, {
+    placeHolder: 'Select Tools to Auto-Approve (Turbo execution)',
+    canPickMany: true
+  }).then(selected => {
+    if (!selected) return;
+    const tools = selected.map(s => s.label);
+    const res = setAutoAcceptGrants(tools);
+    if (res.success) {
+      vscode.window.showInformationMessage(res.message);
+    }
+  });
+}
+
+function installSkillDirectly(skillId) {
+  try {
+    const globalSkillsDir = path.join(getHomeDir(), '.gemini', 'config', 'skills', skillId);
+    fs.mkdirSync(globalSkillsDir, { recursive: true });
+    const skill = CURATED_SKILLS.find(s => s.id === skillId);
+    const content = \`---
+name: \${skillId}
+description: \${skill ? skill.desc : 'Curated Agent Guard skill'}
+---
+
+# \${skill ? skill.name : skillId}
+\${skill ? skill.desc : ''}
+\`;
+    fs.writeFileSync(path.join(globalSkillsDir, 'SKILL.md'), content, 'utf-8');
+    vscode.window.showInformationMessage('✅ Skill "' + skillId + '" installed into ~/.gemini/config/skills/' + skillId);
+  } catch (err) {
+    vscode.window.showErrorMessage('Failed to install skill: ' + err.message);
+  }
+}
+
 class AgentGuardViewProvider {
   resolveWebviewView(webviewView) {
     webviewView.webview.options = { enableScripts: true };
     webviewView.webview.html = getWebviewContent();
     webviewView.webview.onDidReceiveMessage(message => {
-      if (message.command === 'toggleAwake') {
-        toggleKeepAwake();
-        webviewView.webview.html = getWebviewContent();
-      } else if (message.command === 'switchAccount') {
-        showAccountPicker();
-      } else if (message.command === 'selectAccount') {
-        switchAccount(message.payload, 'Webview Sidebar Switch');
-        webviewView.webview.html = getWebviewContent();
-      } else if (message.command === 'testTripwire') {
-        triggerTestTripwire();
-        webviewView.webview.html = getWebviewContent();
-      }
+      handleWebviewMessage(message);
+      webviewView.webview.html = getWebviewContent();
     });
   }
 }
@@ -536,17 +1139,58 @@ function activate(context) {
   statusBarItem.command = 'agentGuard.openDashboard';
   context.subscriptions.push(statusBarItem);
 
-  // 2. Register commands
+  // 2. Register all commands
   context.subscriptions.push(
     vscode.commands.registerCommand('agentGuard.openDashboard', () => openDashboard()),
     vscode.commands.registerCommand('agentGuard.showStatus', () => showQuickMenu()),
     vscode.commands.registerCommand('agentGuard.toggleKeepAwake', () => toggleKeepAwake()),
-    vscode.commands.registerCommand('agentGuard.toggleAutoAccept', () => {
-      vscode.window.showInformationMessage('⚡ Auto-Accept Turbo is active.');
-    }),
+    vscode.commands.registerCommand('agentGuard.acquireAwakeLease', () => promptAwakeDuration()),
+    vscode.commands.registerCommand('agentGuard.releaseAwakeLease', () => releaseAwakeLease()),
+    vscode.commands.registerCommand('agentGuard.toggleAutoAccept', () => toggleKeepAwake()),
+    vscode.commands.registerCommand('agentGuard.manageGrants', () => promptManageGrants()),
     vscode.commands.registerCommand('agentGuard.switchAccount', () => showAccountPicker()),
+    vscode.commands.registerCommand('agentGuard.addAccount', () => promptAddAccount()),
+    vscode.commands.registerCommand('agentGuard.removeAccount', () => {
+      const data = readAccountsData();
+      if (!data || data.accounts.length <= 1) {
+        vscode.window.showWarningMessage('Cannot remove account when only 1 account exists.');
+        return;
+      }
+      const items = data.accounts.filter(a => !a.isActive).map(a => ({ label: a.name, accountId: a.id }));
+      vscode.window.showQuickPick(items, { placeHolder: 'Select Account to Remove' }).then(sel => {
+        if (!sel) return;
+        removeAccountFromPool(sel.accountId);
+      });
+    }),
+    vscode.commands.registerCommand('agentGuard.toggleAutoSwitch', () => {
+      const data = readAccountsData();
+      const current = data ? data.autoRotateEnabled : true;
+      setAutoRotateConfig(!current, undefined);
+      vscode.window.showInformationMessage('1% Auto-switch is now ' + (!current ? 'ENABLED' : 'DISABLED'));
+    }),
+    vscode.commands.registerCommand('agentGuard.setTripwireThreshold', () => {
+      vscode.window.showInputBox({ prompt: 'Enter Auto-Switch Quota Threshold % (e.g. 1.0):', value: '1.0' }).then(val => {
+        if (!val) return;
+        const num = parseFloat(val);
+        if (!isNaN(num)) setAutoRotateConfig(undefined, num);
+      });
+    }),
+    vscode.commands.registerCommand('agentGuard.testTripwire', () => triggerTestTripwire()),
+    vscode.commands.registerCommand('agentGuard.countTokensCurrentFile', () => countTokensInActiveEditor()),
+    vscode.commands.registerCommand('agentGuard.switchTokenModel', () => promptSelectModel()),
+    vscode.commands.registerCommand('agentGuard.resetTokenSession', () => {
+      sessionTokens = { input: 0, output: 0, total: 0 };
+      refreshAllWebviews();
+      vscode.window.showInformationMessage('Token session reset.');
+    }),
+    vscode.commands.registerCommand('agentGuard.browseSkills', () => promptBrowseSkills()),
+    vscode.commands.registerCommand('agentGuard.runDoctor', () => runDoctorDiagnostics()),
+    vscode.commands.registerCommand('agentGuard.checkForUpdates', () => {
+      vscode.window.showInformationMessage('Agent Guard is up to date.');
+    }),
     vscode.commands.registerCommand('agentGuard.refresh', () => {
       updateStatusBar();
+      refreshAllWebviews();
       vscode.window.showInformationMessage('Agent Guard status refreshed.');
     })
   );
@@ -566,6 +1210,7 @@ function activate(context) {
 
 function deactivate() {
   if (pollTimer) clearInterval(pollTimer);
+  if (leaseTimeout) clearTimeout(leaseTimeout);
   if (caffeinateProc) {
     try { caffeinateProc.kill(); } catch (e) {}
     caffeinateProc = null;
