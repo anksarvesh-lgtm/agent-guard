@@ -5,14 +5,15 @@
 <h1 align="center">Agent Guard</h1>
 
 <p align="center">
-  <strong>Resilient, zero-telemetry local Model Context Protocol (MCP) server, keep-awake supervisor, and Antigravity Stop hook for autonomous AI pairing.</strong>
+  <strong>Autonomous AI agent supervisor, crash-proof DAG ledger, multi-account 1% auto-rotator, and keep-awake lease engine.</strong>
 </p>
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
-  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-60%2F60%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
-  <a href="AWESOME_SKILLS.md"><img src="https://img.shields.io/badge/Skills-2%2C740%2B%20Curated-blueviolet.svg" alt="Awesome Skills" /></a>
+  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-121%2F121%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
+  <a href="docs/AWESOME_SKILLS.md"><img src="https://img.shields.io/badge/Skills-2%2C740%2B%20Curated-blueviolet.svg" alt="Awesome Skills" /></a>
   <a href="#zero-telemetry"><img src="https://img.shields.io/badge/Telemetry-Zero%20%2F%20100%25%20Local-success.svg" alt="Zero Telemetry" /></a>
+  <img src="https://img.shields.io/badge/Version-v0.2.6-informational.svg" alt="Version 0.2.6" />
   <a href="#mention-agent-guard"><img src="https://img.shields.io/badge/Mention-%40agent--guard-orange.svg" alt="Mention @agent-guard" /></a>
   <a href="#auto-update"><img src="https://img.shields.io/badge/Auto--Update-Enabled-blue.svg" alt="Auto-Update Enabled" /></a>
   <a href="#prerequisites"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-green.svg" alt="Node >= 20" /></a>
@@ -31,12 +32,10 @@
 ```bash
 curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/install.sh | bash
 ```
-*Auto-detects and configures **Antigravity**, **Claude Code**, **Cursor**, **Codex CLI**, **Gemini CLI**, **Windsurf**, **VS Code (Cline/Roo)**, and **Zed**.*
+*Auto-detects and configures **Google Antigravity**, **Claude Code**, **Cursor**, **Codex CLI**, **Gemini CLI**, **Windsurf**, **VS Code (Cline/Roo)**, and **Zed**.*
 
-### 🤖 The Universal Agent Prompt (Copy & Paste to Any AI Agent):
+### 🤖 Universal Agent Prompt (Copy & Paste to Any AI Agent):
 > **"Please install and activate the Agent Guard MCP supervisor (https://github.com/anksarvesh-lgtm/agent-guard.git). Run `curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/install.sh | bash` in the terminal, verify with `node ~/.agent-guard/dist/cli.js doctor`, and adopt the `@agent-guard` rules to supervise all my development tasks with atomic ledger checkpoints and keep-awake protection."**
-
-📖 *See **[UNIVERSAL_INSTALL_PROMPT.md](UNIVERSAL_INSTALL_PROMPT.md)** for app-by-app guides and configuration paths.*
 
 ---
 
@@ -45,17 +44,20 @@ curl -fsSL https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/in
 Autonomous AI coding agents in modern IDEs like Google Antigravity excel at single-turn instructions, but frequently encounter catastrophic failure modes during extended, multi-step work:
 
 1. **Premature Abandonment**: The agent declares victory and halts before running tests or finishing dependent steps.
-2. **Context Window Bloat**: Repeatedly crawling deep file hierarchies and receiving thousands of redundant tokens in status output.
+2. **Context Window Bloat & Cost Spikes**: Repeatedly crawling deep file hierarchies and receiving thousands of redundant tokens in status output.
 3. **Session Amnesia**: When a chat hits context limits or crashes, all task memory is lost and the agent restarts from scratch.
 4. **Unattended Sleep**: Complex tasks stall midway because the computer's display or idle sleep kicks in while you step away.
+5. **Quota Exhaustion Mid-Execution**: Automated pairing sessions fail abruptly when model quotas reach 0% or hit rate limit barriers.
 
-**Agent Guard** (`agent-guard`) solves all four problems with zero external infrastructure:
-- 💾 **File-Backed Atomic Ledger**: Keeps track of every step in `.agent/ledger.json` with self-healing recovery and concurrency locking.
+**Agent Guard** (`agent-guard`) solves all five problems with zero external infrastructure:
+- 💾 **File-Backed Atomic DAG Ledger**: Keeps track of every step in `.agent/ledger.json` with self-healing recovery and concurrency locking.
 - 🛑 **Antigravity Stop Hook**: Soft-blocks premature termination until all tasks are complete, with an integrated loop breaker.
-- ☕ **Supervised Keep-Awake Lease**: Keeps the computer awake using native OS tools (`caffeinate`) with an 8-hour safety ceiling.
-- ⚡ **Ultra-Lean Token Protocol**: 5 concise MCP tools designed from the ground up to conserve prompt tokens.
+- ☕ **Supervised Keep-Awake Lease**: Keeps the computer awake using native OS tools (`caffeinate` / `SetThreadExecutionState` / `systemd-inhibit`) with an 8-hour safety ceiling.
+- 🔄 **1% Quota Auto-Rotator**: Continuously tracks model quota and seamlessly switches accounts when quota reaches $\le 1\%$.
+- ⚡ **Accurate Token Counter**: Multi-model token measurement (Gemini, Claude, GPT-4o, DeepSeek) and session budget protection.
+- 📉 **Model Context Compression**: Structural context and token pruning via LightCompress reconstruction.
+- 🌐 **In-IDE Webview Extension**: Live token burn, remaining quota, task dashboard, and click-to-check update indicators.
 - 🤖 **Chat Mention `@agent-guard`**: Summon Agent Guard directly in Antigravity or AI coding chat by typing `@agent-guard`.
-- 🔄 **GitHub Push Auto-Update**: CI/CD auto-releases on push to `main`; clients self-update via `npm run update` or `./install.sh --update`.
 
 ---
 
@@ -63,25 +65,29 @@ Autonomous AI coding agents in modern IDEs like Google Antigravity excel at sing
 
 ```mermaid
 flowchart TD
-    subgraph Antigravity ["Google Antigravity"]
+    subgraph Antigravity ["Google Antigravity & AI IDEs"]
         Agent["Autonomous AI Agent"]
         HookEngine["Stop Hook Engine"]
         Rules["Workspace Rules (AGENTS.md)"]
+        LS["Antigravity Language Server"]
     end
 
     subgraph AgentGuard ["agent-guard (Node 20+ / TypeScript)"]
         MCPServer["MCP Server (stdio)\nsrc/index.ts"]
-        Tools["5 Core Tools\ntask_start | task_checkpoint | task_status\nkeep_awake | repo_brief"]
-        Ledger["Safe Ledger Engine\n(Locking, Atomic Rename, Auto-Repair)"]
-        AwakeMgr["Awake Supervisor\n(Lease Ticker, Swap, 8h Ceiling)"]
+        Tools["9 Core MCP Tools\ntask_start | task_checkpoint | task_status\nkeep_awake | repo_brief | agent_enforce\ntoken_counter | account_switcher | model_compressor"]
+        Ledger["Safe Ledger Engine\n(Atomic Rename, Auto-Repair)"]
+        AwakeMgr["Awake Supervisor\n(caffeinate / Win32 / systemd)"]
+        Rotator["Account 1% Auto-Rotator"]
+        QuotaProbe["Live Quota Probe"]
         StopHook["Stop Hook Script\n(3-Idle Push Loop Breaker)"]
+        ExtUI["In-IDE Web Extension"]
     end
 
     subgraph Project ["Target Repository: <project>/"]
         AgentDir[".agent/"]
-        LedgerJson[".agent/ledger.json\n(Task & Step States)"]
+        LedgerJson[".agent/ledger.json\n(Task & Step DAG)"]
         BriefMd[".agent/brief.md\n(Cached Map < 1.5k tok)"]
-        HookState[".agent/hook-state.json\n(Push Counters)"]
+        AccountsJson[".agent/accounts.json\n(Multi-Account Pool)"]
         LogTxt[".agent/log.txt\n(1MB Rotated Audit Log)"]
     end
 
@@ -90,403 +96,176 @@ flowchart TD
     MCPServer --> Tools
     Tools --> Ledger
     Tools --> AwakeMgr
-    Ledger --> AgentDir
+    Tools --> Rotator
+    Tools --> QuotaProbe
+    QuotaProbe <-->|Probes| LS
+    Rotator --> AccountsJson
+    Ledger --> LedgerJson
     HookEngine -->|Fires on Exit| StopHook
     StopHook --> LedgerJson
-    StopHook --> HookState
     StopHook -->|continue or allow| HookEngine
+    ExtUI <--> Tools
 ```
 
 ---
 
-## Core Pillars
+## Core Pillars & Capabilities
 
 ### 1. 🛡️ Zero Telemetry & Local Sandboxing
 * **100% Offline & Private**: Zero network dependencies, zero tracking, no cloud telemetry.
-* **Strict Path Sandboxing**: Resolves canonical realpaths; strictly jails writes to `<project>/.agent/`. Disallows the root directory, user home directory, OS system folders, and paths lacking `.git` or `.agent`.
+* **Strict Path Sandboxing**: Resolves canonical realpaths; strictly jails writes to `<project>/.agent/`. Disallows root directory, user home directory, and uninitialized paths.
 
-### 2. ⚡ Maximum Token Economy
-* Context window consumption is minimized at every level:
-  * `task_start`: Concise initialization response (~150 tokens).
-  * `task_checkpoint`: Single action instruction <= 300 characters (~60 tokens).
-  * `task_status`: High-density snapshot under 500 tokens, even with 30 steps.
-  * `repo_brief`: Fast, one-shot repository summary (< 1,500 tokens; hard cap at 8,000 characters) that prevents the agent from crawling dozens of files.
-  * Automatic string truncation with `[cut]` for goals (500 chars), titles (200 chars), and notes (500 chars).
-  * Disk-only rotation logging (`.agent/log.txt` at 1MB); zero debug spam injected into model context.
-
-### 3. 💾 Crash-Proof, Self-Healing State Ledger
+### 2. 💾 Crash-Proof, Self-Healing State Ledger
 * **Atomic Writes**: Writes to `.agent/ledger.tmp` followed by atomic filesystem `rename`.
 * **Lock Contention**: Concurrency locking (`.agent/ledger.lock`) with 30-second stale lock eviction.
 * **Automatic Recovery**: Backs up prior state to `ledger.prev.json` before writing; automatically self-heals and restores state if corruption is ever detected on read.
 
-### 4. 🔄 Resilient Step & Retry Machine
-* **Proof Verification**: Marking a step `done` requires at least 10 non-whitespace characters of verification proof in the note (e.g. test outputs or compile results).
-* **Retry Escalation**: Failed steps increment retries up to `max_tries` (default 3); automatically transitions to `blocked` once exhausted.
-* **Dependency Cascading**: Automatically cascades `blocked` status to any dependent steps down the DAG.
-* **Strict Prioritization**: The next step is always selected deterministically:
-  $$\text{in\_progress} \longrightarrow \text{failed (with retries)} \longrightarrow \text{first ready pending}$$
+### 3. 🔄 1% Quota Auto-Rotator & Account Pool
+* Continuously probes active session quota via Antigravity Language Server and proxy balance.
+* Automatically triggers rotation when quota $\le 1.0\%$, seamlessly switching credentials without disturbing running tasks.
+* Supports Antigravity OAuth tokens, Claude API keys, OpenAI tokens, and custom proxy endpoints.
 
-### 5. ☕ Supervised Keep-Awake Leases
+### 4. ⚡ Multi-Model Token Counter & Cost Monitor
+* Real-time token calculation across **Gemini**, **Claude 3.5 Sonnet**, **GPT-4o**, and **DeepSeek**.
+* Analyzes raw text snippets, project files, or conversation transcripts (`transcript.jsonl`).
+* Context budget alerts prevent agents from crossing prompt limits.
+
+### 5. 📉 Model & Context Compression (LightCompress REA)
+* Structural pruning of bloated outputs, verbose stack traces, and boilerplate logs.
+* Memory footprint estimator for LLMs, VLMs, and diffusion models (1B to 671B parameters).
+* Quantization and deployment config generation (W4A16, FP8, INT4).
+
+### 6. ☕ Supervised Keep-Awake Leases
 * Prevents unattended computers from sleeping during long builds, tests, or multi-step execution.
 * Native OS helpers:
-  * **macOS**: `caffeinate -di -t <sec> -w <pid>` with seamless child swapping (no sleep gap) and battery discharge warnings.
+  * **macOS**: `caffeinate -di -t <sec> -w <pid>` with seamless child swapping (no sleep gap).
   * **Windows**: PowerShell `SetThreadExecutionState` continuous wrapper.
   * **Linux**: `systemd-inhibit --what=idle:sleep`.
 * Auto-expiring lease renewed at every checkpoint, guarded by an **8-hour hard ceiling**.
 
-### 6. 🛑 Antigravity Stop Hook & Loop Breaker
+### 7. 🛑 Antigravity Stop Hook & Loop Breaker
 * Wired via Antigravity's `.agents/hooks.json`.
 * Detects premature agent stops: if unfinished, unblocked steps remain, soft-pushes the agent back to continue.
 * **Loop Breaker**: If the agent makes no checkpoint progress for 3 consecutive pushes, or reaches 10 total pushes, allows stop to prevent runaway loops.
-* **Fail-Safe**: Fully wrapped in exception handling; never stalls or traps the IDE.
 
 ---
 
 ## MCP Tools Reference
 
-| Tool | Purpose | Token Cost | Inputs |
+| Tool | Purpose | Token Cost | Key Inputs |
 | :--- | :--- | :--- | :--- |
 | `task_start` | Starts a tracked task, validates step DAG, begins 30m awake lease | ~150 tokens | `goal`, `steps`, `max_tries?`, `replace?`, `project_path?` |
 | `task_checkpoint` | Reports progress (`in_progress`, `done`, `failed`), verifies proof, extends lease | ~60 tokens | `step_id`, `status`, `note`, `error?`, `add_steps?`, `project_path?` |
 | `task_status` | Read-only inspection of active step, blocked items, and next action | < 500 tokens | `project_path?` |
 | `keep_awake` | Explicitly holds, releases, or inspects sleep inhibition lease | ~40 tokens | `action` (`hold`/`release`/`status`), `minutes?`, `reason?` |
 | `repo_brief` | Fast project overview with ASCII directory map & architecture chart | < 1,500 tokens | `refresh?`, `project_path?` |
-| `agent_enforce` | Communicates directives with active agents and forces task completion | ~60 tokens | `action` (`status`/`broadcast`/`force_next`), `directive?`, `target_agent?` |
+| `agent_enforce` | Communicates directives with active agents and forces task completion | ~60 tokens | `action` (`status`/`broadcast`/`force_next`), `directive?` |
+| `token_counter` | Measures tokens and costs across Gemini, Claude, GPT-4o, and DeepSeek | ~80 tokens | `model?`, `text?`, `file_path?`, `transcript_path?`, `compare_all?` |
+| `account_switcher` | Rotates accounts and manages auto-rotation when quota hits 1% | ~70 tokens | `action` (`status`/`switch`/`add`/`auto_rotate`), `account_id?` |
+| `model_compressor` | Quantizes models, prunes tokens, and estimates memory savings | ~90 tokens | `action` (`estimate`/`recommend`/`generate_config`), `param_billions?` |
 
 ---
 
-## Quickstart & Installation
+## 🛠️ Unified CLI Reference
 
-For the comprehensive setup manual and deep-dive troubleshooting, see the [Installation Guide (INSTALL.md)](INSTALL.md).
-
-### ⚡ 1-Click Universal Git Install
-Clone and install Agent Guard with a single command on any machine:
+Agent Guard includes an exhaustive command-line interface:
 
 ```bash
-git clone https://github.com/anksarvesh-lgtm/agent-guard.git ~/.agent-guard && ~/.agent-guard/install.sh
-```
+# Diagnostic & Installation
+node dist/cli.js doctor                       # Complete integration & readiness health check
+node dist/cli.js install                      # Universal multi-app auto-installer
+node dist/cli.js auto-accept                  # Grant autoApprove permissions across all IDEs
 
-Or from an existing local clone:
-```bash
-cd agent-guard
-./install.sh
-```
+# Task & Supervised Sleep
+node dist/cli.js awake status                 # Check OS sleep inhibition status
+node dist/cli.js awake hold --minutes 45      # Request a 45-minute keep-awake lease
+node dist/cli.js awake release                # Release active sleep lease
 
----
+# Quota & Token Monitoring
+node dist/cli.js tokens                       # View session token count and active model budget
+node dist/cli.js tokens --live                # Synchronously query Antigravity live quota
 
-## 🛠️ Configuring Your AI Coding App
+# Multi-Account Management
+node dist/cli.js accounts status              # Inspect accounts pool and active quota %
+node dist/cli.js accounts switch --name work  # Switch active profile to "work"
+node dist/cli.js accounts rotate              # Manually trigger quota failover check
 
-Agent Guard operates as a standard [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server over `stdio`. Use the configuration snippet below for your environment:
+# Model & Context Compression
+node dist/cli.js compress --file trace.log    # Compress verbose file before sending to model
+node dist/cli.js compress estimate -p 70      # Estimate memory for 70B parameter model
 
-<details open>
-<summary><strong>1. Google Antigravity (IDE, App 2.0, CLI <code>agy</code>)</strong></summary>
-
-The automated installer configures Antigravity automatically. To configure manually, add to `~/.gemini/config/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "agent-guard": {
-      "command": "node",
-      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
-    }
-  }
-}
-```
-
-**Antigravity Stop Hook** (`.agents/hooks.json` in your workspace):
-```json
-{
-  "agent-guard-stop": {
-    "Stop": [
-      {
-        "type": "command",
-        "command": "node /absolute/path/to/agent-guard/dist/hook/stop-hook.js"
-      }
-    ]
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>2. Claude Code CLI</strong></summary>
-
-Add with a single CLI command:
-```bash
-claude mcp add agent-guard -- node /absolute/path/to/agent-guard/dist/index.js
-```
-
-Or add to `~/.claude/mcp.json`:
-```json
-{
-  "mcpServers": {
-    "agent-guard": {
-      "command": "node",
-      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>3. Cursor IDE</strong></summary>
-
-Navigate to **Settings &rarr; Features &rarr; MCP &rarr; Add New MCP Server**, or edit `~/.cursor/mcp.json`:
-
-```json
-{
-  "mcpServers": {
-    "agent-guard": {
-      "command": "node",
-      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>4. Windsurf (Codeium / Cascade)</strong></summary>
-
-Add to `~/.codeium/windsurf/mcp_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "agent-guard": {
-      "command": "node",
-      "args": ["/absolute/path/to/agent-guard/dist/index.js"]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>5. VS Code (Cline / Roo Code / Continue)</strong></summary>
-
-Add to `cline_mcp_settings.json`:
-
-```json
-{
-  "mcpServers": {
-    "agent-guard": {
-      "command": "node",
-      "args": ["/absolute/path/to/agent-guard/dist/index.js"],
-      "disabled": false,
-      "autoApprove": [
-        "task_start",
-        "task_checkpoint",
-        "task_status",
-        "repo_brief",
-        "keep_awake"
-      ]
-    }
-  }
-}
-```
-</details>
-
-<details>
-<summary><strong>6. Zed Editor</strong></summary>
-
-Add to `~/.config/zed/settings.json`:
-
-```json
-{
-  "experimental": {
-    "model_context_protocol": {
-      "servers": {
-        "agent-guard": {
-          "command": "node",
-          "args": ["/absolute/path/to/agent-guard/dist/index.js"]
-        }
-      }
-    }
-  }
-}
-```
-</details>
-
----
-
-## 🎯 Target Workspace Setup
-
-To enable Agent Guard's autonomous supervision in any target project:
-
-```bash
-./install.sh --workspace "/path/to/your/project"
-```
-
-This installs:
-1. **`.agents/hooks.json`**: Prevents the agent from abandoning work before all steps are complete and verified.
-2. **`AGENTS.md`**: Provides clear system instructions directing the model to start tasks, inspect code maps before touching files, verify work with >= 10-char proof notes, and retry failed steps before continuing.
-
----
-
-## 🤖 Invoking with Chat Mention (`@agent-guard`)
-
-Agent Guard is packaged as a native Antigravity Plugin and Subagent. You can summon Agent Guard directly in your conversation simply by typing **`@agent-guard`**:
-
-```text
-@agent-guard refactor auth service and run all integration tests before finishing
-```
-
-When invoked via `@agent-guard`:
-1. The agent adopts the **Agent Guard** supervisor persona.
-2. It automatically checks active tasks via `task_status`.
-3. It takes a lightweight repository snapshot via `repo_brief`.
-4. It initializes the DAG ledger with `task_start` and activates the keep-awake sleep lease.
-5. It validates each completed step with test results via `task_checkpoint`.
-
----
-
-## 🔄 GitHub Push & Auto-Update Pipeline
-
-Agent Guard includes automated CI/CD and self-updating capabilities:
-
-### 1. Automatic GitHub Release on Push
-Every push to `main` on [https://github.com/anksarvesh-lgtm/agent-guard.git](https://github.com/anksarvesh-lgtm/agent-guard.git) automatically triggers GitHub Actions to:
-* Validate cross-platform builds across Node 20 & 22 on macOS, Linux, and Windows.
-* Run the complete Vitest test suite.
-* Build and package release tarballs (`agent-guard-*.tgz`).
-* Update the floating `latest` git tag and publish a GitHub Release with updated changelog and assets.
-
-### 2. Updating Your Local Installation
-You can update your local Agent Guard installation at any time with a single command:
-
-```bash
-# Via NPM script:
-npm run update
-
-# Or via install script:
-./install.sh --update
-
-# Or via CLI binary:
-node dist/cli.js update
-```
-
-The updater pulls changes from `origin/main`, recompiles TypeScript (`dist/`), and re-runs the readiness doctor.
-
-### 3. Non-Blocking Background Checks
-When running as an MCP server, Agent Guard quietly checks upstream git status in the background (debounced to at most once per hour). If updates are detected, it signals readiness without blocking your coding agent or interrupting offline work.
-
----
-
-## 🗺️ Project Map & Architecture Chart
-
-Agent Guard includes a built-in codebase mapper that produces clean directory trees and Mermaid component flowcharts:
-
-```bash
-# Generate and print project map + save .agent/project_map.md:
-npm run map
-
-# Or via CLI for any target workspace:
-node dist/cli.js map --workspace "/path/to/project"
-```
-
-The `repo_brief` tool automatically embeds this map into `.agent/brief.md` (<1,500 tokens), allowing AI coding agents to navigate the codebase instantly without crawling deep directory hierarchies.
-
----
-
-## ⚡ Seamless IDE Auto-Accept
-
-Never get interrupted by approval popups for supervisor actions. The installer automatically registers `autoApprove` permissions for all Agent Guard MCP tools and terminal actions in Antigravity (`config.json`), Cursor (`mcp.json`), and VS Code / Cline:
-
-```bash
-npm run install:antigravity
+# In-IDE Extension & Dashboard
+node dist/cli.js extension status             # Check extension build and version status
+node dist/cli.js extension install            # Re-link web extension in Antigravity IDE
+node dist/cli.js update                       # Self-update Agent Guard from GitHub origin/main
 ```
 
 ---
 
-## Verification & Doctor
+## 🧪 Test Suite & Quality Verification
 
-Agent Guard includes a built-in diagnostic doctor to verify all integrations:
-
-```bash
-npm run doctor
-```
-
-```
-🩺 Agent Guard Readiness Doctor
-
-• Node version:    v24.22.0 (/Users/sarvesh/.local/node-v24/bin/node)
-• MCP Config:      [OK] agent-guard is registered in mcp_config.json
-• Mention @agent-guard: [OK] Plugin active in Antigravity
-• Auto-Accept IDE: [OK] Tool and command permissions granted
-• Auto-Update:     [OK] Up to date with origin/main
-• Server Binary:   [OK] dist/index.js
-• Stop Hook:       [OK] dist/hook/stop-hook.js
-• Enforce Hook:    [OK] dist/hook/post-invocation-hook.js
-• Sleep Inhibitor: [OK] macOS caffeinate available
-```
-
-Run the automated test suite:
+Agent Guard is verified by an exhaustive 16-suite Vitest test harness:
 
 ```bash
 npm test
 ```
 
-```
-Test Files  10 passed (10)
-     Tests  60 passed (60)
-  Duration  1.85s
+```text
+ RUN  v3.2.7 /Users/sarvesh/Downloads/mcp/agent-guard
+
+ ✓ test/tokenCounter.test.ts (14 tests)
+ ✓ test/liveQuota.test.ts (10 tests)
+ ✓ test/stepRules.test.ts (7 tests)
+ ✓ test/appInstall.test.ts (8 tests)
+ ✓ test/skills.test.ts (10 tests)
+ ✓ test/stopHook.test.ts (4 tests)
+ ✓ test/repoBrief.test.ts (4 tests)
+ ✓ test/update.test.ts (4 tests)
+ ✓ test/accountSwitcher.test.ts (11 tests)
+ ✓ test/tools.test.ts (7 tests)
+ ✓ test/extension.test.ts (8 tests)
+ ✓ test/ledger.test.ts (6 tests)
+ ✓ test/modelCompressor.test.ts (8 tests)
+ ✓ test/agentEnforce.test.ts (5 tests)
+ ✓ test/paths.test.ts (8 tests)
+ ✓ test/keepAwake.test.ts (7 tests)
+
+ Test Files  16 passed (16)
+      Tests  121 passed (121)
+   Duration  3.11s
 ```
 
 ---
 
-## 🌟 Curated Awesome Skills Catalog (2,740+ Skills)
+## 🌟 Curated Skills Catalog (14 Bundled / 2,740+ Awesome Catalog)
 
-Agent Guard bundles a massive reverse-engineered collection of **2,740+ curated agentic skills** across 100+ domains, featuring `@agent-guard` as the apex autonomous supervisor.
+Agent Guard automatically deploys **14 curated core skills** to all detected IDEs:
+1. `agent-guard`: Autonomous task supervisor and keep-awake lease guard.
+2. `ai-agents-architect`: Multi-agent system architecture and ReAct tool routing.
+3. `clean-architecture`: Domain-driven boundaries and decoupled modularity.
+4. `devops-automation`: CI/CD workflows, Docker containerization, and automated releases.
+5. `security-audit`: Zero-trust vulnerability audit and secret leakage prevention.
+6. `test-driven-development`: Red-Green-Refactor enforcement with verifiable test proofs.
+7. `performance-profiling`: V8 heap analysis, event-loop latency, and hot-path tuning.
+8. `reverse-engineering`: Binary inspection, AST reconstruction, and protocol analysis.
+9. `ui-ux-pro-max`: Design intelligence tokens, typography, and styling systems.
+10. `frontend-design`: Aesthetic direction and bespoke design components.
+11. `web-artifacts-builder`: Modern frontend interactive artifact generation (React/Tailwind/shadcn).
+12. `mcp-builder`: FastMCP and TypeScript MCP server development guide.
+13. `code-review-and-quality`: Multi-axis quality and security PR review engine.
+14. `debugging-and-error-recovery`: Systematic root-cause debugging and fault localization.
 
-Explore the complete catalog in **[AWESOME_SKILLS.md](AWESOME_SKILLS.md)**.
-
-### Built-in Skills Manager CLI:
-```bash
-# List featured & core skills
-npm run skills list
-
-# Search skills by domain or keyword
-npm run skills search security
-npm run skills search devops
-npm run skills search "ai agent"
-
-# Inspect detailed metadata for any skill
-npm run skills info ai-agents-architect
-
-# Install a skill into your Antigravity skills directory
-npm run skills install clean-architecture
-npm run skills install security-audit --path ~/.gemini/antigravity/skills
-
-# View all available categories
-npm run skills categories
-```
-
-### Pre-bundled Core Skills:
-* 🤖 **`agent-guard`**: Autonomous task supervisor, DAG checkpoints, OS keep-awake, multi-agent completion enforcer.
-* 🧠 **`ai-agents-architect`**: Multi-agent system architecture, tool routing, ReAct loops, fail-safe degradation.
-* 🛡️ **`security-audit`**: Zero-trust vulnerability audit, secret leakage detection, OWASP hardening.
-* 🏛️ **`clean-architecture`**: Domain-driven boundaries, hexagonal ports & adapters, interface segregation.
-* 🚀 **`devops-automation`**: GitHub Actions workflows, multi-stage Docker builds, container orchestration.
-* 🧪 **`test-driven-development`**: Red-Green-Refactor enforcement with verifiable test proofs.
-* ⚡ **`performance-profiling`**: Node/V8 heap analysis, event-loop lag monitoring, hot-path optimization.
-* 🔍 **`reverse-engineering`**: Static AST reconstruction, binary inspection, and protocol analysis with REA.
+Explore the broader collection of **2,740+ skills** in [docs/AWESOME_SKILLS.md](docs/AWESOME_SKILLS.md).
 
 ---
 
 ## 👨‍💻 Developer & Author
 
 * **Developer**: **Sarvesh** ([@anksarvesh-lgtm](https://github.com/anksarvesh-lgtm))
-* **Project Repository**: [https://github.com/anksarvesh-lgtm/agent-guard.git](https://github.com/anksarvesh-lgtm/agent-guard.git)
-
-Contributions, feature suggestions, and pull requests are warmly welcomed! Please see [CONTRIBUTING.md](CONTRIBUTING.md).
+* **Project Repository**: [https://github.com/anksarvesh-lgtm/agent-guard](https://github.com/anksarvesh-lgtm/agent-guard)
 
 ---
 
-## Free Software License
+## 📄 License
 
 Agent Guard is free and open-source software licensed under the **[Apache License, Version 2.0](LICENSE)**.
-
-You are free to use, modify, distribute, and embed Agent Guard for personal, academic, or commercial purposes. See the [`LICENSE`](LICENSE) file for the full license text.
