@@ -1,4 +1,5 @@
 import { InstalledExtensionTarget, ExtensionInstallResult, ExtensionStatusInfo } from './types.js';
+export declare function getPackageVersion(): string;
 export declare function getBaseHomeDir(): string;
 /**
  * Returns all potential IDE targets for extension installation.
@@ -15,7 +16,7 @@ export declare function registerInExtensionsJson(registryPath: string, relativeL
 /**
  * Installs Agent Guard extension into all detected coding applications.
  */
-export declare function installExtensionToAllDetected(customHome?: string, assetsDir?: string): ExtensionInstallResult[];
+export declare function installExtensionToAllDetected(customHome?: string, assetsDir?: string, version?: string): ExtensionInstallResult[];
 /**
  * Checks extension installation status across all targets.
  */

@@ -12,5 +12,5 @@
  * - Skills catalog browser
  * - Live Doctor diagnostics & updates
  */
-export declare function generateExtensionRuntimeScript(): string;
+export declare function generateExtensionRuntimeScript(extensionVersion?: string): string;
 //# sourceMappingURL=runtime.d.ts.map

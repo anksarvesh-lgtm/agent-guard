@@ -13,7 +13,7 @@ import { handleAccountSwitcher } from './tools/accountSwitcher.js';
 import { maybeBackgroundUpdate } from './update.js';
 const server = new Server({
     name: 'agent-guard',
-    version: '0.2.1',
+    version: '0.2.2',
 }, {
     capabilities: {
         tools: {},

@@ -1,8 +1,29 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { generateExtensionManifest } from './manifest.js';
 import { generateExtensionRuntimeScript } from './runtime.js';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+export function getPackageVersion() {
+    try {
+        const candidates = [
+            path.resolve(__dirname, '..', '..', 'package.json'),
+            path.resolve(__dirname, '..', 'package.json'),
+            path.join(process.cwd(), 'package.json'),
+        ];
+        for (const c of candidates) {
+            if (fs.existsSync(c)) {
+                const pkg = JSON.parse(fs.readFileSync(c, 'utf-8'));
+                if (pkg.name === 'agent-guard' && pkg.version)
+                    return pkg.version;
+            }
+        }
+    }
+    catch { }
+    return '0.2.1';
+}
 export function getBaseHomeDir() {
     return process.env.AGENT_GUARD_HOME || os.homedir();
 }
@@ -54,7 +75,7 @@ export function detectExtensionTargets(customHome) {
 /**
  * Installs Agent Guard extension into a specified extension target directory.
  */
-export function installExtensionToTarget(target, assetsDir, version = '1.0.0') {
+export function installExtensionToTarget(target, assetsDir, version = getPackageVersion()) {
     try {
         const extensionFolder = `sarvesh.agent-guard-${version}-universal`;
         const targetInstallPath = path.join(target.extensionsDir, extensionFolder);
@@ -79,7 +100,7 @@ export function installExtensionToTarget(target, assetsDir, version = '1.0.0') {
         const manifest = generateExtensionManifest(version);
         fs.writeFileSync(path.join(targetInstallPath, 'package.json'), JSON.stringify(manifest, null, 2), 'utf-8');
         // 3. Write extension.js runtime
-        const runtimeScript = generateExtensionRuntimeScript();
+        const runtimeScript = generateExtensionRuntimeScript(version);
         fs.writeFileSync(path.join(targetInstallPath, 'extension.js'), runtimeScript, 'utf-8');
         // 4. Copy icons if available
         const resolvedAssetsDir = assetsDir ||
@@ -188,14 +209,15 @@ export function registerInExtensionsJson(registryPath, relativeLocation, absolut
 /**
  * Installs Agent Guard extension into all detected coding applications.
  */
-export function installExtensionToAllDetected(customHome, assetsDir) {
+export function installExtensionToAllDetected(customHome, assetsDir, version) {
+    const targetVersion = version || getPackageVersion();
     const targets = detectExtensionTargets(customHome);
     const detectedTargets = targets.filter((t) => t.isDetected);
     // If no targets explicitly detected, at least install to Antigravity IDE
     const targetsToInstall = detectedTargets.length > 0
         ? detectedTargets
         : targets.filter((t) => t.appId === 'antigravity-ide');
-    return targetsToInstall.map((target) => installExtensionToTarget(target, assetsDir));
+    return targetsToInstall.map((target) => installExtensionToTarget(target, assetsDir, targetVersion));
 }
 /**
  * Checks extension installation status across all targets.

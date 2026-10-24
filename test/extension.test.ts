@@ -10,6 +10,7 @@ import {
   registerInExtensionsJson,
   getExtensionStatus,
   installExtensionToAllDetected,
+  getPackageVersion,
 } from '../src/extension/index.js';
 
 describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
@@ -112,8 +113,18 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
       expect(script).toContain('tab-awake');
       expect(script).toContain('tab-skills');
 
+      // Dynamic extension version
+      expect(script).toContain("const EXTENSION_VERSION = '");
+      expect(script).toContain('Agent Guard v${EXTENSION_VERSION}');
+
       // 1% tripwire
       expect(script).toContain('Automatic 1% Quota Rotation Tripwire');
+    });
+
+    it('resolves dynamic package version from package.json', () => {
+      const v = getPackageVersion();
+      expect(typeof v).toBe('string');
+      expect(v).toMatch(/^\d+\.\d+\.\d+$/);
     });
   });
 
@@ -213,7 +224,7 @@ describe('Agent Guard IDE Extension Engine & Multi-App Installer', () => {
       statuses = getExtensionStatus(tempHome);
       agyStatus = statuses.find((s) => s.target.appId === 'antigravity-ide');
       expect(agyStatus?.isInstalled).toBe(true);
-      expect(agyStatus?.version).toBe('1.0.0');
+      expect(agyStatus?.version).toBe(getPackageVersion());
       expect(agyStatus?.installedPath).toBeDefined();
     });
   });

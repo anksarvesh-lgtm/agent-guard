@@ -1,9 +1,30 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import { InstalledExtensionTarget, ExtensionInstallResult, ExtensionStatusInfo } from './types.js';
 import { generateExtensionManifest } from './manifest.js';
 import { generateExtensionRuntimeScript } from './runtime.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+export function getPackageVersion(): string {
+  try {
+    const candidates = [
+      path.resolve(__dirname, '..', '..', 'package.json'),
+      path.resolve(__dirname, '..', 'package.json'),
+      path.join(process.cwd(), 'package.json'),
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) {
+        const pkg = JSON.parse(fs.readFileSync(c, 'utf-8'));
+        if (pkg.name === 'agent-guard' && pkg.version) return pkg.version;
+      }
+    }
+  } catch {}
+  return '0.2.1';
+}
 
 export function getBaseHomeDir(): string {
   return process.env.AGENT_GUARD_HOME || os.homedir();
@@ -67,7 +88,7 @@ export function detectExtensionTargets(customHome?: string): InstalledExtensionT
 export function installExtensionToTarget(
   target: InstalledExtensionTarget,
   assetsDir?: string,
-  version: string = '1.0.0'
+  version: string = getPackageVersion()
 ): ExtensionInstallResult {
   try {
     const extensionFolder = `sarvesh.agent-guard-${version}-universal`;
@@ -99,7 +120,7 @@ export function installExtensionToTarget(
     );
 
     // 3. Write extension.js runtime
-    const runtimeScript = generateExtensionRuntimeScript();
+    const runtimeScript = generateExtensionRuntimeScript(version);
     fs.writeFileSync(
       path.join(targetInstallPath, 'extension.js'),
       runtimeScript,
@@ -235,8 +256,10 @@ export function registerInExtensionsJson(
  */
 export function installExtensionToAllDetected(
   customHome?: string,
-  assetsDir?: string
+  assetsDir?: string,
+  version?: string
 ): ExtensionInstallResult[] {
+  const targetVersion = version || getPackageVersion();
   const targets = detectExtensionTargets(customHome);
   const detectedTargets = targets.filter((t) => t.isDetected);
 
@@ -247,7 +270,7 @@ export function installExtensionToAllDetected(
       : targets.filter((t) => t.appId === 'antigravity-ide');
 
   return targetsToInstall.map((target) =>
-    installExtensionToTarget(target, assetsDir)
+    installExtensionToTarget(target, assetsDir, targetVersion)
   );
 }
 

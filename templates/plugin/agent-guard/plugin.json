@@ -3,7 +3,7 @@
   "displayName": "Agent Guard",
   "description": "Zero-telemetry task supervisor, keep-awake lease manager, Antigravity Stop hook, and 2,740+ curated agentic skills for reliable autonomous coding.",
   "logo": "assets/logo.svg",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "suggestedPrompts": [
     "Start autonomous pair programming with @agent-guard",
     "Audit project security and OWASP hardening with @agent-guard using security-audit",
