@@ -1,9 +1,15 @@
 {
-  "agent-guard-stop": {
+  "agent-guard-supervisor": {
     "Stop": [
       {
         "type": "command",
         "command": "/Users/sarvesh/.local/node-v24/bin/node /Users/sarvesh/Downloads/mcp/agent-guard/dist/hook/stop-hook.js"
+      }
+    ],
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "/Users/sarvesh/.local/node-v24/bin/node /Users/sarvesh/Downloads/mcp/agent-guard/dist/hook/post-invocation-hook.js"
       }
     ]
   }

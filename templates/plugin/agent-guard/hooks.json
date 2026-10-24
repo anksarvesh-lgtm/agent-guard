@@ -1,9 +1,15 @@
 {
-  "agent-guard-stop": {
+  "agent-guard-supervisor": {
     "Stop": [
       {
         "type": "command",
-        "command": "{{NODE_BIN}} {{HOOK_PATH}}"
+        "command": "{{NODE_BIN}} {{STOP_HOOK_PATH}}"
+      }
+    ],
+    "PostInvocation": [
+      {
+        "type": "command",
+        "command": "{{NODE_BIN}} {{ENFORCE_HOOK_PATH}}"
       }
     ]
   }
