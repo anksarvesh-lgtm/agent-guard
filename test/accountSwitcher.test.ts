@@ -159,5 +159,41 @@ describe('Antigravity Account Switcher & 1% Auto-Rotator', () => {
       });
       expect(configOutput).toContain('Auto-rotate is ENABLED with threshold <= 2.5%');
     });
+
+    it('snapshots active session and removes account via MCP tool', () => {
+      const snapOutput = handleAccountSwitcher({
+        action: 'snapshot',
+        account_id: 'tool-snapshot',
+        name: 'MCP Snapshot Account',
+      });
+      expect(snapOutput).toContain('Active Session Snapshot Saved');
+      expect(snapOutput).toContain('tool-snapshot');
+
+      // Remove an account
+      const removeOutput = handleAccountSwitcher({
+        action: 'remove',
+        account_id: 'tool-snapshot',
+      });
+      expect(removeOutput).toContain('removed from pool');
+    });
+
+    it('validates required fields on add and remove actions', () => {
+      const missingAddId = handleAccountSwitcher({
+        action: 'add',
+      });
+      expect(missingAddId).toContain('account_id');
+
+      const missingRemoveId = handleAccountSwitcher({
+        action: 'remove',
+      });
+      expect(missingRemoveId).toContain('account_id');
+
+      const nonExistentFile = handleAccountSwitcher({
+        action: 'add',
+        account_id: 'bad-file-acc',
+        token_source_file: '/non/existent/path/token.json',
+      });
+      expect(nonExistentFile).toContain('not found');
+    });
   });
 });
