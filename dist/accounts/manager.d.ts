@@ -30,6 +30,23 @@ export declare class AccountManager {
         message: string;
         account?: AccountProfile;
     };
+    /**
+     * Captures the currently active Antigravity IDE / CLI session credentials into the account pool.
+     * Backups both ~/.gemini/jetski-standalone-oauth-token and SQLite state.vscdb credentials.
+     */
+    snapshotActiveSession(id?: string, name?: string): {
+        success: boolean;
+        message: string;
+        account?: AccountProfile;
+    };
+    /**
+     * Imports an account credentials token file from disk.
+     */
+    importAccountFile(filePath: string, id?: string, name?: string): {
+        success: boolean;
+        message: string;
+        account?: AccountProfile;
+    };
     removeAccount(id: string): {
         success: boolean;
         message: string;

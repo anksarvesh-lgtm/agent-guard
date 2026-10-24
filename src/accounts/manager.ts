@@ -246,6 +246,122 @@ export class AccountManager {
     };
   }
 
+  /**
+   * Captures the currently active Antigravity IDE / CLI session credentials into the account pool.
+   * Backups both ~/.gemini/jetski-standalone-oauth-token and SQLite state.vscdb credentials.
+   */
+  public snapshotActiveSession(
+    id?: string,
+    name?: string
+  ): { success: boolean; message: string; account?: AccountProfile } {
+    const cfg = this.loadConfig();
+    const live = getLiveQuotaSummarySync(true);
+
+    const generatedId = id
+      ? id.toLowerCase().replace(/[^a-z0-9-_]/g, '-')
+      : live.userEmail
+        ? live.userEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9-_]/g, '-')
+        : `session-${Date.now().toString().slice(-4)}`;
+
+    const displayName = name || (live.userName ? `${live.userName} (${live.userEmail || generatedId})` : `Active Session (${generatedId})`);
+
+    const tokenFile = path.join(this.tokensDir, `${generatedId}.token`);
+    const stateFile = path.join(this.tokensDir, `${generatedId}.state.json`);
+
+    // 1. Copy live jetski token
+    if (fs.existsSync(this.liveTokenPath)) {
+      try {
+        fs.copyFileSync(this.liveTokenPath, tokenFile);
+        if (process.platform !== 'win32') {
+          try { fs.chmodSync(tokenFile, 0o600); } catch {}
+        }
+      } catch (err: any) {
+        return { success: false, message: `Failed to copy live token: ${err.message}` };
+      }
+    } else {
+      return { success: false, message: `Live token file not found at ${this.liveTokenPath}` };
+    }
+
+    // 2. Capture state.vscdb credentials
+    const stateDb = getStateDbPath(path.dirname(path.dirname(this.baseDir)));
+    if (stateDb && fs.existsSync(stateDb)) {
+      try {
+        const creds = readStateDbCredentials(stateDb);
+        if (creds.oauthToken || creds.userStatus) {
+          fs.writeFileSync(stateFile, JSON.stringify(creds, null, 2), 'utf-8');
+        }
+      } catch {}
+    }
+
+    const now = new Date().toISOString();
+    const existingIdx = cfg.accounts.findIndex((a) => a.id === generatedId);
+    let targetAccount: AccountProfile;
+
+    if (existingIdx !== -1) {
+      targetAccount = {
+        ...cfg.accounts[existingIdx],
+        name: displayName,
+        tokenFilePath: tokenFile,
+        remainingPercent: live.isReachable ? live.lowestRemainingPercent : cfg.accounts[existingIdx].remainingPercent,
+        lastUsedAt: now,
+      };
+      cfg.accounts[existingIdx] = targetAccount;
+    } else {
+      targetAccount = {
+        id: generatedId,
+        name: displayName,
+        provider: 'antigravity',
+        type: 'oauth_token',
+        tokenFilePath: tokenFile,
+        isActive: cfg.accounts.length === 0,
+        usedTokens: 0,
+        remainingPercent: live.isReachable ? live.lowestRemainingPercent : 100,
+        status: cfg.accounts.length === 0 ? 'active' : 'standby',
+        priority: cfg.accounts.length + 1,
+        createdAt: now,
+        lastUsedAt: now,
+        requestCount: 0,
+        errorCount: 0,
+      };
+      cfg.accounts.push(targetAccount);
+    }
+
+    if (cfg.accounts.length === 1) {
+      cfg.activeAccountId = targetAccount.id;
+    }
+
+    this.saveConfig(cfg);
+    this.logRotation(`Snapshot active session captured: "${targetAccount.name}" (${targetAccount.id})`);
+
+    return {
+      success: true,
+      message: `Active session snapshot saved as "${targetAccount.name}" (${targetAccount.id}). Total accounts in pool: ${cfg.accounts.length}.`,
+      account: targetAccount,
+    };
+  }
+
+  /**
+   * Imports an account credentials token file from disk.
+   */
+  public importAccountFile(
+    filePath: string,
+    id?: string,
+    name?: string
+  ): { success: boolean; message: string; account?: AccountProfile } {
+    if (!fs.existsSync(filePath)) {
+      return { success: false, message: `File not found at: ${filePath}` };
+    }
+    const filename = path.basename(filePath, path.extname(filePath));
+    const cleanId = (id || filename).toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return this.addAccount({
+      id: cleanId,
+      name: name || cleanId,
+      tokenContent: content,
+      tokenSourceFile: filePath,
+    });
+  }
+
   public removeAccount(id: string): { success: boolean; message: string } {
     const cfg = this.loadConfig();
     const idx = cfg.accounts.findIndex((a) => a.id === id);

@@ -682,26 +682,106 @@ else if (command === 'accounts') {
         }
         console.log(handleAccountSwitcher({ action: 'switch', account_id: accId, project_path: process.cwd() }));
     }
+    else if (sub === 'snapshot') {
+        const rawName = args[2] && !args[2].startsWith('--') ? args[2] : undefined;
+        const idIdx = args.indexOf('--id');
+        const customId = idIdx !== -1 ? args[idIdx + 1] : undefined;
+        const nameIdx = args.indexOf('--name');
+        const customName = nameIdx !== -1 ? args[nameIdx + 1] : rawName;
+        const res = globalAccountManager.snapshotActiveSession(customId, customName);
+        if (res.success) {
+            console.log(`✅ ${res.message}`);
+            console.log(`• ID: "${res.account?.id}"`);
+            console.log(`• Display Name: "${res.account?.name}"`);
+            console.log(`• Token Saved: ${res.account?.tokenFilePath}`);
+            console.log(`• Headroom: ${res.account?.remainingPercent}%`);
+        }
+        else {
+            console.error(`❌ Snapshot failed: ${res.message}`);
+            process.exit(1);
+        }
+    }
     else if (sub === 'add') {
-        const accId = args[2];
+        const isSnapshot = args.includes('--snapshot');
+        const accId = args[2] && !args[2].startsWith('--') ? args[2] : undefined;
+        if (isSnapshot) {
+            const nameIdx = args.indexOf('--name');
+            const name = nameIdx !== -1 ? args[nameIdx + 1] : accId;
+            const res = globalAccountManager.snapshotActiveSession(accId, name);
+            if (res.success) {
+                console.log(`✅ ${res.message}`);
+                process.exit(0);
+            }
+            else {
+                console.error(`❌ Snapshot failed: ${res.message}`);
+                process.exit(1);
+            }
+        }
         if (!accId) {
-            console.error('Usage: node dist/cli.js accounts add <id> [--name <name>] [--token-file <path>] [--api-key <key>]');
+            console.log('🛡️  Agent Guard — Add Account Options:\n');
+            console.log('1. Snapshot Currently Logged-in Antigravity Session:');
+            console.log('   node dist/cli.js accounts snapshot [name] [--id <id>]\n');
+            console.log('2. Add Token File:');
+            console.log('   node dist/cli.js accounts add <id> --name <name> --token-file <path>\n');
+            console.log('3. Add Raw Token JSON / JWT:');
+            console.log('   node dist/cli.js accounts add <id> --name <name> --token \'<json_or_jwt>\'\n');
+            console.log('4. Add API Key:');
+            console.log('   node dist/cli.js accounts add <id> --name <name> --api-key <key>\n');
+            console.log('5. Import Token File:');
+            console.log('   node dist/cli.js accounts import <path> [--id <id>] [--name <name>]\n');
             process.exit(1);
         }
         const nameIdx = args.indexOf('--name');
         const name = nameIdx !== -1 ? args[nameIdx + 1] : accId;
         const fileIdx = args.indexOf('--token-file');
         const tokenFile = fileIdx !== -1 ? args[fileIdx + 1] : undefined;
+        const tokenIdx = args.indexOf('--token');
+        const tokenContent = tokenIdx !== -1 ? args[tokenIdx + 1] : undefined;
         const keyIdx = args.indexOf('--api-key');
         const apiKey = keyIdx !== -1 ? args[keyIdx + 1] : undefined;
         console.log(handleAccountSwitcher({
             action: 'add',
             account_id: accId,
             name,
+            token_content: tokenContent,
             token_source_file: tokenFile,
             api_key: apiKey,
             project_path: process.cwd()
         }));
+    }
+    else if (sub === 'import') {
+        const filePath = args[2];
+        if (!filePath || filePath.startsWith('--')) {
+            console.error('Usage: node dist/cli.js accounts import <file-path> [--id <id>] [--name <name>]');
+            process.exit(1);
+        }
+        const idIdx = args.indexOf('--id');
+        const customId = idIdx !== -1 ? args[idIdx + 1] : undefined;
+        const nameIdx = args.indexOf('--name');
+        const customName = nameIdx !== -1 ? args[nameIdx + 1] : undefined;
+        const res = globalAccountManager.importAccountFile(filePath, customId, customName);
+        if (res.success) {
+            console.log(`✅ ${res.message}`);
+        }
+        else {
+            console.error(`❌ Import failed: ${res.message}`);
+            process.exit(1);
+        }
+    }
+    else if (sub === 'remove') {
+        const accId = args[2];
+        if (!accId) {
+            console.error('Usage: node dist/cli.js accounts remove <account-id>');
+            process.exit(1);
+        }
+        const res = globalAccountManager.removeAccount(accId);
+        if (res.success) {
+            console.log(`✅ ${res.message}`);
+        }
+        else {
+            console.error(`❌ Remove failed: ${res.message}`);
+            process.exit(1);
+        }
     }
     else if (sub === 'rotate') {
         console.log(handleAccountSwitcher({ action: 'auto_rotate', project_path: process.cwd() }));
@@ -722,8 +802,11 @@ else if (command === 'accounts') {
         console.log('Usage:');
         console.log('  node dist/cli.js accounts list');
         console.log('  node dist/cli.js accounts status');
+        console.log('  node dist/cli.js accounts snapshot [name] [--id <id>]');
         console.log('  node dist/cli.js accounts switch <account-id>');
-        console.log('  node dist/cli.js accounts add <id> [--name <name>] [--token-file <file>] [--api-key <key>]');
+        console.log('  node dist/cli.js accounts add <id> [--name <name>] [--token <json>] [--token-file <file>] [--api-key <key>] [--snapshot]');
+        console.log('  node dist/cli.js accounts import <file-path> [--id <id>] [--name <name>]');
+        console.log('  node dist/cli.js accounts remove <account-id>');
         console.log('  node dist/cli.js accounts rotate');
         console.log('  node dist/cli.js accounts auto-switch <on|off> [--threshold <pct>]');
     }
