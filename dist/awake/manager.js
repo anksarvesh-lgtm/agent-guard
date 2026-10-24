@@ -84,6 +84,22 @@ export class AwakeManager {
         this.currentProcess = newProc;
         this.warning = warning;
         this.leaseEndTime = now + holdSeconds * 1000;
+        if (newProc) {
+            newProc.on('exit', () => {
+                if (this.currentProcess === newProc) {
+                    this.currentProcess = null;
+                    this.leaseEndTime = null;
+                    this.stopTicker();
+                }
+            });
+            newProc.on('error', () => {
+                if (this.currentProcess === newProc) {
+                    this.currentProcess = null;
+                    this.leaseEndTime = null;
+                    this.stopTicker();
+                }
+            });
+        }
         if (oldProc) {
             this.inhibitor.stop(oldProc);
         }
@@ -114,7 +130,11 @@ export class AwakeManager {
     }
     status() {
         const now = Date.now();
-        const isHolding = this.currentProcess !== null && this.leaseEndTime !== null && this.leaseEndTime > now;
+        const isHolding = this.currentProcess !== null &&
+            !this.currentProcess.killed &&
+            (this.currentProcess.exitCode === null || this.currentProcess.exitCode === undefined) &&
+            this.leaseEndTime !== null &&
+            this.leaseEndTime > now;
         const msRemaining = isHolding && this.leaseEndTime ? Math.max(0, this.leaseEndTime - now) : 0;
         const minutesRemaining = Math.ceil(msRemaining / (60 * 1000));
         const totalElapsedMs = this.taskStartTime ? now - this.taskStartTime : 0;

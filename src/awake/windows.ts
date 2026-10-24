@@ -23,13 +23,24 @@ export class WindowsSleepInhibitor implements SleepInhibitor {
       detached: false,
     });
 
+    proc.on('error', () => {
+      // Helper failed
+    });
+
     return { process: proc };
   }
 
   stop(proc: ChildProcess): void {
     try {
-      if (proc && !proc.killed) {
+      if (proc && !proc.killed && proc.pid) {
         proc.kill('SIGTERM');
+        setTimeout(() => {
+          try {
+            if (!proc.killed && proc.exitCode === null && proc.pid) {
+              proc.kill('SIGKILL');
+            }
+          } catch {}
+        }, 500).unref();
       }
     } catch {
       // Ignore

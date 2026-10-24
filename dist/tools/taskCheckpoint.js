@@ -113,9 +113,14 @@ export function handleTaskCheckpoint(rawArgs) {
             instruction = `${step.id} done. No pending steps ready.`;
         }
     }
-    // Renew keep-awake lease
+    // Manage keep-awake lease: release upon task completion, renew while active
     try {
-        globalAwakeManager.renew(30);
+        if (ledger.status === 'done') {
+            globalAwakeManager.release();
+        }
+        else {
+            globalAwakeManager.renew(30);
+        }
     }
     catch { }
     writeLedger(ledger, validatedProject);
