@@ -10,6 +10,7 @@
         "task_status",
         "keep_awake",
         "repo_brief",
+        "agent_enforce",
         "project_map"
       ]
     }
