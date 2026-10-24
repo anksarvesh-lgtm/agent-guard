@@ -43,6 +43,14 @@ export declare function discoverLanguageServer(): LanguageServerTarget | null;
  */
 export declare function sendLanguageServerRpc(target: LanguageServerTarget, methodName: string, payload?: Record<string, any>, timeoutMs?: number): Promise<any>;
 /**
+ * Sends a synchronous POST request to the local Antigravity Language Server via curl.
+ */
+export declare function sendLanguageServerRpcSync(target: LanguageServerTarget, methodName: string, payload?: Record<string, any>, timeoutSec?: number): any;
+/**
+ * Synchronous version of getLiveQuotaSummary using curl and internal caching.
+ */
+export declare function getLiveQuotaSummarySync(forceRefresh?: boolean): LiveQuotaSummary;
+/**
  * Fetches the real-time live quota summary and user status from the Antigravity Language Server.
  */
 export declare function getLiveQuotaSummary(forceRefresh?: boolean): Promise<LiveQuotaSummary>;

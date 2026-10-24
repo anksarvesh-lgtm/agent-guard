@@ -1,1 +1,1 @@
-{"version":3,"file":"tokenCounter.d.ts","sourceRoot":"","sources":["../../src/tools/tokenCounter.ts"],"names":[],"mappings":"AAgBA,wBAAgB,oBAAoB,CAAC,aAAa,CAAC,EAAE,MAAM,GAAG,MAAM,GAAG,IAAI,CAkC1E;AAED,wBAAgB,kBAAkB,CAAC,OAAO,EAAE,GAAG,GAAG,MAAM,CA4HvD"}
+{"version":3,"file":"tokenCounter.d.ts","sourceRoot":"","sources":["../../src/tools/tokenCounter.ts"],"names":[],"mappings":"AAiBA,wBAAgB,oBAAoB,CAAC,aAAa,CAAC,EAAE,MAAM,GAAG,MAAM,GAAG,IAAI,CAkC1E;AAED,wBAAgB,kBAAkB,CAAC,OAAO,EAAE,GAAG,GAAG,MAAM,CAoJvD"}

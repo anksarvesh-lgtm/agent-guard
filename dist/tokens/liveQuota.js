@@ -143,6 +143,130 @@ export function sendLanguageServerRpc(target, methodName, payload = {}, timeoutM
     });
 }
 /**
+ * Sends a synchronous POST request to the local Antigravity Language Server via curl.
+ */
+export function sendLanguageServerRpcSync(target, methodName, payload = {}, timeoutSec = 2) {
+    try {
+        const bodyStr = JSON.stringify(payload);
+        const curlCmd = `curl -s -k --max-time ${timeoutSec} -X POST https://127.0.0.1:${target.port}/exa.language_server_pb.LanguageServerService/${methodName} ` +
+            `-H "Content-Type: application/json" -H "Accept: application/json" -H "Connect-Protocol-Version: 1" ` +
+            `-H "x-codeium-csrf-token: ${target.csrfToken}" -d '${bodyStr}'`;
+        const out = execSync(curlCmd, {
+            encoding: 'utf-8',
+            stdio: ['ignore', 'pipe', 'ignore'],
+        });
+        return JSON.parse(out);
+    }
+    catch {
+        return null;
+    }
+}
+function processQuotaData(quotaRes, userRes) {
+    const groups = [];
+    let lowestFraction = 1.0;
+    let gemini5h;
+    let geminiWeekly;
+    let claude5h;
+    let claudeWeekly;
+    if (quotaRes && quotaRes.response && Array.isArray(quotaRes.response.groups)) {
+        for (const g of quotaRes.response.groups) {
+            const buckets = [];
+            const isGemini = String(g.displayName || '').toLowerCase().includes('gemini');
+            const isClaude = String(g.displayName || '').toLowerCase().includes('claude');
+            if (Array.isArray(g.buckets)) {
+                for (const b of g.buckets) {
+                    const frac = typeof b.remainingFraction === 'number' ? b.remainingFraction : 1.0;
+                    const pct = Math.max(0, Math.min(100, Math.round(frac * 100)));
+                    if (!b.disabled && frac < lowestFraction) {
+                        lowestFraction = frac;
+                    }
+                    const win = String(b.window || '').toLowerCase();
+                    if (isGemini) {
+                        if (win === '5h')
+                            gemini5h = pct;
+                        else if (win === 'weekly')
+                            geminiWeekly = pct;
+                    }
+                    else if (isClaude) {
+                        if (win === '5h')
+                            claude5h = pct;
+                        else if (win === 'weekly')
+                            claudeWeekly = pct;
+                    }
+                    buckets.push({
+                        bucketId: b.bucketId || win,
+                        displayName: b.displayName || `${win} Limit`,
+                        window: b.window || '5h',
+                        remainingFraction: frac,
+                        remainingPercent: pct,
+                        resetTime: b.resetTime,
+                        resetCountdown: formatCountdown(b.resetTime),
+                    });
+                }
+            }
+            groups.push({
+                displayName: g.displayName || 'Quota Group',
+                description: g.description,
+                buckets,
+            });
+        }
+    }
+    const userStatus = userRes?.userStatus;
+    const planInfo = userStatus?.planStatus?.planInfo;
+    return {
+        isReachable: true,
+        userEmail: userStatus?.email,
+        userName: userStatus?.name,
+        planName: planInfo?.planName || planInfo?.teamsTier || 'Pro',
+        lowestRemainingPercent: Math.max(0, Math.min(100, Math.round(lowestFraction * 100))),
+        groups,
+        geminiFiveHourPercent: gemini5h,
+        geminiWeeklyPercent: geminiWeekly,
+        claudeFiveHourPercent: claude5h,
+        claudeWeeklyPercent: claudeWeekly,
+        availablePromptCredits: userStatus?.planStatus?.availablePromptCredits,
+        availableFlowCredits: userStatus?.planStatus?.availableFlowCredits,
+        checkedAt: new Date().toISOString(),
+        source: 'language_server',
+    };
+}
+/**
+ * Synchronous version of getLiveQuotaSummary using curl and internal caching.
+ */
+export function getLiveQuotaSummarySync(forceRefresh = false) {
+    const now = Date.now();
+    if (!forceRefresh && cachedSummary && now - lastCheckTime < CACHE_TTL_MS) {
+        return cachedSummary;
+    }
+    const target = discoverLanguageServer();
+    if (!target) {
+        return {
+            isReachable: false,
+            lowestRemainingPercent: 100,
+            groups: [],
+            checkedAt: new Date().toISOString(),
+            source: 'fallback_cache',
+        };
+    }
+    try {
+        const quotaRes = sendLanguageServerRpcSync(target, 'RetrieveUserQuotaSummary', {});
+        const userRes = sendLanguageServerRpcSync(target, 'GetUserStatus', {});
+        const summary = processQuotaData(quotaRes, userRes);
+        cachedSummary = summary;
+        lastCheckTime = now;
+        return summary;
+    }
+    catch {
+        return {
+            isReachable: false,
+            lowestRemainingPercent: 100,
+            groups: [],
+            checkedAt: new Date().toISOString(),
+            source: 'fallback_cache',
+        };
+    }
+}
+/**
  * Fetches the real-time live quota summary and user status from the Antigravity Language Server.
  */
 export async function getLiveQuotaSummary(forceRefresh = false) {
@@ -166,73 +290,7 @@ export async function getLiveQuotaSummary(forceRefresh = false) {
             sendLanguageServerRpc(target, 'RetrieveUserQuotaSummary', {}).catch(() => null),
             sendLanguageServerRpc(target, 'GetUserStatus', {}).catch(() => null),
         ]);
-        const groups = [];
-        let lowestFraction = 1.0;
-        let gemini5h;
-        let geminiWeekly;
-        let claude5h;
-        let claudeWeekly;
-        if (quotaRes && quotaRes.response && Array.isArray(quotaRes.response.groups)) {
-            for (const g of quotaRes.response.groups) {
-                const buckets = [];
-                const isGemini = String(g.displayName || '').toLowerCase().includes('gemini');
-                const isClaude = String(g.displayName || '').toLowerCase().includes('claude');
-                if (Array.isArray(g.buckets)) {
-                    for (const b of g.buckets) {
-                        const frac = typeof b.remainingFraction === 'number' ? b.remainingFraction : 1.0;
-                        const pct = Math.max(0, Math.min(100, Math.round(frac * 100)));
-                        if (!b.disabled && frac < lowestFraction) {
-                            lowestFraction = frac;
-                        }
-                        const win = String(b.window || '').toLowerCase();
-                        if (isGemini) {
-                            if (win === '5h')
-                                gemini5h = pct;
-                            else if (win === 'weekly')
-                                geminiWeekly = pct;
-                        }
-                        else if (isClaude) {
-                            if (win === '5h')
-                                claude5h = pct;
-                            else if (win === 'weekly')
-                                claudeWeekly = pct;
-                        }
-                        buckets.push({
-                            bucketId: b.bucketId || win,
-                            displayName: b.displayName || `${win} Limit`,
-                            window: b.window || '5h',
-                            remainingFraction: frac,
-                            remainingPercent: pct,
-                            resetTime: b.resetTime,
-                            resetCountdown: formatCountdown(b.resetTime),
-                        });
-                    }
-                }
-                groups.push({
-                    displayName: g.displayName || 'Quota Group',
-                    description: g.description,
-                    buckets,
-                });
-            }
-        }
-        const userStatus = userRes?.userStatus;
-        const planInfo = userStatus?.planStatus?.planInfo;
-        const summary = {
-            isReachable: true,
-            userEmail: userStatus?.email,
-            userName: userStatus?.name,
-            planName: planInfo?.planName || planInfo?.teamsTier || 'Pro',
-            lowestRemainingPercent: Math.max(0, Math.min(100, Math.round(lowestFraction * 100))),
-            groups,
-            geminiFiveHourPercent: gemini5h,
-            geminiWeeklyPercent: geminiWeekly,
-            claudeFiveHourPercent: claude5h,
-            claudeWeeklyPercent: claudeWeekly,
-            availablePromptCredits: userStatus?.planStatus?.availablePromptCredits,
-            availableFlowCredits: userStatus?.planStatus?.availableFlowCredits,
-            checkedAt: new Date().toISOString(),
-            source: 'language_server',
-        };
+        const summary = processQuotaData(quotaRes, userRes);
         cachedSummary = summary;
         lastCheckTime = now;
         return summary;

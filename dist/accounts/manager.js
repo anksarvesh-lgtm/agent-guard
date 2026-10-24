@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
+import { getStateDbPath, readStateDbCredentials, writeStateDbCredentials } from './stateDb.js';
+import { getLiveQuotaSummarySync } from '../tokens/liveQuota.js';
 export function getAccountsHome() {
     return process.env.AGENT_GUARD_HOME || os.homedir();
 }
@@ -59,6 +61,17 @@ export class AccountManager {
                         fs.chmodSync(primaryTokenPath, 0o600);
                     }
                     catch { }
+                }
+            }
+            catch { }
+        }
+        const stateDb = getStateDbPath(path.dirname(path.dirname(this.baseDir)));
+        const primaryStatePath = path.join(this.tokensDir, 'primary.state.json');
+        if (stateDb && fs.existsSync(stateDb) && !fs.existsSync(primaryStatePath)) {
+            try {
+                const creds = readStateDbCredentials(stateDb);
+                if (creds.oauthToken || creds.userStatus) {
+                    fs.writeFileSync(primaryStatePath, JSON.stringify(creds, null, 2), 'utf-8');
                 }
             }
             catch { }
@@ -135,7 +148,17 @@ export class AccountManager {
     }
     getActiveAccount() {
         const cfg = this.loadConfig();
-        return cfg.accounts.find((a) => a.id === cfg.activeAccountId) || cfg.accounts[0] || null;
+        const active = cfg.accounts.find((a) => a.id === cfg.activeAccountId) || cfg.accounts[0] || null;
+        if (active && active.provider === 'antigravity') {
+            try {
+                const live = getLiveQuotaSummarySync();
+                if (live.isReachable) {
+                    active.remainingPercent = live.lowestRemainingPercent;
+                }
+            }
+            catch { }
+        }
+        return active;
     }
     addAccount(options) {
         const cfg = this.loadConfig();
@@ -237,9 +260,28 @@ export class AccountManager {
                     catch { }
                 }
                 fs.renameSync(tmpFile, this.liveTokenPath);
+                // Touch token file to trigger file watchers
+                const now = new Date();
+                try {
+                    fs.utimesSync(this.liveTokenPath, now, now);
+                }
+                catch { }
             }
             catch (err) {
                 this.logRotation(`Warning: Failed to update live token: ${err.message}`);
+            }
+        }
+        // Layer 2: Antigravity IDE state.vscdb synchronization
+        const stateFile = path.join(this.tokensDir, `${account.id}.state.json`);
+        const stateDb = getStateDbPath(path.dirname(path.dirname(this.baseDir)));
+        if (fs.existsSync(stateFile) && stateDb && fs.existsSync(stateDb)) {
+            try {
+                const creds = JSON.parse(fs.readFileSync(stateFile, 'utf-8'));
+                writeStateDbCredentials(stateDb, creds);
+                this.logRotation(`Synchronized state.vscdb for account "${account.id}"`);
+            }
+            catch (err) {
+                this.logRotation(`Warning: Failed to synchronize state.vscdb: ${err.message}`);
             }
         }
     }
@@ -258,12 +300,24 @@ export class AccountManager {
         }
         const previousId = cfg.activeAccountId;
         const currentAccount = cfg.accounts.find((a) => a.id === previousId);
-        // Backup current live credentials into current account's store
-        if (currentAccount && currentAccount.type === 'oauth_token' && currentAccount.tokenFilePath && fs.existsSync(this.liveTokenPath)) {
-            try {
-                fs.copyFileSync(this.liveTokenPath, currentAccount.tokenFilePath);
+        // Backup current live credentials & state.vscdb into previous account's store
+        if (currentAccount && currentAccount.type === 'oauth_token') {
+            if (currentAccount.tokenFilePath && fs.existsSync(this.liveTokenPath)) {
+                try {
+                    fs.copyFileSync(this.liveTokenPath, currentAccount.tokenFilePath);
+                }
+                catch { }
             }
-            catch { }
+            const stateDb = getStateDbPath(path.dirname(path.dirname(this.baseDir)));
+            if (stateDb && fs.existsSync(stateDb)) {
+                try {
+                    const creds = readStateDbCredentials(stateDb);
+                    if (creds.oauthToken || creds.userStatus) {
+                        fs.writeFileSync(path.join(this.tokensDir, `${currentAccount.id}.state.json`), JSON.stringify(creds, null, 2), 'utf-8');
+                    }
+                }
+                catch { }
+            }
         }
         // Determine target account
         let target;
@@ -308,6 +362,17 @@ export class AccountManager {
         cfg.activeAccountId = target.id;
         // Apply live credential without restarting Antigravity
         this.applyLiveCredential(target);
+        // Refresh live quota from language server
+        try {
+            const live = getLiveQuotaSummarySync(true);
+            if (live.isReachable) {
+                target.remainingPercent = live.lowestRemainingPercent;
+                if (live.userName) {
+                    target.name = `${live.userName} (${live.userEmail || target.id})`;
+                }
+            }
+        }
+        catch { }
         this.saveConfig(cfg);
         const logMsg = `Switched account from "${previousId}" to "${target.id}" (${target.name}) [Reason: ${reason}]`;
         this.logRotation(logMsg);

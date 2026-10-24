@@ -4,7 +4,7 @@ import { readLedger, getNextStep } from '../ledger.js';
 import { logToolCall } from '../util/log.js';
 import { findRecentTranscript } from './tokenCounter.js';
 import { globalAccountManager } from '../accounts/index.js';
-import { calculateContextBudget, formatTokenNumber, parseTranscriptTokens, estimateTextTokens } from '../tokens/index.js';
+import { calculateContextBudget, formatTokenNumber, parseTranscriptTokens, estimateTextTokens, getLiveQuotaSummarySync } from '../tokens/index.js';
 export function handleTaskStatus(rawArgs) {
     const parseResult = TaskStatusSchema.safeParse(rawArgs);
     if (!parseResult.success) {
@@ -84,6 +84,17 @@ export function handleTaskStatus(rawArgs) {
                 ? `[Auto-Switch at <=${accConfig.thresholdPercent}%: ON]`
                 : '[Auto-Switch: OFF]';
             lines.push(`Active Account: "${activeAcc.name}" (${activeAcc.id}, ${activeAcc.remainingPercent}% quota) ${rotateStatus}`);
+        }
+    }
+    catch { }
+    // Live Language Server Quota Badge
+    try {
+        const live = getLiveQuotaSummarySync();
+        if (live.isReachable) {
+            const geminiStr = live.geminiFiveHourPercent !== undefined ? `Gemini 5h: ${live.geminiFiveHourPercent}%` : '';
+            const claudeStr = live.claudeFiveHourPercent !== undefined ? `Claude: ${live.claudeFiveHourPercent}%` : '';
+            const parts = [geminiStr, claudeStr].filter(Boolean).join(' | ');
+            lines.push(`Live Quota: ⚡ ${parts} (${live.userEmail || 'Active'})`);
         }
     }
     catch { }
