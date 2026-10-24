@@ -93,16 +93,31 @@ export function installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPa
     }
     try {
         fs.mkdirSync(path.join(pluginDir, 'agents'), { recursive: true });
-        fs.mkdirSync(path.join(pluginDir, 'skills', 'agent-guard'), { recursive: true });
+        fs.mkdirSync(path.join(pluginDir, 'skills'), { recursive: true });
         fs.mkdirSync(path.join(pluginDir, 'rules'), { recursive: true });
         fs.mkdirSync(path.join(pluginDir, 'assets'), { recursive: true });
         // Copy static files
         fs.copyFileSync(path.join(templateDir, 'plugin.json'), path.join(pluginDir, 'plugin.json'));
         fs.copyFileSync(path.join(templateDir, 'agents', 'agent-guard.md'), path.join(pluginDir, 'agents', 'agent-guard.md'));
-        fs.copyFileSync(path.join(templateDir, 'skills', 'agent-guard', 'SKILL.md'), path.join(pluginDir, 'skills', 'agent-guard', 'SKILL.md'));
         fs.copyFileSync(path.join(templateDir, 'rules', 'AGENTS.md'), path.join(pluginDir, 'rules', 'AGENTS.md'));
         if (fs.existsSync(path.join(templateDir, 'assets', 'logo.svg'))) {
             fs.copyFileSync(path.join(templateDir, 'assets', 'logo.svg'), path.join(pluginDir, 'assets', 'logo.svg'));
+        }
+        // Deploy all bundled skills
+        const skillsTemplateDir = path.join(templateDir, 'skills');
+        if (fs.existsSync(skillsTemplateDir)) {
+            const skillEntries = fs.readdirSync(skillsTemplateDir, { withFileTypes: true });
+            for (const entry of skillEntries) {
+                if (entry.isDirectory()) {
+                    const srcSkillDir = path.join(skillsTemplateDir, entry.name);
+                    const destSkillDir = path.join(pluginDir, 'skills', entry.name);
+                    fs.mkdirSync(destSkillDir, { recursive: true });
+                    const skillFiles = fs.readdirSync(srcSkillDir);
+                    for (const file of skillFiles) {
+                        fs.copyFileSync(path.join(srcSkillDir, file), path.join(destSkillDir, file));
+                    }
+                }
+            }
         }
         // Write rendered mcp_config.json
         const mcpContent = JSON.stringify({

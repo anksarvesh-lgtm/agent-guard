@@ -1,11 +1,12 @@
 {
   "name": "agent-guard",
   "displayName": "Agent Guard",
-  "description": "Zero-telemetry task supervisor, keep-awake lease manager, and Antigravity Stop hook for reliable autonomous coding.",
+  "description": "Zero-telemetry task supervisor, keep-awake lease manager, Antigravity Stop hook, and 2,740+ curated agentic skills for reliable autonomous coding.",
   "logo": "assets/logo.svg",
   "version": "0.1.0",
   "suggestedPrompts": [
     "Start autonomous pair programming with @agent-guard",
+    "Audit project security with @agent-guard using security-audit",
     "Inspect active task ledger with @agent-guard",
     "Hold keep-awake lease with @agent-guard"
   ]
