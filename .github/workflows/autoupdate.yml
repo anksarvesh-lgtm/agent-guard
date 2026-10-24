@@ -46,7 +46,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag -fa latest -m "Auto-update release: ${{ env.SHORT_SHA }}"
-          git push origin latest --force
+          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git latest --force
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

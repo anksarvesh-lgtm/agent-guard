@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-10-24
+
+### Added
+- **Real-Time Antigravity Language Server Quota Probe (`src/tokens/liveQuota.ts`)**:
+  - Auto-discovers running local Antigravity Language Server process, HTTPS port, and CSRF token.
+  - Queries Connect Protocol RPC endpoints `RetrieveUserQuotaSummary` and `GetUserStatus`.
+  - Reports live ground-truth Gemini 5h/weekly quotas, Claude/GPT 5h/weekly quotas, and reset countdowns.
+  - Exposes prompt and flow credit balances and active user account tier.
+- **Multi-Layer Antigravity Account Switcher (`src/accounts/`)**:
+  - Atomic swap of `~/.gemini/jetski-standalone-oauth-token` with strict 0600 permissions.
+  - SQLite database state synchronization with `state.vscdb` (`antigravityUnifiedStateSync.oauthToken` and `antigravityUnifiedStateSync.userStatus`).
+  - Automatic 1% quota tripwire auto-rotator preventing workflow disruptions.
+  - 1-click active session snapshotting and raw token file import.
+- **Universal IDE Extension & In-App Webview Dashboard (`src/extension/`)**:
+  - Zero-dependency universal extension running inside Google Antigravity IDE, Cursor, Windsurf, and VS Code.
+  - Interactive Webview Dashboard with Overview, Account Switcher, Token Quota, Sleep & Turbo, and Skills tabs.
+  - 1-click "Check for Updates" and "Update Agent Guard" with automatic rebuild and window reload.
+  - Status Bar item with live quota percentage, active account badge, and sleep prevention status.
+- **Expanded Test Suite (`test/`)**:
+  - 111 automated unit and integration tests across 15 Vitest test suites passing 100%.
+
+---
+
 ## [0.1.0] - 2026-10-23
 
 ### Added
