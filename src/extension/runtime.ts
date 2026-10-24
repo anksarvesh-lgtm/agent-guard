@@ -73,6 +73,26 @@ function getAutoAcceptStatus() {
   return { enabled: true, count: 9 };
 }
 
+function getActiveTaskInfo() {
+  try {
+    const folders = vscode.workspace.workspaceFolders;
+    if (folders && folders.length > 0) {
+      for (const f of folders) {
+        const root = f.uri.fsPath;
+        const taskPath = path.join(root, '.agent-guard', 'task.json');
+        if (fs.existsSync(taskPath)) {
+          return JSON.parse(fs.readFileSync(taskPath, 'utf-8'));
+        }
+        const altPath = path.join(root, '.agents', 'task.json');
+        if (fs.existsSync(altPath)) {
+          return JSON.parse(fs.readFileSync(altPath, 'utf-8'));
+        }
+      }
+    }
+  } catch (e) {}
+  return null;
+}
+
 function switchAccount(targetId, reason) {
   try {
     const accPath = getAccountsFilePath();
@@ -169,11 +189,21 @@ function updateStatusBar() {
   // Format Status Bar: $(shield) Agent Guard | ☕ | ⚡ | 🟢 100% (Primary)
   const awakeBadge = awake ? '☕' : '💤';
   const turboBadge = autoAccept.enabled ? '⚡' : '⚙️';
-  statusBarItem.text = \`\$(shield) Agent Guard \${awakeBadge} \${turboBadge} \${quotaIcon} \${quota}% (\${accName})\`;
+  const task = getActiveTaskInfo();
+  const taskBadge = (task && task.status === 'active') ? \`[\${task.id}] \` : '';
+  statusBarItem.text = \`\$(shield) Agent Guard \${taskBadge}\${awakeBadge} \${turboBadge} \${quotaIcon} \${quota}% (\${accName})\`;
+
+  let taskMarkdown = '';
+  if (task && task.status === 'active') {
+    const doneCount = Array.isArray(task.steps) ? task.steps.filter(s => s.status === 'done').length : 0;
+    const totalCount = Array.isArray(task.steps) ? task.steps.length : 0;
+    taskMarkdown = \`• **Supervised Task**: \${task.id} (\${doneCount}/\${totalCount} steps) [ACTIVE]\\n\`;
+  }
 
   const autoSwitchText = (data && data.autoRotateEnabled) ? 'ENABLED (at <= ' + (data.thresholdPercent || 1.0) + '%)' : 'DISABLED';
   statusBarItem.tooltip = new vscode.MarkdownString(
     \`### 🛡️ Agent Guard Active\\n\\n\` +
+    taskMarkdown +
     \`• **Active Account**: \${accName} (\${activeAcc ? activeAcc.id : 'primary'})\\n\` +
     \`• **Quota Remaining**: \${quota}% \${quotaIcon}\\n\` +
     \`• **Sleep Prevention**: \${awake ? '🟢 ACTIVE (Caffeinate)' : '⚪ Inactive'}\\n\` +
