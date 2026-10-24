@@ -5,6 +5,8 @@ import os from 'node:os';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { checkForUpdates, performUpdate } from './update.js';
+import { generateFullProjectMap } from './brief/map.js';
+import { getProjectFreshness } from './brief/stale.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -390,11 +392,27 @@ if (command === 'install') {
     console.error(`⚠️ ${res.message}`);
     process.exit(1);
   }
+} else if (command === 'map') {
+  const targetIdx = args.indexOf('--workspace');
+  const targetWorkspace = path.resolve(targetIdx !== -1 ? args[targetIdx + 1] : process.cwd());
+  console.log(`🗺️ Generating project map and architecture chart for ${targetWorkspace}...\n`);
+  const fresh = getProjectFreshness(targetWorkspace);
+  const mapMd = generateFullProjectMap(targetWorkspace, fresh.files);
+  const agentDir = path.join(targetWorkspace, '.agent');
+  if (!fs.existsSync(agentDir)) {
+    fs.mkdirSync(agentDir, { recursive: true });
+  }
+  const mapFile = path.join(agentDir, 'project_map.md');
+  fs.writeFileSync(mapFile, mapMd, 'utf-8');
+  console.log(`✅ Saved project map to: ${mapFile}\n`);
+  console.log('--- Project Map Preview ---');
+  console.log(mapMd);
 } else if (command === 'doctor') {
   doctorCheck();
 } else {
   console.log('Usage:');
   console.log('  node dist/cli.js install [--workspace <path>] [--dry-run]');
+  console.log('  node dist/cli.js map [--workspace <path>]');
   console.log('  node dist/cli.js update');
   console.log('  node dist/cli.js doctor');
 }

@@ -14,6 +14,7 @@
     "watch": "tsc -w",
     "install:antigravity": "node dist/cli.js install",
     "update": "node dist/cli.js update",
+    "map": "node dist/cli.js map",
     "doctor": "node dist/cli.js doctor",
     "test": "vitest run",
     "test:watch": "vitest"
