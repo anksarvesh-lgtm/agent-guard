@@ -33,12 +33,19 @@ export function checkForUpdates(repoDir: string = DEFAULT_REPO_ROOT): UpdateChec
     return { isGit: false, hasUpdate: false, error: 'Not a git repository' };
   }
 
+  const gitEnv = {
+    ...process.env,
+    GIT_TERMINAL_PROMPT: '0',
+    GIT_ASKPASS: '',
+  };
+
   try {
     const currentSha = execSync('git rev-parse HEAD', {
       cwd: repoDir,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 5000
+      env: gitEnv,
+      timeout: 4000
     }).trim();
 
     // Fetch upstream refs quietly
@@ -47,7 +54,8 @@ export function checkForUpdates(repoDir: string = DEFAULT_REPO_ROOT): UpdateChec
         cwd: repoDir,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 10000
+        env: gitEnv,
+        timeout: 4000
       });
     } catch (fetchErr: any) {
       return {
@@ -62,7 +70,8 @@ export function checkForUpdates(repoDir: string = DEFAULT_REPO_ROOT): UpdateChec
       cwd: repoDir,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'ignore'],
-      timeout: 5000
+      env: gitEnv,
+      timeout: 4000
     }).trim();
 
     if (currentSha === remoteSha) {
@@ -76,7 +85,8 @@ export function checkForUpdates(repoDir: string = DEFAULT_REPO_ROOT): UpdateChec
         cwd: repoDir,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],
-        timeout: 5000
+        env: gitEnv,
+        timeout: 4000
       }).trim();
       behindCount = parseInt(revList, 10) || 0;
     } catch {
@@ -119,11 +129,17 @@ export function performUpdate(repoDir: string = DEFAULT_REPO_ROOT): PerformUpdat
   const previousSha = check.currentSha;
 
   try {
+    const gitEnv = {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_ASKPASS: '',
+    };
     // 1. Pull changes
     execSync('git pull --rebase origin main --quiet', {
       cwd: repoDir,
       encoding: 'utf-8',
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: gitEnv,
       timeout: 20000
     });
 

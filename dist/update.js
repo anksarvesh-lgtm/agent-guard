@@ -13,12 +13,18 @@ export function checkForUpdates(repoDir = DEFAULT_REPO_ROOT) {
     if (!fs.existsSync(gitDir)) {
         return { isGit: false, hasUpdate: false, error: 'Not a git repository' };
     }
+    const gitEnv = {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_ASKPASS: '',
+    };
     try {
         const currentSha = execSync('git rev-parse HEAD', {
             cwd: repoDir,
             encoding: 'utf-8',
             stdio: ['ignore', 'pipe', 'ignore'],
-            timeout: 5000
+            env: gitEnv,
+            timeout: 4000
         }).trim();
         // Fetch upstream refs quietly
         try {
@@ -26,7 +32,8 @@ export function checkForUpdates(repoDir = DEFAULT_REPO_ROOT) {
                 cwd: repoDir,
                 encoding: 'utf-8',
                 stdio: ['ignore', 'pipe', 'ignore'],
-                timeout: 10000
+                env: gitEnv,
+                timeout: 4000
             });
         }
         catch (fetchErr) {
@@ -41,7 +48,8 @@ export function checkForUpdates(repoDir = DEFAULT_REPO_ROOT) {
             cwd: repoDir,
             encoding: 'utf-8',
             stdio: ['ignore', 'pipe', 'ignore'],
-            timeout: 5000
+            env: gitEnv,
+            timeout: 4000
         }).trim();
         if (currentSha === remoteSha) {
             return { isGit: true, hasUpdate: false, currentSha, remoteSha, behindCount: 0 };
@@ -53,7 +61,8 @@ export function checkForUpdates(repoDir = DEFAULT_REPO_ROOT) {
                 cwd: repoDir,
                 encoding: 'utf-8',
                 stdio: ['ignore', 'pipe', 'ignore'],
-                timeout: 5000
+                env: gitEnv,
+                timeout: 4000
             }).trim();
             behindCount = parseInt(revList, 10) || 0;
         }
@@ -94,11 +103,17 @@ export function performUpdate(repoDir = DEFAULT_REPO_ROOT) {
     }
     const previousSha = check.currentSha;
     try {
+        const gitEnv = {
+            ...process.env,
+            GIT_TERMINAL_PROMPT: '0',
+            GIT_ASKPASS: '',
+        };
         // 1. Pull changes
         execSync('git pull --rebase origin main --quiet', {
             cwd: repoDir,
             encoding: 'utf-8',
             stdio: ['ignore', 'pipe', 'pipe'],
+            env: gitEnv,
             timeout: 20000
         });
         const newSha = execSync('git rev-parse HEAD', {

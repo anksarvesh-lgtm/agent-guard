@@ -40,7 +40,7 @@ describe('Auto-Update Engine', () => {
     if (res.currentSha) {
       expect(res.currentSha).toMatch(/^[0-9a-f]{40}$/);
     }
-  });
+  }, 15000);
 
   it('debounces background update check within 1 hour', () => {
     const markerDir = path.join(tempDir, '.agent');
