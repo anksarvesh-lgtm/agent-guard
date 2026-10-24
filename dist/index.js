@@ -7,6 +7,7 @@ import { handleTaskCheckpoint } from './tools/taskCheckpoint.js';
 import { handleTaskStatus } from './tools/taskStatus.js';
 import { handleKeepAwake } from './tools/keepAwake.js';
 import { handleRepoBrief } from './tools/repoBrief.js';
+import { handleAgentEnforce } from './tools/agentEnforce.js';
 import { maybeBackgroundUpdate } from './update.js';
 const server = new Server({
     name: 'agent-guard',
@@ -162,6 +163,33 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                 },
             },
+            {
+                name: 'agent_enforce',
+                description: 'Communicate directives with active agents and force them to complete pending task steps.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        action: {
+                            type: 'string',
+                            enum: ['status', 'broadcast', 'force_next'],
+                            description: 'Enforcement action: check agent status, broadcast directive, or force next step.',
+                        },
+                        directive: {
+                            type: 'string',
+                            description: 'Custom directive or instruction text to enforce (max 300 chars).',
+                        },
+                        target_agent: {
+                            type: 'string',
+                            description: 'Target agent conversation ID or "all" (defaults to "all").',
+                        },
+                        project_path: {
+                            type: 'string',
+                            description: 'Absolute path to workspace directory.',
+                        },
+                    },
+                    required: ['action'],
+                },
+            },
         ],
     };
 });
@@ -185,6 +213,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 break;
             case 'repo_brief':
                 resultText = handleRepoBrief(args);
+                break;
+            case 'agent_enforce':
+                resultText = handleAgentEnforce(args);
                 break;
             default:
                 resultText = `UNKNOWN_TOOL: Tool "${name}" is not supported by agent-guard.`;

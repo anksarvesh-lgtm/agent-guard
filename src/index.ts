@@ -233,7 +233,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         resultText = handleRepoBrief(args);
         break;
       case 'agent_enforce':
-        resultText = handleAgentEnforce(args);
+        resultText = handleAgentEnforce(args as any);
         break;
       default:
         resultText = `UNKNOWN_TOOL: Tool "${name}" is not supported by agent-guard.`;

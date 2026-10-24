@@ -43,12 +43,14 @@ export function configureAutoAcceptGrants(dryRun) {
             'mcp(agent-guard/task_status)',
             'mcp(agent-guard/keep_awake)',
             'mcp(agent-guard/repo_brief)',
+            'mcp(agent-guard/agent_enforce)',
             'mcp(agent-guard/project_map)',
             'mcp(agent-guard_agent-guard/task_start)',
             'mcp(agent-guard_agent-guard/task_checkpoint)',
             'mcp(agent-guard_agent-guard/task_status)',
             'mcp(agent-guard_agent-guard/keep_awake)',
             'mcp(agent-guard_agent-guard/repo_brief)',
+            'mcp(agent-guard_agent-guard/agent_enforce)',
             'mcp(agent-guard_agent-guard/project_map)',
             'command(npm run build)',
             'command(npm test)',
@@ -76,7 +78,7 @@ export function configureAutoAcceptGrants(dryRun) {
         console.warn(`   ⚠️ Warning: Could not update auto-accept grants: ${err.message}`);
     }
 }
-export function installPluginBundle(nodeBin, serverPath, hookPath, dryRun) {
+export function installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPath, dryRun) {
     const pluginDir = getGeminiPluginsDir();
     const templateDir = path.join(REPO_ROOT, 'templates', 'plugin', 'agent-guard');
     if (!fs.existsSync(templateDir))
@@ -104,24 +106,39 @@ export function installPluginBundle(nodeBin, serverPath, hookPath, dryRun) {
             mcpServers: {
                 'agent-guard': {
                     command: nodeBin,
-                    args: [serverPath]
+                    args: [serverPath],
+                    autoApprove: [
+                        'task_start',
+                        'task_checkpoint',
+                        'task_status',
+                        'keep_awake',
+                        'repo_brief',
+                        'agent_enforce',
+                        'project_map'
+                    ]
                 }
             }
         }, null, 2);
         fs.writeFileSync(path.join(pluginDir, 'mcp_config.json'), mcpContent + '\n', 'utf-8');
-        // Write rendered hooks.json
+        // Write rendered hooks.json with Stop and PostInvocation
         const hooksContent = JSON.stringify({
-            'agent-guard-stop': {
+            'agent-guard-supervisor': {
                 Stop: [
                     {
                         type: 'command',
                         command: `${nodeBin} ${hookPath}`
                     }
+                ],
+                PostInvocation: [
+                    {
+                        type: 'command',
+                        command: `${nodeBin} ${enforceHookPath}`
+                    }
                 ]
             }
         }, null, 2);
         fs.writeFileSync(path.join(pluginDir, 'hooks.json'), hooksContent + '\n', 'utf-8');
-        console.log('   ✅ Installed Antigravity plugin: `@agent-guard` is now callable via chat mentions.');
+        console.log('   ✅ Installed Antigravity plugin: `@agent-guard` with Stop & PostInvocation supervisor hooks.');
     }
     catch (err) {
         console.warn(`   ⚠️ Warning: Could not install plugin bundle: ${err.message}`);
@@ -143,12 +160,14 @@ export function installToAntigravity(options = {}) {
     const nodeBin = detectNodeBinary();
     const serverPath = path.join(REPO_ROOT, 'dist', 'index.js');
     const hookPath = path.join(REPO_ROOT, 'dist', 'hook', 'stop-hook.js');
+    const enforceHookPath = path.join(REPO_ROOT, 'dist', 'hook', 'post-invocation-hook.js');
     const mcpConfigFile = getGeminiConfigPath();
     console.log('🛡️  Agent Guard — Antigravity Automated Installer\n');
-    console.log(`• Repository:  ${REPO_ROOT}`);
-    console.log(`• Node binary: ${nodeBin}`);
-    console.log(`• MCP Server:  ${serverPath}`);
-    console.log(`• Stop Hook:   ${hookPath}\n`);
+    console.log(`• Repository:    ${REPO_ROOT}`);
+    console.log(`• Node binary:   ${nodeBin}`);
+    console.log(`• MCP Server:    ${serverPath}`);
+    console.log(`• Stop Hook:     ${hookPath}`);
+    console.log(`• Enforce Hook:  ${enforceHookPath}\n`);
     if (!fs.existsSync(serverPath)) {
         console.error('❌ Error: dist/index.js not found. Run `npm run build` before installing.');
         process.exit(1);
@@ -213,17 +232,23 @@ export function installToAntigravity(options = {}) {
         else if (!options.dryRun) {
             fs.mkdirSync(agentsDir, { recursive: true });
         }
-        hooksData['agent-guard-stop'] = {
+        hooksData['agent-guard-supervisor'] = {
             Stop: [
                 {
                     type: 'command',
                     command: `${nodeBin} ${hookPath}`,
                 },
             ],
+            PostInvocation: [
+                {
+                    type: 'command',
+                    command: `${nodeBin} ${enforceHookPath}`,
+                },
+            ],
         };
         if (!options.dryRun) {
             fs.writeFileSync(hooksFile, JSON.stringify(hooksData, null, 2) + '\n', 'utf-8');
-            console.log('   ✅ Configured Stop hook in .agents/hooks.json');
+            console.log('   ✅ Configured Stop & PostInvocation supervisor hooks in .agents/hooks.json');
             // Setup AGENTS.md rules
             const rulesSource = path.join(REPO_ROOT, 'templates', 'AGENT_RULES.md');
             const rulesDest = path.join(workspace, 'AGENTS.md');
@@ -240,7 +265,7 @@ export function installToAntigravity(options = {}) {
         }
     }
     // 3. Deploy Antigravity @agent-guard plugin
-    installPluginBundle(nodeBin, serverPath, hookPath, options.dryRun);
+    installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPath, options.dryRun);
     // 4. Configure auto-accept in IDE
     configureAutoAcceptGrants(options.dryRun);
     console.log('\n🎉 Installation Complete!');
@@ -311,8 +336,10 @@ export function doctorCheck() {
     // Check build files
     const serverPath = path.join(REPO_ROOT, 'dist', 'index.js');
     const hookPath = path.join(REPO_ROOT, 'dist', 'hook', 'stop-hook.js');
+    const enforceHookPath = path.join(REPO_ROOT, 'dist', 'hook', 'post-invocation-hook.js');
     console.log(`• Server Binary:   ${fs.existsSync(serverPath) ? '[OK]' : '[FAIL] Missing'} dist/index.js`);
-    console.log(`• Hook Binary:     ${fs.existsSync(hookPath) ? '[OK]' : '[FAIL] Missing'} dist/hook/stop-hook.js`);
+    console.log(`• Stop Hook:       ${fs.existsSync(hookPath) ? '[OK]' : '[FAIL] Missing'} dist/hook/stop-hook.js`);
+    console.log(`• Enforce Hook:    ${fs.existsSync(enforceHookPath) ? '[OK]' : '[FAIL] Missing'} dist/hook/post-invocation-hook.js`);
     // Check sleep inhibitor support
     if (process.platform === 'darwin') {
         try {

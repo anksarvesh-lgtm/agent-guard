@@ -214,4 +214,73 @@ export function evaluateTaskStatus(steps) {
     }
     return 'active';
 }
+/**
+ * Record or update an active agent session in .agent/active_agents.json.
+ */
+export function recordActiveAgent(projectPath, agentId, role = 'worker', activeStepId) {
+    try {
+        const agentFile = path.join(getAgentDir(projectPath), 'active_agents.json');
+        let agents = {};
+        if (fs.existsSync(agentFile)) {
+            try {
+                agents = JSON.parse(fs.readFileSync(agentFile, 'utf-8'));
+            }
+            catch { }
+        }
+        agents[agentId] = {
+            agent_id: agentId,
+            role,
+            last_seen: new Date().toISOString(),
+            active_step_id: activeStepId,
+        };
+        fs.writeFileSync(agentFile, JSON.stringify(agents, null, 2), 'utf-8');
+    }
+    catch { }
+}
+/**
+ * Retrieve all known active agent sessions.
+ */
+export function getActiveAgents(projectPath) {
+    try {
+        const agentFile = path.join(getAgentDir(projectPath), 'active_agents.json');
+        if (fs.existsSync(agentFile)) {
+            return JSON.parse(fs.readFileSync(agentFile, 'utf-8'));
+        }
+    }
+    catch { }
+    return {};
+}
+/**
+ * Dispatch an authoritative completion directive for active agents.
+ */
+export function dispatchAgentDirective(projectPath, directive, targetAgent = 'all') {
+    const dirFile = path.join(getAgentDir(projectPath), 'agent_directives.json');
+    const newDirective = {
+        id: `dir-${Date.now()}`,
+        directive,
+        target_agent: targetAgent,
+        created_at: new Date().toISOString(),
+        active: true,
+    };
+    try {
+        fs.writeFileSync(dirFile, JSON.stringify(newDirective, null, 2), 'utf-8');
+    }
+    catch { }
+    return newDirective;
+}
+/**
+ * Retrieve currently active inter-agent directive.
+ */
+export function getActiveDirective(projectPath) {
+    try {
+        const dirFile = path.join(getAgentDir(projectPath), 'agent_directives.json');
+        if (fs.existsSync(dirFile)) {
+            const data = JSON.parse(fs.readFileSync(dirFile, 'utf-8'));
+            if (data.active)
+                return data;
+        }
+    }
+    catch { }
+    return null;
+}
 //# sourceMappingURL=ledger.js.map

@@ -2,7 +2,7 @@ import { resolveProjectPath, getLedgerPath } from '../util/paths.js';
 import { readLedger, getNextStep, getActiveAgents, dispatchAgentDirective, getActiveDirective } from '../ledger.js';
 import { logToolCall } from '../util/log.js';
 import { AgentEnforceParams } from '../types.js';
-import { holdAwakeLease } from '../awake/manager.js';
+import { globalAwakeManager } from '../awake/manager.js';
 import fs from 'node:fs';
 
 export function handleAgentEnforce(params: AgentEnforceParams): string {
@@ -13,7 +13,11 @@ export function handleAgentEnforce(params: AgentEnforceParams): string {
     return 'No active task found in .agent/ledger.json. Call task_start to begin.';
   }
 
-  const ledger = readLedger(ledgerPath);
+  const ledger = readLedger(project);
+  if (!ledger) {
+    return 'Corrupted or unreadable ledger in .agent/ledger.json.';
+  }
+
   if (ledger.status !== 'active') {
     return `Task ${ledger.task_id} is ${ledger.status.toUpperCase()}. No active enforcement required.`;
   }
@@ -57,7 +61,7 @@ export function handleAgentEnforce(params: AgentEnforceParams): string {
 
   // Extend keep awake lease to ensure agent has time to complete
   try {
-    holdAwakeLease(30, `Forcing completion of ${nextStep.id}`, project);
+    globalAwakeManager.hold(30, `Forcing completion of ${nextStep.id}`);
   } catch {}
 
   const orderText = params.directive || `Execute step ${nextStep.id} ("${nextStep.title}"), verify tests, and report proof via task_checkpoint.`;
