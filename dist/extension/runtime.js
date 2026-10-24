@@ -61,6 +61,7 @@ const AGENT_GUARD_TOOLS = [
   'skill_activate',
   'memory_store',
   'memory_recall',
+  'code_map',
 ];
 
 const AGENT_GUARD_MCP_TOOLS_INFO = [
@@ -76,6 +77,7 @@ const AGENT_GUARD_MCP_TOOLS_INFO = [
   { name: 'skill_activate', badge: '3600+ JIT ROUTE', desc: 'Dynamically discover, rank, and load any skill from 3,600+ library just-in-time.', params: 'query, auto_install, limit, project_path' },
   { name: 'memory_store', badge: 'MEMORY STORE', desc: 'Persistently store architectural decisions, conventions, and learnings across sessions.', params: 'content, tags[], category, project_path' },
   { name: 'memory_recall', badge: 'MEMORY RECALL', desc: 'Search and retrieve past session memories and solutions via semantic keyword matching.', params: 'query, limit, tag, category, project_path' },
+  { name: 'code_map', badge: 'AST GRAPH & SLICER', desc: 'Query AST code knowledge graph, find callers, and slice exact symbol code without reading full files.', params: 'action, symbol_name, file_path, project_path, force_refresh' },
 ];
 
 const CURATED_SKILLS = [

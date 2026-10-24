@@ -7,6 +7,8 @@ import { fileURLToPath } from 'node:url';
 import { checkForUpdates, performUpdate } from './update.js';
 import { generateFullProjectMap } from './brief/map.js';
 import { getProjectFreshness } from './brief/stale.js';
+import { handleCodeMap } from './tools/codeMap.js';
+import { generateAgentsMd } from './brief/agentsMdGenerator.js';
 import { installToApps, detectInstalledApps } from './install/apps.js';
 import { loadSkillsIndex, listFeaturedSkills, searchSkills, getSkillInfo, getCategories, installSkill, formatSkillsTable } from './skills/manager.js';
 import { globalAwakeManager } from './awake/manager.js';
@@ -83,6 +85,7 @@ export function configureAutoAcceptGrants(dryRun) {
             'mcp(agent-guard/project_map)',
             'mcp(agent-guard/token_counter)',
             'mcp(agent-guard/account_switcher)',
+            'mcp(agent-guard/code_map)',
             // Antigravity plugin-scoped tool grants
             'mcp(agent-guard_agent-guard/task_start)',
             'mcp(agent-guard_agent-guard/task_checkpoint)',
@@ -93,6 +96,7 @@ export function configureAutoAcceptGrants(dryRun) {
             'mcp(agent-guard_agent-guard/project_map)',
             'mcp(agent-guard_agent-guard/token_counter)',
             'mcp(agent-guard_agent-guard/account_switcher)',
+            'mcp(agent-guard_agent-guard/code_map)',
             // Command execution grants for autonomous agent workflow
             'command(agent-guard)',
             'command(npx agent-guard)',
@@ -193,7 +197,8 @@ export function installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPa
                         'token_counter',
                         'account_switcher',
                         'model_compressor',
-                        'skill_activate'
+                        'skill_activate',
+                        'code_map'
                     ]
                 }
             }
@@ -567,6 +572,39 @@ else if (command === 'map') {
     console.log(`✅ Saved project map to: ${mapFile}\n`);
     console.log('--- Project Map Preview ---');
     console.log(mapMd);
+}
+else if (command === 'codemap') {
+    const sub = args[1] || 'overview';
+    const targetIdx = args.indexOf('--workspace');
+    const targetWorkspace = path.resolve(targetIdx !== -1 ? args[targetIdx + 1] : process.cwd());
+    const symbolIdx = args.indexOf('--symbol');
+    const symbolName = symbolIdx !== -1 ? args[symbolIdx + 1] : (['lookup', 'slice', 'callers'].includes(sub) ? args[2] : undefined);
+    const fileIdx = args.indexOf('--file');
+    const filePath = fileIdx !== -1 ? args[fileIdx + 1] : (sub === 'symbols' ? args[2] : undefined);
+    const refresh = args.includes('--refresh');
+    const output = handleCodeMap({
+        action: (['overview', 'symbols', 'lookup', 'slice', 'callers'].includes(sub) ? sub : 'overview'),
+        symbol_name: symbolName,
+        file_path: filePath,
+        project_path: targetWorkspace,
+        force_refresh: refresh,
+    });
+    console.log(output);
+}
+else if (command === 'agents-md') {
+    const sub = args[1] || 'generate';
+    const targetIdx = args.indexOf('--workspace');
+    const targetWorkspace = path.resolve(targetIdx !== -1 ? args[targetIdx + 1] : process.cwd());
+    const outIdx = args.indexOf('--output');
+    const outputPath = outIdx !== -1 ? path.resolve(args[outIdx + 1]) : undefined;
+    console.log(`📝 Generating dynamic AGENTS.md for ${targetWorkspace}...`);
+    const res = generateAgentsMd({
+        projectPath: targetWorkspace,
+        outputPath,
+    });
+    console.log(`✅ Successfully generated AGENTS.md at: ${res.outputPath}`);
+    console.log('\n--- Generated Preview ---');
+    console.log(res.content);
 }
 else if (command === 'doctor') {
     doctorCheck();
@@ -1066,6 +1104,8 @@ else {
     console.log('  node dist/cli.js compress [list-algos|list-models|estimate|recommend|generate]');
     console.log('  node dist/cli.js memory [store|recall|list]');
     console.log('  node dist/cli.js map [--workspace <path>]');
+    console.log('  node dist/cli.js codemap [overview|symbols|lookup|slice|callers] [--symbol <name>] [--file <path>]');
+    console.log('  node dist/cli.js agents-md [generate] [--output <path>]');
     console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');
     console.log('  node dist/cli.js skills [list|search|route|activate|info|install|categories]');

@@ -44,6 +44,7 @@ export const AGENT_GUARD_AUTO_APPROVE_TOOLS = [
   'skill_activate',
   'memory_store',
   'memory_recall',
+  'code_map',
 ];
 
 export function getHomeDir(): string {

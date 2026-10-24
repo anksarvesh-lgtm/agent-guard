@@ -18,6 +18,7 @@ Agent Guard provides deterministic, zero-telemetry development supervision, OS k
 - \`skill_activate\`: Dynamically activate and inject any of the 3,600+ procedural skills into context and workspace on-demand.
 - \`memory_store\`: Persistently store architectural decisions, learnings, and conventions across sessions.
 - \`memory_recall\`: Recall past decisions, lessons learned, and solutions across sessions via semantic search.
+- \`code_map\`: Query high-speed AST code graph, find declarations/callers, and slice exact symbol code without reading full files (90%+ token savings).
 
 Always pass \`project_path\` to target workspace operations.
 `;
@@ -426,6 +427,36 @@ export const AGENT_GUARD_TOOLS = [
                 },
             },
             required: ['query'],
+        },
+    },
+    {
+        name: 'code_map',
+        description: 'High-speed AST code knowledge graph and symbol slicer. Query declarations (functions, classes, routes), find callers, or slice exact symbol code without reading full files (90%+ token savings).',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                action: {
+                    type: 'string',
+                    enum: ['overview', 'symbols', 'lookup', 'slice', 'callers'],
+                    description: 'overview: high-level architecture & route map; symbols: list symbols in file/pattern; lookup: find symbol declarations; slice: extract exact lines of symbol; callers: find references & calls.',
+                },
+                symbol_name: {
+                    type: 'string',
+                    description: 'Name of function, class, interface, method, or route (required for lookup, slice, callers).',
+                },
+                file_path: {
+                    type: 'string',
+                    description: 'Relative or absolute file path or directory pattern (e.g. "src/tools" or "src/brief/build.ts").',
+                },
+                project_path: {
+                    type: 'string',
+                    description: 'Workspace root folder (defaults to current project).',
+                },
+                force_refresh: {
+                    type: 'boolean',
+                    description: 'Force re-parsing source files instead of using cached graph.',
+                },
+            },
         },
     },
 ];
