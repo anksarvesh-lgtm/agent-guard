@@ -173,6 +173,22 @@ export declare const AccountSwitcherSchema: z.ZodObject<{
     threshold_percent?: number | undefined;
     enabled?: boolean | undefined;
 }>;
+export declare const SkillActivateSchema: z.ZodObject<{
+    query: z.ZodString;
+    project_path: z.ZodOptional<z.ZodString>;
+    auto_install: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    limit: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+}, "strip", z.ZodTypeAny, {
+    query: string;
+    auto_install: boolean;
+    limit: number;
+    project_path?: string | undefined;
+}, {
+    query: string;
+    project_path?: string | undefined;
+    auto_install?: boolean | undefined;
+    limit?: number | undefined;
+}>;
 /**
  * Formats Zod errors into a clean, human-readable BAD_INPUT error string
  */

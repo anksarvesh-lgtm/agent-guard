@@ -13,6 +13,9 @@ import { globalAwakeManager } from './awake/manager.js';
 import { handleTokenCounter } from './tools/tokenCounter.js';
 import { handleAccountSwitcher } from './tools/accountSwitcher.js';
 import { handleModelCompressor } from './tools/modelCompressor.js';
+import { handleSkillActivate } from './tools/skillActivate.js';
+import { globalJitSkillRouter } from './skills/router.js';
+import { globalWorkspaceScanner } from './skills/scanner.js';
 import { globalAccountManager } from './accounts/index.js';
 import { detectAllStateDatabases } from './accounts/stateDb.js';
 import { installExtensionToAllDetected, getExtensionStatus } from './extension/index.js';
@@ -133,7 +136,7 @@ export function configureAutoAcceptGrants(dryRun) {
         return { addedCount: 0, totalCount: 0 };
     }
 }
-export function installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPath, dryRun) {
+export function installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPath, preInvocationHookPath, dryRun) {
     const pluginDir = getGeminiPluginsDir();
     const templateDir = path.join(REPO_ROOT, 'templates', 'plugin', 'agent-guard');
     if (!fs.existsSync(templateDir))
@@ -184,31 +187,44 @@ export function installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPa
                         'keep_awake',
                         'repo_brief',
                         'agent_enforce',
-                        'project_map'
+                        'project_map',
+                        'token_counter',
+                        'account_switcher',
+                        'model_compressor',
+                        'skill_activate'
                     ]
                 }
             }
         }, null, 2);
         fs.writeFileSync(path.join(pluginDir, 'mcp_config.json'), mcpContent + '\n', 'utf-8');
-        // Write rendered hooks.json with Stop and PostInvocation
+        // Write rendered hooks.json with PreInvocation, Stop and PostInvocation
+        const hookObj = {
+            Stop: [
+                {
+                    type: 'command',
+                    command: `${nodeBin} ${hookPath}`
+                }
+            ],
+            PostInvocation: [
+                {
+                    type: 'command',
+                    command: `${nodeBin} ${enforceHookPath}`
+                }
+            ]
+        };
+        if (preInvocationHookPath) {
+            hookObj.PreInvocation = [
+                {
+                    type: 'command',
+                    command: `${nodeBin} ${preInvocationHookPath}`
+                }
+            ];
+        }
         const hooksContent = JSON.stringify({
-            'agent-guard-supervisor': {
-                Stop: [
-                    {
-                        type: 'command',
-                        command: `${nodeBin} ${hookPath}`
-                    }
-                ],
-                PostInvocation: [
-                    {
-                        type: 'command',
-                        command: `${nodeBin} ${enforceHookPath}`
-                    }
-                ]
-            }
+            'agent-guard-supervisor': hookObj
         }, null, 2);
         fs.writeFileSync(path.join(pluginDir, 'hooks.json'), hooksContent + '\n', 'utf-8');
-        console.log('   ✅ Installed Antigravity plugin: `@agent-guard` with Stop & PostInvocation supervisor hooks.');
+        console.log('   ✅ Installed Antigravity plugin: `@agent-guard` with PreInvocation, Stop & PostInvocation hooks.');
     }
     catch (err) {
         console.warn(`   ⚠️ Warning: Could not install plugin bundle: ${err.message}`);
@@ -231,12 +247,14 @@ export function installAgentGuard(options = {}) {
     const serverPath = path.join(REPO_ROOT, 'dist', 'index.js');
     const hookPath = path.join(REPO_ROOT, 'dist', 'hook', 'stop-hook.js');
     const enforceHookPath = path.join(REPO_ROOT, 'dist', 'hook', 'post-invocation-hook.js');
+    const preInvocationHookPath = path.join(REPO_ROOT, 'dist', 'hook', 'pre-invocation-hook.js');
     console.log('🛡️  Agent Guard — Universal MCP & Multi-App Installer\n');
-    console.log(`• Repository:    ${REPO_ROOT}`);
-    console.log(`• Node binary:   ${nodeBin}`);
-    console.log(`• MCP Server:    ${serverPath}`);
-    console.log(`• Stop Hook:     ${hookPath}`);
-    console.log(`• Enforce Hook:  ${enforceHookPath}\n`);
+    console.log(`• Repository:          ${REPO_ROOT}`);
+    console.log(`• Node binary:         ${nodeBin}`);
+    console.log(`• MCP Server:          ${serverPath}`);
+    console.log(`• PreInvocation Hook:  ${preInvocationHookPath}`);
+    console.log(`• Stop Hook:           ${hookPath}`);
+    console.log(`• Enforce Hook:        ${enforceHookPath}\n`);
     if (!fs.existsSync(serverPath)) {
         console.error('❌ Error: dist/index.js not found. Run `npm run build` before installing.');
         process.exit(1);
@@ -246,6 +264,7 @@ export function installAgentGuard(options = {}) {
         serverPath,
         hookPath,
         enforceHookPath,
+        preInvocationHookPath,
         repoRoot: REPO_ROOT,
         dryRun: options.dryRun,
     };
@@ -281,6 +300,12 @@ export function installAgentGuard(options = {}) {
             fs.mkdirSync(agentsDir, { recursive: true });
         }
         hooksData['agent-guard-supervisor'] = {
+            PreInvocation: [
+                {
+                    type: 'command',
+                    command: `${nodeBin} ${preInvocationHookPath}`,
+                },
+            ],
             Stop: [
                 {
                     type: 'command',
@@ -296,7 +321,7 @@ export function installAgentGuard(options = {}) {
         };
         if (!options.dryRun) {
             fs.writeFileSync(hooksFile, JSON.stringify(hooksData, null, 2) + '\n', 'utf-8');
-            console.log('   ✅ Configured Stop & PostInvocation supervisor hooks in .agents/hooks.json');
+            console.log('   ✅ Configured PreInvocation, Stop & PostInvocation supervisor hooks in .agents/hooks.json');
             // Setup AGENTS.md rules
             const rulesSource = path.join(REPO_ROOT, 'templates', 'AGENT_RULES.md');
             const rulesDest = path.join(workspace, 'AGENTS.md');
@@ -313,7 +338,7 @@ export function installAgentGuard(options = {}) {
         }
     }
     // 3. Deploy Antigravity @agent-guard plugin
-    installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPath, options.dryRun);
+    installPluginBundle(nodeBin, serverPath, hookPath, enforceHookPath, preInvocationHookPath, options.dryRun);
     // 4. Configure auto-accept in IDE
     configureAutoAcceptGrants(options.dryRun);
     // 5. Install Agent Guard extension into coding applications
@@ -615,10 +640,66 @@ else if (command === 'skills') {
             process.exit(1);
         }
     }
+    else if (sub === 'route') {
+        const query = args.slice(2).join(' ');
+        if (!query) {
+            console.error('Usage: node dist/cli.js skills route <query or task prompt>');
+            process.exit(1);
+        }
+        const t0 = Date.now();
+        const ranked = globalJitSkillRouter.route(query, { limit: 5 });
+        const ms = Date.now() - t0;
+        console.log(`⚡ JIT Semantic Skill Routing for "${query}" (${ranked.length} matches in ${ms}ms):\n`);
+        for (const r of ranked) {
+            console.log(`  🎯 [Score: ${r.score.toFixed(1)} | ${r.confidence}] ${r.id} (${r.name})`);
+            console.log(`     Tier: ${r.tier} | Category: ${r.category}`);
+            console.log(`     Desc: ${r.description.slice(0, 100)}...`);
+            console.log('');
+        }
+    }
+    else if (sub === 'activate') {
+        const query = args.slice(2).join(' ');
+        if (!query) {
+            console.error('Usage: node dist/cli.js skills activate <query or task prompt>');
+            process.exit(1);
+        }
+        const out = handleSkillActivate({
+            query,
+            project_path: process.cwd(),
+            auto_install: true,
+            limit: 1,
+        });
+        console.log(out);
+    }
+    else if (sub === 'scan') {
+        const wsIdx = args.indexOf('--workspace');
+        const ws = wsIdx !== -1 ? args[wsIdx + 1] : process.cwd();
+        const save = args.includes('--save');
+        const result = globalWorkspaceScanner.scan(ws, { saveConfig: save, maxSkills: 10 });
+        console.log(`🔍 Tech-Stack Auto-Scanner for: ${result.workspace}\n`);
+        console.log(`Detected Technologies (${result.detectedTech.length}):`);
+        for (const t of result.detectedTech) {
+            console.log(`  • ${t.name.padEnd(24)} [${t.category}] (via ${t.sourceFile})`);
+        }
+        console.log(`\nRecommended Skills from 3,600+ Library (${result.recommendedSkills.length}):`);
+        for (const s of result.recommendedSkills) {
+            console.log(`  🎯 [Score: ${s.score.toFixed(1)} | ${s.confidence}] ${s.id} (${s.name})`);
+            console.log(`     Category: ${s.category} | Tier: ${s.tier}`);
+        }
+        if (result.savedConfigPath) {
+            console.log(`\n✅ Saved recommendations to ${result.savedConfigPath}`);
+        }
+        else {
+            console.log(`\nTip: Run with --save to write recommendations into .agents/skills.json`);
+        }
+    }
     else {
         console.log('Usage:');
         console.log('  node dist/cli.js skills list');
         console.log('  node dist/cli.js skills search <query>');
+        console.log('  node dist/cli.js skills route <query>');
+        console.log('  node dist/cli.js skills activate <query>');
+        console.log('  node dist/cli.js skills scan [--workspace <dir>] [--save]');
         console.log('  node dist/cli.js skills info <id>');
         console.log('  node dist/cli.js skills install <id> [--path <dir>]');
         console.log('  node dist/cli.js skills categories');
@@ -940,6 +1021,6 @@ else {
     console.log('  node dist/cli.js map [--workspace <path>]');
     console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');
-    console.log('  node dist/cli.js skills [list|search|info|install|categories]');
+    console.log('  node dist/cli.js skills [list|search|route|activate|info|install|categories]');
 }
 //# sourceMappingURL=cli.js.map

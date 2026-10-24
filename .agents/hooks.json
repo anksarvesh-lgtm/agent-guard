@@ -1,5 +1,11 @@
 {
   "agent-guard-supervisor": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "/Users/sarvesh/.local/node-v24/bin/node /Users/sarvesh/Downloads/mcp/agent-guard/dist/hook/pre-invocation-hook.js"
+      }
+    ],
     "Stop": [
       {
         "type": "command",

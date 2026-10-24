@@ -1,5 +1,11 @@
 {
   "agent-guard-supervisor": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "{{NODE_BIN}} {{PRE_INVOCATION_HOOK_PATH}}"
+      }
+    ],
     "Stop": [
       {
         "type": "command",

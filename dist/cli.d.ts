@@ -3,7 +3,7 @@ export declare function configureAutoAcceptGrants(dryRun?: boolean): {
     addedCount: number;
     totalCount: number;
 };
-export declare function installPluginBundle(nodeBin: string, serverPath: string, hookPath: string, enforceHookPath: string, dryRun?: boolean): void;
+export declare function installPluginBundle(nodeBin: string, serverPath: string, hookPath: string, enforceHookPath: string, preInvocationHookPath?: string, dryRun?: boolean): void;
 export interface InstallOptions {
     targetWorkspace?: string;
     dryRun?: boolean;

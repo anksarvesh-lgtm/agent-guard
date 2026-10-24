@@ -58,6 +58,7 @@ const AGENT_GUARD_TOOLS = [
   'token_counter',
   'account_switcher',
   'model_compressor',
+  'skill_activate',
 ];
 
 const AGENT_GUARD_MCP_TOOLS_INFO = [
@@ -70,6 +71,7 @@ const AGENT_GUARD_MCP_TOOLS_INFO = [
   { name: 'token_counter', badge: 'BUDGET', desc: 'Measure tokens and forecast context window headroom across Gemini, Claude, and OpenAI.', params: 'model, text, file_path, transcript_path, compare_all, project_path' },
   { name: 'account_switcher', badge: '1% TRIPWIRE', desc: 'Non-disruptively rotate Antigravity accounts when quota reaches <= 1.0%.', params: 'action, account_id, name, threshold_percent, project_path' },
   { name: 'model_compressor', badge: 'SOTA COMPRESS', desc: 'Quantize models (AWQ, GPTQ, SmoothQuant) and prune tokens (FastV, AgentCompress).', params: 'action, param_billions, weight_bits, backend, project_path' },
+  { name: 'skill_activate', badge: '3600+ JIT ROUTE', desc: 'Dynamically discover, rank, and load any skill from 3,600+ library just-in-time.', params: 'query, auto_install, limit, project_path' },
 ];
 
 const CURATED_SKILLS = [

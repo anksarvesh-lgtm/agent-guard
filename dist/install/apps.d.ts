@@ -3,6 +3,7 @@ export interface InstallContext {
     serverPath: string;
     hookPath: string;
     enforceHookPath: string;
+    preInvocationHookPath?: string;
     repoRoot: string;
     dryRun?: boolean;
 }

@@ -522,6 +522,41 @@ Agent Guard automatically deploys **78 production skills** directly into `~/.gem
 
 ---
 
+## ⚡ Autonomous JIT Dynamic Skill Activation Engine (3,600+ Skills)
+
+To solve the **Context Bloat Paradox** (where loading 3,600+ skills into system prompts consumes ~180,000 tokens), Agent Guard features a **Zero-Turn Autonomous Just-in-Time (JIT) Semantic Router**:
+
+1. **Sub-10ms In-Memory Semantic Router (`src/skills/router.ts`)**:
+   - Indexes all 3,608 unique skills across Tier 1 (78 active), Tier 2 (832 Composio SaaS), and Tier 3 (2,749 Awesome community).
+   - Inverted BM25 keyword index with stemming, exact slug boost, and category relevance.
+2. **Ambient `PreInvocation` Zero-Turn Hook (`src/hook/pre-invocation-hook.ts`)**:
+   - Intercepts user requests prior to model generation in Google Antigravity and Gemini CLI.
+   - Dynamically injects specialized procedural runbooks via `ephemeralMessage` without polluting permanent context.
+   - De-duplicates activations per conversation session to prevent repetitive token overhead.
+3. **`skill_activate` Universal MCP Tool (`src/tools/skillActivate.ts`)**:
+   - AI agents can dynamically query, rank, and activate any skill on-demand mid-task.
+   - Automatically symlinks/installs full templates into `<project>/.agents/skills/<id>` and updates `.agents/skills.json`.
+4. **Workspace Tech-Stack Auto-Scanner (`src/skills/scanner.ts`)**:
+   - Inspects `package.json`, `Dockerfile`, `go.mod`, `Cargo.toml`, and CI/CD pipelines.
+   - Automatically maps detected frameworks and tools to top matching skills from the 3,600+ library.
+
+### 🛠️ CLI Commands:
+```bash
+# Semantic JIT route query across 3,600+ skills (sub-10ms)
+node dist/cli.js skills route "format docx word document letter"
+
+# Activate and auto-link skill into current workspace
+node dist/cli.js skills activate "clean architecture"
+
+# Auto-scan workspace tech stack and recommend skills
+node dist/cli.js skills scan
+
+# Auto-scan and save recommendations to .agents/skills.json
+node dist/cli.js skills scan --save
+```
+
+---
+
 ## 📚 Searchable Skill Catalogs (3,500+ Skills Available On-Demand)
 
 To prevent saturating the model's prompt context with tens of thousands of tokens, additional large collections are preserved in local indexed catalogs:

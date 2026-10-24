@@ -84,6 +84,13 @@ export const AccountSwitcherSchema = z.object({
   project_path: z.string().optional(),
 });
 
+export const SkillActivateSchema = z.object({
+  query: z.string().min(1, 'query is required'),
+  project_path: z.string().optional(),
+  auto_install: z.boolean().optional().default(true),
+  limit: z.number().int().positive().max(10).optional().default(3),
+});
+
 /**
  * Formats Zod errors into a clean, human-readable BAD_INPUT error string
  */

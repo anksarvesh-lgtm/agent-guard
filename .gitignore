@@ -3,6 +3,7 @@ node_modules/
 
 # Agent Guard state and ledger (per-project)
 .agent/
+.agents/skills/
 
 # Test coverage & caches
 coverage/

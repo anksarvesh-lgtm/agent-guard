@@ -15,6 +15,7 @@ Agent Guard provides deterministic, zero-telemetry development supervision, OS k
 - \`token_counter\`: Estimate token footprints and monitor live quota headroom.
 - \`account_switcher\`: Manage Antigravity account pool and non-disruptively rotate accounts at <= 1% quota.
 - \`model_compressor\`: Recommend, quantize, and configure LLM/VLM compression pipelines (AWQ, GPTQ, SmoothQuant, FastV).
+- \`skill_activate\`: Dynamically activate and inject any of the 3,600+ procedural skills into context and workspace on-demand.
 
 Always pass \`project_path\` to target workspace operations.
 `;
@@ -339,6 +340,32 @@ export const AGENT_GUARD_TOOLS = [
                 },
             },
             required: ['action'],
+        },
+    },
+    {
+        name: 'skill_activate',
+        description: 'Dynamically search, activate, and inject procedural runbooks from the 3,600+ master skill library directly into your context and workspace. Use whenever you need instructions for cloud services (Stripe, Jira, Slack, AWS), frameworks, testing, databases, or documents.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'The task, framework, cloud service, or workflow you need a procedural skill for (e.g. "stripe billing", "kubernetes helm", "word document report", "prisma migration").',
+                },
+                project_path: {
+                    type: 'string',
+                    description: 'Workspace root path to automatically link the skill into .agents/skills/ (optional).',
+                },
+                auto_install: {
+                    type: 'boolean',
+                    description: 'Whether to permanently link this skill into the workspace .agents/skills/ directory (default: true).',
+                },
+                limit: {
+                    type: 'number',
+                    description: 'Maximum candidate matches to inspect (default: 3).',
+                },
+            },
+            required: ['query'],
         },
     },
 ];
