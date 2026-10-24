@@ -2,7 +2,7 @@
 
 Documenting recorded environment and module versions for upkeep:
 
-- **Agent Guard**: `0.2.12`
+- **Agent Guard**: `0.2.13`
 - **Node.js**: `v24.22.0` (`/Users/sarvesh/.local/node-v24/bin/node`)
 - **TypeScript**: `5.7.3`
 - **Model Context Protocol SDK (`@modelcontextprotocol/sdk`)**: `^1.6.1`

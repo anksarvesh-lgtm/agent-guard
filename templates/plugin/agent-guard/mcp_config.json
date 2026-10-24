@@ -13,7 +13,8 @@
         "agent_enforce",
         "project_map",
         "token_counter",
-        "account_switcher"
+        "account_switcher",
+        "model_compressor"
       ]
     }
   }

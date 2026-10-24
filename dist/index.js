@@ -15,7 +15,7 @@ import { AGENT_GUARD_TOOLS, syncMcpSchemaFiles } from './tools/definitions.js';
 import { maybeBackgroundUpdate } from './update.js';
 const server = new Server({
     name: 'agent-guard',
-    version: '0.2.12',
+    version: '0.2.13',
 }, {
     capabilities: {
         tools: {},

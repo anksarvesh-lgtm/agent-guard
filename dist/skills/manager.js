@@ -105,6 +105,10 @@ export function getCategories(repoRoot) {
 }
 export function getDefaultSkillsDir() {
     const home = os.homedir();
+    const configDir = path.join(home, '.gemini', 'config', 'skills');
+    if (fs.existsSync(path.join(home, '.gemini', 'config'))) {
+        return configDir;
+    }
     return path.join(home, '.gemini', 'antigravity', 'skills');
 }
 export function installSkill(id, options) {

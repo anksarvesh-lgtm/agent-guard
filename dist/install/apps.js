@@ -86,6 +86,14 @@ export const antigravityTarget = {
         const skillsSource = resolveSkillsSourceDir(ctx.repoRoot);
         const globalSkillsDir = path.join(getHomeDir(), '.gemini', 'config', 'skills');
         const skillCount = deploySkillsToDirectory(skillsSource, globalSkillsDir, ctx.dryRun);
+        const skillsJsonPath = path.join(getHomeDir(), '.gemini', 'config', 'skills.json');
+        safeJsonWrite(skillsJsonPath, () => ({
+            entries: [
+                { path: '~/.gemini/config/skills' },
+                { path: path.join(ctx.repoRoot, 'templates', 'skills', 'curated') },
+                { path: path.join(path.dirname(ctx.repoRoot), 'agent-skills', 'skills') },
+            ],
+        }), ctx.dryRun);
         if (!ctx.dryRun) {
             syncMcpSchemaFiles();
             refreshAntigravityLsMcp().catch(() => { });
