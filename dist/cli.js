@@ -14,6 +14,8 @@ import { handleTokenCounter } from './tools/tokenCounter.js';
 import { handleAccountSwitcher } from './tools/accountSwitcher.js';
 import { handleModelCompressor } from './tools/modelCompressor.js';
 import { handleSkillActivate } from './tools/skillActivate.js';
+import { handleMemoryStore, handleMemoryRecall } from './tools/memory.js';
+import { globalMemoryManager } from './memory/index.js';
 import { globalJitSkillRouter } from './skills/router.js';
 import { globalWorkspaceScanner } from './skills/scanner.js';
 import { globalAccountManager } from './accounts/index.js';
@@ -1009,6 +1011,50 @@ else if (command === 'extension') {
         console.log('  node dist/cli.js extension status');
     }
 }
+else if (command === 'memory') {
+    const sub = args[1] || 'list';
+    if (sub === 'store') {
+        const content = args[2];
+        if (!content) {
+            console.error('Usage: node dist/cli.js memory store <content> [--tags tag1,tag2] [--category <cat>]');
+            process.exit(1);
+        }
+        const tagsIdx = args.indexOf('--tags');
+        const tags = tagsIdx !== -1 ? args[tagsIdx + 1].split(',') : [];
+        const catIdx = args.indexOf('--category');
+        const category = (catIdx !== -1 ? args[catIdx + 1] : 'general');
+        console.log(handleMemoryStore({ content, tags, category, project_path: process.cwd() }));
+    }
+    else if (sub === 'recall') {
+        const query = args.slice(2).join(' ');
+        if (!query) {
+            console.error('Usage: node dist/cli.js memory recall <query>');
+            process.exit(1);
+        }
+        console.log(handleMemoryRecall({ query, project_path: process.cwd() }));
+    }
+    else if (sub === 'list') {
+        const memories = globalMemoryManager.list({ projectPath: process.cwd() });
+        console.log(`🧠 Stored Memories for Current Project (${memories.length}):\n`);
+        if (memories.length === 0) {
+            console.log('  No memories stored yet. Use `node dist/cli.js memory store "..."` to record context.');
+        }
+        else {
+            for (let i = 0; i < memories.length; i++) {
+                const m = memories[i];
+                console.log(`  ${i + 1}. [${m.category.toUpperCase()}] ${m.content}`);
+                console.log(`     Tags: ${m.tags.join(', ') || 'none'} | Date: ${m.createdAt} | ID: ${m.id}`);
+                console.log('');
+            }
+        }
+    }
+    else {
+        console.log('Usage:');
+        console.log('  node dist/cli.js memory store <content> [--tags t1,t2] [--category <cat>]');
+        console.log('  node dist/cli.js memory recall <query>');
+        console.log('  node dist/cli.js memory list');
+    }
+}
 else {
     console.log('Usage:');
     console.log('  node dist/cli.js install [--all|--claude|--cursor|--codex|--antigravity|--windsurf|--cline|--zed] [--workspace <path>] [--dry-run]');
@@ -1018,6 +1064,7 @@ else {
     console.log('  node dist/cli.js tokens [file] [--model <name>] [--text <str>] [--no-compare]');
     console.log('  node dist/cli.js accounts [list|status|switch|add|rotate|auto-switch]');
     console.log('  node dist/cli.js compress [list-algos|list-models|estimate|recommend|generate]');
+    console.log('  node dist/cli.js memory [store|recall|list]');
     console.log('  node dist/cli.js map [--workspace <path>]');
     console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');

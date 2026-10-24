@@ -10,10 +10,10 @@
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License: Apache 2.0" /></a>
-  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-124%2F124%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
-  <a href="#-active-skills-catalog-78-active--3500-library"><img src="https://img.shields.io/badge/Skills-78%20Active%20%2F%203%2C500%2B%20Catalog-blueviolet.svg" alt="78 Active Skills" /></a>
+  <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-144%2F144%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
+  <a href="#-active-skills-catalog-269-active--3790-library"><img src="https://img.shields.io/badge/Skills-269%20Active%20%2F%203%2C790%2B%20Catalog-blueviolet.svg" alt="269 Active Skills" /></a>
   <a href="#zero-telemetry"><img src="https://img.shields.io/badge/Telemetry-Zero%20%2F%20100%25%20Local-success.svg" alt="Zero Telemetry" /></a>
-  <img src="https://img.shields.io/badge/Version-v0.2.13-informational.svg" alt="Version 0.2.13" />
+  <img src="https://img.shields.io/badge/Version-v0.2.18-informational.svg" alt="Version 0.2.18" />
   <a href="#mention-agent-guard"><img src="https://img.shields.io/badge/Mention-%40agent--guard-orange.svg" alt="Mention @agent-guard" /></a>
   <a href="#auto-update"><img src="https://img.shields.io/badge/Auto--Update-Enabled-blue.svg" alt="Auto-Update Enabled" /></a>
   <a href="#prerequisites"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-green.svg" alt="Node >= 20" /></a>
@@ -542,10 +542,12 @@ To solve the **Context Bloat Paradox** (where loading 3,600+ skills into system 
 
 ### 🛠️ CLI Commands:
 ```bash
-# Semantic JIT route query across 3,600+ skills (sub-10ms)
+# Semantic JIT route query across 3,790+ skills (sub-10ms)
+node dist/cli.js skills route "biopython fasta sequence"
 node dist/cli.js skills route "format docx word document letter"
 
 # Activate and auto-link skill into current workspace
+node dist/cli.js skills activate "remember"
 node dist/cli.js skills activate "clean architecture"
 
 # Auto-scan workspace tech stack and recommend skills
@@ -557,20 +559,40 @@ node dist/cli.js skills scan --save
 
 ---
 
-## 📚 Searchable Skill Catalogs (3,500+ Skills Available On-Demand)
+## 🧠 Cognitive Long-Term Memory Engine (Cross-Session Recall)
 
-To prevent saturating the model's prompt context with tens of thousands of tokens, additional large collections are preserved in local indexed catalogs:
+Your coding agent remembers architectural decisions, conventions, and bug fixes across restarts and conversations without manual re-explaining:
 
-* **832 Composio Application Skills** (`awesome-claude-skills`): Stored in `agent-skills/skills/composio-skills/` with ready-to-use recipes for 800+ SaaS platforms (Salesforce, Stripe, Jira, Linear, HubSpot, Airtable, etc.).
-* **2,749 Awesome Community Skills** (`agentic-awesome-skills`): Cataloged in `templates/skills/skills_index.json`.
+```bash
+# Save an architectural rule or decision to project memory
+node dist/cli.js memory store "Use in-memory BM25 index for sub-10ms skill routing" --tags skills,routing,perf --category architecture
+
+# Recall past decisions, learnings, and context
+node dist/cli.js memory recall "BM25 skill routing"
+
+# List all stored memories for the project
+node dist/cli.js memory list
+```
+
+---
+
+## 📚 Integrated 3,790+ Skills Ecosystem
+
+To prevent saturating the model's prompt context with tens of thousands of tokens, Agent Guard dynamically indexes 5 major collections under unified local offline management:
+
+* **🔬 177 Scientific Research Skills** (`templates/skills/scientific/`): Biopython, Astropy, Cirq (quantum), DeepChem, DiffDock, CellProfiler, Cantera, PyTorch scientific workflows.
+* **🧠 18 Cognitive Memory Skills** (`templates/skills/memory/`): Remember, Recall, Recap, Forget, Handoff, Lesson, Session History, and Memory Discipline.
+* **⚡ 75 Core Curated Skills** (`templates/skills/curated/`): Clean Architecture, TDD, Agent Skills Patterns, Agent GUI Dashboard, Security Audit, DevOps, Token Optimizer.
+* **🌐 833 Composio SaaS Integrations** (`agent-skills/skills/composio-skills/`): Turnkey API recipes for 800+ cloud platforms (Stripe, GitHub, Jira, Salesforce, HubSpot).
+* **🌟 2,689 Awesome Community Skills** (`templates/skills/skills_index.json`): Broad collection across 114 technical disciplines.
 
 Search and install any skill from the catalog on-demand:
 ```bash
-# Search the 3,500+ skill catalog
-node dist/cli.js skills search "stripe"
+# Search the 3,790+ skill catalog
+node dist/cli.js skills search "biology"
 
 # Install a specific skill into your active IDE skills directory
-node dist/cli.js skills install "stripe-payments"
+node dist/cli.js skills install "biopython"
 ```
 
 ---

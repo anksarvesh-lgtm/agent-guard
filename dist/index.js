@@ -12,11 +12,12 @@ import { handleTokenCounter } from './tools/tokenCounter.js';
 import { handleAccountSwitcher } from './tools/accountSwitcher.js';
 import { handleModelCompressor } from './tools/modelCompressor.js';
 import { handleSkillActivate } from './tools/skillActivate.js';
+import { handleMemoryStore, handleMemoryRecall } from './tools/memory.js';
 import { AGENT_GUARD_TOOLS, syncMcpSchemaFiles } from './tools/definitions.js';
 import { maybeBackgroundUpdate } from './update.js';
 const server = new Server({
     name: 'agent-guard',
-    version: '0.2.17',
+    version: '0.2.18',
 }, {
     capabilities: {
         tools: {},
@@ -63,6 +64,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 break;
             case 'skill_activate':
                 resultText = handleSkillActivate(args);
+                break;
+            case 'memory_store':
+                resultText = handleMemoryStore(args);
+                break;
+            case 'memory_recall':
+                resultText = handleMemoryRecall(args);
                 break;
             default:
                 resultText = `UNKNOWN_TOOL: Tool "${name}" is not supported by agent-guard.`;

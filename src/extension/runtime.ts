@@ -59,6 +59,8 @@ const AGENT_GUARD_TOOLS = [
   'account_switcher',
   'model_compressor',
   'skill_activate',
+  'memory_store',
+  'memory_recall',
 ];
 
 const AGENT_GUARD_MCP_TOOLS_INFO = [
@@ -72,6 +74,8 @@ const AGENT_GUARD_MCP_TOOLS_INFO = [
   { name: 'account_switcher', badge: '1% TRIPWIRE', desc: 'Non-disruptively rotate Antigravity accounts when quota reaches <= 1.0%.', params: 'action, account_id, name, threshold_percent, project_path' },
   { name: 'model_compressor', badge: 'SOTA COMPRESS', desc: 'Quantize models (AWQ, GPTQ, SmoothQuant) and prune tokens (FastV, AgentCompress).', params: 'action, param_billions, weight_bits, backend, project_path' },
   { name: 'skill_activate', badge: '3600+ JIT ROUTE', desc: 'Dynamically discover, rank, and load any skill from 3,600+ library just-in-time.', params: 'query, auto_install, limit, project_path' },
+  { name: 'memory_store', badge: 'MEMORY STORE', desc: 'Persistently store architectural decisions, conventions, and learnings across sessions.', params: 'content, tags[], category, project_path' },
+  { name: 'memory_recall', badge: 'MEMORY RECALL', desc: 'Search and retrieve past session memories and solutions via semantic keyword matching.', params: 'query, limit, tag, category, project_path' },
 ];
 
 const CURATED_SKILLS = [

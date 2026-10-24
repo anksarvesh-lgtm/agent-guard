@@ -33,33 +33,34 @@ export class JitSkillRouter {
         if (this.initialized)
             return;
         const seenIds = new Set();
-        // 1. Tier 1: Curated Skills in templates/skills/curated
-        const curatedDir = path.join(this.repoRoot, 'templates', 'skills', 'curated');
-        if (fs.existsSync(curatedDir)) {
+        const loadSkillDirectory = (dirPath, tier, defaultCategory, defaultTags) => {
+            if (!fs.existsSync(dirPath))
+                return;
             try {
-                const entries = fs.readdirSync(curatedDir, { withFileTypes: true });
+                const entries = fs.readdirSync(dirPath, { withFileTypes: true });
                 for (const entry of entries) {
-                    if (entry.isDirectory()) {
-                        const skillPath = path.join(curatedDir, entry.name);
+                    if (entry.isDirectory() && !seenIds.has(entry.name) && entry.name !== '_shared') {
+                        const skillPath = path.join(dirPath, entry.name);
                         const skillMd = path.join(skillPath, 'SKILL.md');
-                        let desc = `Curated production skill: ${entry.name}`;
+                        let desc = `${defaultCategory} skill: ${entry.name}`;
                         if (fs.existsSync(skillMd)) {
                             const raw = fs.readFileSync(skillMd, 'utf-8');
                             const fm = raw.match(/^---\n([\s\S]*?)\n---/);
                             if (fm) {
                                 const lines = fm[1].split('\n');
                                 const line = lines.find((l) => l.startsWith('description:'));
-                                if (line)
-                                    desc = line.replace('description:', '').trim().replace(/^['" >-]+/, '').slice(0, 160);
+                                if (line) {
+                                    desc = line.replace('description:', '').trim().replace(/^['" >-]+/, '').slice(0, 200);
+                                }
                             }
                         }
                         this.skills.push({
                             id: entry.name,
                             name: entry.name,
-                            category: 'curated',
-                            tier: 'active',
+                            category: defaultCategory,
+                            tier,
                             description: desc,
-                            tags: ['curated', 'production', entry.name],
+                            tags: [...defaultTags, entry.name],
                             diskPath: skillPath,
                         });
                         seenIds.add(entry.name);
@@ -67,7 +68,29 @@ export class JitSkillRouter {
                 }
             }
             catch { }
-        }
+        };
+        // 1. Tier 1: Curated Skills in templates/skills/curated
+        const curatedDir = path.join(this.repoRoot, 'templates', 'skills', 'curated');
+        loadSkillDirectory(curatedDir, 'active', 'curated', ['curated', 'production']);
+        // 2. Tier 1 Scientific Skills in templates/skills/scientific
+        const scientificDir = path.join(this.repoRoot, 'templates', 'skills', 'scientific');
+        loadSkillDirectory(scientificDir, 'active', 'scientific', [
+            'scientific',
+            'research',
+            'bioinformatics',
+            'chemistry',
+            'astronomy',
+            'physics',
+        ]);
+        // 3. Tier 1 Cognitive Memory Skills in templates/skills/memory
+        const memoryDir = path.join(this.repoRoot, 'templates', 'skills', 'memory');
+        loadSkillDirectory(memoryDir, 'active', 'memory', [
+            'memory',
+            'agentmemory',
+            'long-term-memory',
+            'persistence',
+            'recall',
+        ]);
         // 2. Tier 2: Composio SaaS Skills in agent-skills/skills/composio-skills
         const composioDir = path.join(path.dirname(this.repoRoot), 'agent-skills', 'skills', 'composio-skills');
         if (fs.existsSync(composioDir)) {
@@ -159,6 +182,8 @@ export class JitSkillRouter {
         return {
             totalSkills: this.skills.length,
             activeCount: this.skills.filter((s) => s.tier === 'active').length,
+            scientificCount: this.skills.filter((s) => s.category === 'scientific').length,
+            memoryCount: this.skills.filter((s) => s.category === 'memory').length,
             composioCount: this.skills.filter((s) => s.tier === 'composio').length,
             communityCount: this.skills.filter((s) => s.tier === 'community').length,
             uniqueTokens: this.invertedIndex.size,

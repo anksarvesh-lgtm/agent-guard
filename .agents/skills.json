@@ -9,5 +9,14 @@
     {
       "path": "/Users/sarvesh/Downloads/mcp/agent-skills/skills"
     }
+  ],
+  "skills": [
+    {
+      "id": "remember",
+      "name": "remember",
+      "tier": "active",
+      "category": "memory",
+      "activated_at": "2026-10-24T15:45:55.510Z"
+    }
   ]
 }

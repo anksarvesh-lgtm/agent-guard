@@ -91,6 +91,21 @@ export const SkillActivateSchema = z.object({
   limit: z.number().int().positive().max(10).optional().default(3),
 });
 
+export const MemoryStoreSchema = z.object({
+  content: z.string().min(1, 'content is required'),
+  tags: z.array(z.string()).optional().default([]),
+  category: z.enum(['decision', 'architecture', 'learning', 'convention', 'general']).optional().default('general'),
+  project_path: z.string().optional(),
+});
+
+export const MemoryRecallSchema = z.object({
+  query: z.string().min(1, 'query is required'),
+  limit: z.number().int().positive().max(20).optional().default(5),
+  tag: z.string().optional(),
+  category: z.string().optional(),
+  project_path: z.string().optional(),
+});
+
 /**
  * Formats Zod errors into a clean, human-readable BAD_INPUT error string
  */

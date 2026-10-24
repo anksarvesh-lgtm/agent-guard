@@ -35,6 +35,8 @@ export declare class JitSkillRouter {
     getStats(): {
         totalSkills: number;
         activeCount: number;
+        scientificCount: number;
+        memoryCount: number;
         composioCount: number;
         communityCount: number;
         uniqueTokens: number;

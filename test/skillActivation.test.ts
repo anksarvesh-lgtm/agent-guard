@@ -25,11 +25,27 @@ describe('Autonomous Dynamic Skill Activation Engine', () => {
   describe('JitSkillRouter', () => {
     it('indexes all 3,600+ skills across Tier 1, Tier 2, and Tier 3 into memory', () => {
       const stats = globalJitSkillRouter.getStats();
-      expect(stats.totalSkills).toBeGreaterThanOrEqual(3600);
-      expect(stats.activeCount).toBeGreaterThanOrEqual(70);
+      expect(stats.totalSkills).toBeGreaterThanOrEqual(3700);
+      expect(stats.activeCount).toBeGreaterThanOrEqual(200);
+      expect(stats.scientificCount).toBeGreaterThanOrEqual(170);
+      expect(stats.memoryCount).toBeGreaterThanOrEqual(15);
       expect(stats.composioCount).toBeGreaterThanOrEqual(800);
-      expect(stats.communityCount).toBeGreaterThanOrEqual(2700);
-      expect(stats.uniqueTokens).toBeGreaterThan(5000);
+      expect(stats.communityCount).toBeGreaterThanOrEqual(2600);
+      expect(stats.uniqueTokens).toBeGreaterThan(10000);
+    });
+
+    it('routes scientific queries to specialized scientific skills', () => {
+      const results = globalJitSkillRouter.route('biopython fasta sequence analysis', { limit: 1 });
+      expect(results.length).toBe(1);
+      expect(results[0].id).toBe('biopython');
+      expect(results[0].category).toBe('scientific');
+    });
+
+    it('routes cross-session memory queries to cognitive memory skills', () => {
+      const results = globalJitSkillRouter.route('remember past decisions across sessions', { limit: 1 });
+      expect(results.length).toBe(1);
+      expect(results[0].id).toBe('remember');
+      expect(results[0].category).toBe('memory');
     });
 
     it('routes exact slug matches with 100% confidence in sub-25ms', () => {

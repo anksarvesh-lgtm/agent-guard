@@ -15,6 +15,8 @@ export const AGENT_GUARD_AUTO_APPROVE_TOOLS = [
     'account_switcher',
     'model_compressor',
     'skill_activate',
+    'memory_store',
+    'memory_recall',
 ];
 export function getHomeDir() {
     return process.env.AGENT_GUARD_HOME || os.homedir();

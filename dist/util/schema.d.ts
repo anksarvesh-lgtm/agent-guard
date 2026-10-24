@@ -185,8 +185,43 @@ export declare const SkillActivateSchema: z.ZodObject<{
     project_path?: string | undefined;
 }, {
     query: string;
-    project_path?: string | undefined;
     auto_install?: boolean | undefined;
+    project_path?: string | undefined;
+    limit?: number | undefined;
+}>;
+export declare const MemoryStoreSchema: z.ZodObject<{
+    content: z.ZodString;
+    tags: z.ZodDefault<z.ZodOptional<z.ZodArray<z.ZodString, "many">>>;
+    category: z.ZodDefault<z.ZodOptional<z.ZodEnum<["decision", "architecture", "learning", "convention", "general"]>>>;
+    project_path: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    content: string;
+    category: "decision" | "architecture" | "learning" | "convention" | "general";
+    tags: string[];
+    project_path?: string | undefined;
+}, {
+    content: string;
+    category?: "decision" | "architecture" | "learning" | "convention" | "general" | undefined;
+    project_path?: string | undefined;
+    tags?: string[] | undefined;
+}>;
+export declare const MemoryRecallSchema: z.ZodObject<{
+    query: z.ZodString;
+    limit: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    tag: z.ZodOptional<z.ZodString>;
+    category: z.ZodOptional<z.ZodString>;
+    project_path: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    query: string;
+    limit: number;
+    tag?: string | undefined;
+    category?: string | undefined;
+    project_path?: string | undefined;
+}, {
+    query: string;
+    tag?: string | undefined;
+    category?: string | undefined;
+    project_path?: string | undefined;
     limit?: number | undefined;
 }>;
 /**

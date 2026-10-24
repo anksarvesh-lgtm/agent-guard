@@ -16,6 +16,8 @@ Agent Guard provides deterministic, zero-telemetry development supervision, OS k
 - \`account_switcher\`: Manage Antigravity account pool and non-disruptively rotate accounts at <= 1% quota.
 - \`model_compressor\`: Recommend, quantize, and configure LLM/VLM compression pipelines (AWQ, GPTQ, SmoothQuant, FastV).
 - \`skill_activate\`: Dynamically activate and inject any of the 3,600+ procedural skills into context and workspace on-demand.
+- \`memory_store\`: Persistently store architectural decisions, learnings, and conventions across sessions.
+- \`memory_recall\`: Recall past decisions, lessons learned, and solutions across sessions via semantic search.
 
 Always pass \`project_path\` to target workspace operations.
 `;
@@ -363,6 +365,64 @@ export const AGENT_GUARD_TOOLS = [
                 limit: {
                     type: 'number',
                     description: 'Maximum candidate matches to inspect (default: 3).',
+                },
+            },
+            required: ['query'],
+        },
+    },
+    {
+        name: 'memory_store',
+        description: 'Save an insight, architectural decision, or learning to persistent project memory. Use when the user says "remember this", "save this", "note that", or to preserve cross-session knowledge.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                content: {
+                    type: 'string',
+                    description: 'The knowledge, rule, or decision to remember.',
+                },
+                tags: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    description: 'Searchable topic tags (e.g. ["auth", "database", "api"]).',
+                },
+                category: {
+                    type: 'string',
+                    enum: ['decision', 'architecture', 'learning', 'convention', 'general'],
+                    description: 'Category of memory entry (default: general).',
+                },
+                project_path: {
+                    type: 'string',
+                    description: 'Workspace root folder (defaults to current project).',
+                },
+            },
+            required: ['content'],
+        },
+    },
+    {
+        name: 'memory_recall',
+        description: 'Search and retrieve stored project memories, decisions, and patterns from previous sessions. Call when starting work or researching past context.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                query: {
+                    type: 'string',
+                    description: 'Keywords, topic, or concept to recall.',
+                },
+                limit: {
+                    type: 'number',
+                    description: 'Maximum memories to retrieve (default: 5).',
+                },
+                tag: {
+                    type: 'string',
+                    description: 'Optional filter by specific tag.',
+                },
+                category: {
+                    type: 'string',
+                    description: 'Optional filter by category.',
+                },
+                project_path: {
+                    type: 'string',
+                    description: 'Workspace root folder (defaults to current project).',
                 },
             },
             required: ['query'],
