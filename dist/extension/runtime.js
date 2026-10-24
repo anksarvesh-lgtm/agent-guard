@@ -2,10 +2,12 @@
  * Generates the pure-JS extension code that runs inside VS Code / Antigravity IDE / Cursor / Windsurf.
  * Uses zero external npm dependencies, running strictly on Node.js and the vscode API.
  * Provides complete control over every Agent Guard feature:
+ * - Real-time Language Server RPC Quota integration (Gemini 5h/weekly, Claude/GPT 5h/weekly, prompt credits)
+ * - Multi-layer account switching (jetski token, state.vscdb, accounts pool, IDE sync)
  * - Sleep Prevention lease management
  * - Auto-Accept Turbo & tool grant manager
  * - Token Counter & Model budgeting
- * - Account Switcher & 1% Tripwire pool manager
+ * - 1% Tripwire pool manager & active snapshotting
  * - Task Supervisor & Ledger controls
  * - Skills catalog browser
  * - Live Doctor diagnostics & updates
@@ -27,6 +29,8 @@ let caffeinateProc = null;
 let activeModel = 'gemini-2.5-flash';
 let sessionTokens = { input: 0, output: 0, total: 0 };
 let leaseTimeout = null;
+let cachedLiveQuota = null;
+let lastQuotaCheck = 0;
 
 const SUPPORTED_MODELS = [
   { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', contextWindow: 1048576, charsPerToken: 4.0 },
@@ -81,10 +85,172 @@ function getMcpConfigPath() {
   return path.join(getHomeDir(), '.gemini', 'config', 'mcp_config.json');
 }
 
-function getGeminiSettingsPath() {
-  const p1 = path.join(getHomeDir(), '.gemini', 'antigravity', 'app_storage.json');
-  if (fs.existsSync(p1)) return p1;
-  return path.join(getHomeDir(), '.gemini', 'config.json');
+function getStateDbPath() {
+  const home = getHomeDir();
+  const candidates = [];
+  if (process.platform === 'darwin') {
+    candidates.push(
+      path.join(home, 'Library', 'Application Support', 'Antigravity IDE', 'User', 'globalStorage', 'state.vscdb'),
+      path.join(home, 'Library', 'Application Support', 'Antigravity', 'User', 'globalStorage', 'state.vscdb')
+    );
+  } else if (process.platform === 'win32') {
+    const appData = process.env.APPDATA || path.join(home, 'AppData', 'Roaming');
+    candidates.push(
+      path.join(appData, 'Antigravity IDE', 'User', 'globalStorage', 'state.vscdb'),
+      path.join(appData, 'Antigravity', 'User', 'globalStorage', 'state.vscdb')
+    );
+  } else {
+    candidates.push(
+      path.join(home, '.config', 'Antigravity IDE', 'User', 'globalStorage', 'state.vscdb'),
+      path.join(home, '.config', 'Antigravity', 'User', 'globalStorage', 'state.vscdb')
+    );
+  }
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0] || null;
+}
+
+function readStateDbCredentials() {
+  const dbPath = getStateDbPath();
+  if (!dbPath || !fs.existsSync(dbPath)) return {};
+  try {
+    const py = 'import sqlite3, json, sys; conn = sqlite3.connect(sys.argv[1]); cur = conn.cursor(); cur.execute("SELECT key, value FROM ItemTable WHERE key IN (\x27antigravityUnifiedStateSync.oauthToken\x27, \x27antigravityUnifiedStateSync.userStatus\x27, \x27antigravity.profileUrl\x27)"); rows = dict(cur.fetchall()); conn.close(); print(json.dumps({\x27oauthToken\x27: rows.get(\x27antigravityUnifiedStateSync.oauthToken\x27), \x27userStatus\x27: rows.get(\x27antigravityUnifiedStateSync.userStatus\x27), \x27profileUrl\x27: rows.get(\x27antigravity.profileUrl\x27)}))';
+    const out = execSync(\`python3 -c "\${py}" "\${dbPath}"\`, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return JSON.parse(out.trim());
+  } catch (e) {
+    return {};
+  }
+}
+
+function writeStateDbCredentials(creds) {
+  const dbPath = getStateDbPath();
+  if (!dbPath || !fs.existsSync(dbPath)) return false;
+  try {
+    const py = 'import sqlite3, json, sys; conn = sqlite3.connect(sys.argv[1]); cur = conn.cursor(); creds = json.loads(sys.argv[2]);\\nif creds.get(\x27oauthToken\x27): cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (\x27antigravityUnifiedStateSync.oauthToken\x27, ?)", (creds[\x27oauthToken\x27],));\\nif creds.get(\x27userStatus\x27): cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (\x27antigravityUnifiedStateSync.userStatus\x27, ?)", (creds[\x27userStatus\x27],));\\nif creds.get(\x27profileUrl\x27): cur.execute("INSERT OR REPLACE INTO ItemTable (key, value) VALUES (\x27antigravity.profileUrl\x27, ?)", (creds[\x27profileUrl\x27],));\\nconn.commit(); conn.close(); print("OK")';
+    const payload = JSON.stringify(creds);
+    const out = execSync(\`python3 -c "\${py}" "\${dbPath}" '\${payload}'\`, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return out.trim() === 'OK';
+  } catch (e) {
+    return false;
+  }
+}
+
+function formatCountdown(dateStr) {
+  if (!dateStr) return '';
+  const target = new Date(dateStr).getTime();
+  if (isNaN(target)) return '';
+  const diffMs = target - Date.now();
+  if (diffMs <= 0) return 'resetting';
+  const totalMins = Math.ceil(diffMs / (60 * 1000));
+  if (totalMins < 60) return totalMins + 'm';
+  const hours = Math.floor(totalMins / 60);
+  const mins = totalMins % 60;
+  return mins > 0 ? hours + 'h ' + mins + 'm' : hours + 'h';
+}
+
+function discoverLanguageServer() {
+  try {
+    const psOut = execSync('ps -axo pid,command | grep -E "language_server.*--csrf_token" | grep -v grep', {
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore']
+    });
+    const lines = psOut.trim().split('\\n').filter(Boolean);
+    for (const line of lines) {
+      const match = line.trim().match(/^(\\d+)\\s+(.+)$/);
+      if (!match) continue;
+      const pid = parseInt(match[1], 10);
+      const cmd = match[2];
+      const csrfMatch = cmd.match(/--csrf_token\\s+([a-f0-9-]+)/i);
+      if (!csrfMatch) continue;
+      const csrfToken = csrfMatch[1];
+      const portMatch = cmd.match(/--https_server_port\\s+(\\d+)/i);
+      let port = portMatch ? parseInt(portMatch[1], 10) : 0;
+      if (!port || port === 0) {
+        try {
+          const lsofOut = execSync(\`lsof -Pan -p \${pid} -iTCP -sTCP:LISTEN\`, {
+            encoding: 'utf-8',
+            stdio: ['ignore', 'pipe', 'ignore']
+          });
+          const m = lsofOut.match(/127\\.0\\.0\\.1:(\\d+)/);
+          if (m) port = parseInt(m[1], 10);
+        } catch (e) {}
+      }
+      if (port > 0) return { pid, port, csrfToken };
+    }
+  } catch (e) {}
+  return null;
+}
+
+function sendLanguageServerRpc(target, method, payload) {
+  try {
+    const bodyStr = JSON.stringify(payload || {});
+    const cmd = \`curl -s -k --max-time 2 -X POST https://127.0.0.1:\${target.port}/exa.language_server_pb.LanguageServerService/\${method} -H "Content-Type: application/json" -H "Accept: application/json" -H "Connect-Protocol-Version: 1" -H "x-codeium-csrf-token: \${target.csrfToken}" -d '\${bodyStr}'\`;
+    const out = execSync(cmd, { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return JSON.parse(out);
+  } catch (e) {
+    return null;
+  }
+}
+
+function queryLiveQuota(force) {
+  const now = Date.now();
+  if (!force && cachedLiveQuota && now - lastQuotaCheck < 2500) {
+    return cachedLiveQuota;
+  }
+  const target = discoverLanguageServer();
+  if (!target) return null;
+  const quotaRes = sendLanguageServerRpc(target, 'RetrieveUserQuotaSummary', {});
+  const userRes = sendLanguageServerRpc(target, 'GetUserStatus', {});
+  if (!quotaRes && !userRes) return null;
+
+  let lowest = 1.0;
+  let gemini5h, geminiWeekly, gemini5hReset, geminiWeeklyReset;
+  let claude5h, claudeWeekly, claude5hReset, claudeWeeklyReset;
+
+  if (quotaRes && quotaRes.response && Array.isArray(quotaRes.response.groups)) {
+    for (const g of quotaRes.response.groups) {
+      const isG = String(g.displayName || '').toLowerCase().includes('gemini');
+      const isC = String(g.displayName || '').toLowerCase().includes('claude');
+      if (Array.isArray(g.buckets)) {
+        for (const b of g.buckets) {
+          const frac = typeof b.remainingFraction === 'number' ? b.remainingFraction : 1.0;
+          const pct = Math.max(0, Math.min(100, Math.round(frac * 100)));
+          if (!b.disabled && frac < lowest) lowest = frac;
+          const win = String(b.window || '').toLowerCase();
+          if (isG) {
+            if (win === '5h') { gemini5h = pct; gemini5hReset = formatCountdown(b.resetTime); }
+            else if (win === 'weekly') { geminiWeekly = pct; geminiWeeklyReset = formatCountdown(b.resetTime); }
+          } else if (isC) {
+            if (win === '5h') { claude5h = pct; claude5hReset = formatCountdown(b.resetTime); }
+            else if (win === 'weekly') { claudeWeekly = pct; claudeWeeklyReset = formatCountdown(b.resetTime); }
+          }
+        }
+      }
+    }
+  }
+
+  const u = userRes && userRes.userStatus;
+  const p = u && u.planStatus;
+
+  cachedLiveQuota = {
+    userEmail: u && u.email,
+    userName: u && u.name,
+    planName: (p && p.planInfo && (p.planInfo.planName || p.planInfo.teamsTier)) || 'Pro',
+    lowestRemainingPercent: Math.max(0, Math.min(100, Math.round(lowest * 100))),
+    gemini5h,
+    geminiWeekly,
+    gemini5hReset,
+    geminiWeeklyReset,
+    claude5h,
+    claudeWeekly,
+    claude5hReset,
+    claudeWeeklyReset,
+    availablePromptCredits: p && p.availablePromptCredits,
+    availableFlowCredits: p && p.availableFlowCredits
+  };
+  lastQuotaCheck = now;
+  return cachedLiveQuota;
 }
 
 function readAccountsData() {
@@ -103,7 +269,7 @@ function isSleepPreventionActive() {
     try {
       const out = execSync('pgrep -x caffeinate', { encoding: 'utf-8' }).trim();
       return Boolean(out);
-    } catch {
+    } catch (e) {
       return false;
     }
   }
@@ -156,6 +322,24 @@ function switchAccount(targetId, reason) {
     if (!target) return { success: false, message: 'Target account not found' };
 
     const liveTokenPath = getLiveJetskiTokenPath();
+    const prevId = data.activeAccountId;
+    const tokensDir = getTokensDirPath();
+
+    // 1. Backup current account credentials
+    if (prevId) {
+      const prevAccount = data.accounts.find(a => a.id === prevId);
+      if (prevAccount && prevAccount.tokenFilePath && fs.existsSync(liveTokenPath)) {
+        try { fs.copyFileSync(liveTokenPath, prevAccount.tokenFilePath); } catch (e) {}
+      }
+      const currentCreds = readStateDbCredentials();
+      if (currentCreds.oauthToken || currentCreds.userStatus) {
+        try {
+          fs.writeFileSync(path.join(tokensDir, prevId + '.state.json'), JSON.stringify(currentCreds, null, 2), 'utf-8');
+        } catch (e) {}
+      }
+    }
+
+    // 2. Layer 1: Copy target jetski token
     if (target.tokenFilePath && fs.existsSync(target.tokenFilePath)) {
       const tmp = liveTokenPath + '.tmp.' + Date.now();
       fs.copyFileSync(target.tokenFilePath, tmp);
@@ -163,9 +347,20 @@ function switchAccount(targetId, reason) {
         try { fs.chmodSync(tmp, 0o600); } catch (e) {}
       }
       fs.renameSync(tmp, liveTokenPath);
+      const now = new Date();
+      try { fs.utimesSync(liveTokenPath, now, now); } catch (e) {}
     }
 
-    const prevId = data.activeAccountId;
+    // 3. Layer 2: Synchronize state.vscdb
+    const targetStateFile = path.join(tokensDir, target.id + '.state.json');
+    if (fs.existsSync(targetStateFile)) {
+      try {
+        const creds = JSON.parse(fs.readFileSync(targetStateFile, 'utf-8'));
+        writeStateDbCredentials(creds);
+      } catch (e) {}
+    }
+
+    // 4. Update accounts metadata
     for (const a of data.accounts) {
       if (a.id === targetId) {
         a.isActive = true;
@@ -178,7 +373,22 @@ function switchAccount(targetId, reason) {
       }
     }
     data.activeAccountId = targetId;
+
+    // 5. Query live quota
+    const live = queryLiveQuota(true);
+    if (live) {
+      target.remainingPercent = live.lowestRemainingPercent;
+      if (live.userName) {
+        target.name = live.userName + ' (' + (live.userEmail || target.id) + ')';
+      }
+    }
+
     fs.writeFileSync(accPath, JSON.stringify(data, null, 2), 'utf-8');
+
+    // Notify other extensions if available
+    try {
+      vscode.commands.executeCommand('boygr.antigravityAccountSwitcher.refreshAccountsView').then(null, () => {});
+    } catch (e) {}
 
     updateStatusBar();
     refreshAllWebviews();
@@ -195,13 +405,85 @@ function switchAccount(targetId, reason) {
   }
 }
 
+function snapshotCurrentAccount(id, name) {
+  try {
+    const accPath = getAccountsFilePath();
+    const tokensDir = getTokensDirPath();
+    if (!fs.existsSync(tokensDir)) fs.mkdirSync(tokensDir, { recursive: true });
+
+    let data = readAccountsData() || {
+      version: 1,
+      autoRotateEnabled: true,
+      thresholdPercent: 1.0,
+      activeAccountId: id,
+      rotationStrategy: 'round_robin',
+      accounts: []
+    };
+
+    const cleanId = id.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+    const tokenFile = path.join(tokensDir, cleanId + '.token');
+    const stateFile = path.join(tokensDir, cleanId + '.state.json');
+
+    // Copy live token
+    const liveToken = getLiveJetskiTokenPath();
+    if (fs.existsSync(liveToken)) {
+      fs.copyFileSync(liveToken, tokenFile);
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(tokenFile, 0o600); } catch (e) {}
+      }
+    }
+
+    // Capture state.vscdb
+    const creds = readStateDbCredentials();
+    if (creds.oauthToken || creds.userStatus) {
+      fs.writeFileSync(stateFile, JSON.stringify(creds, null, 2), 'utf-8');
+    }
+
+    const live = queryLiveQuota(true);
+    const displayName = name || (live && live.userName ? live.userName + ' (' + (live.userEmail || cleanId) + ')' : cleanId);
+
+    const existingIdx = data.accounts.findIndex(a => a.id === cleanId);
+    const newAcc = {
+      id: cleanId,
+      name: displayName,
+      provider: 'antigravity',
+      type: 'oauth_token',
+      tokenFilePath: tokenFile,
+      isActive: true,
+      usedTokens: 0,
+      remainingPercent: live ? live.lowestRemainingPercent : 100,
+      status: 'active',
+      priority: data.accounts.length + 1,
+      createdAt: new Date().toISOString(),
+      lastUsedAt: new Date().toISOString()
+    };
+
+    for (const a of data.accounts) {
+      a.isActive = false;
+      if (a.status === 'active') a.status = 'standby';
+    }
+
+    if (existingIdx >= 0) {
+      data.accounts[existingIdx] = newAcc;
+    } else {
+      data.accounts.push(newAcc);
+    }
+    data.activeAccountId = cleanId;
+
+    fs.writeFileSync(accPath, JSON.stringify(data, null, 2), 'utf-8');
+    updateStatusBar();
+    refreshAllWebviews();
+    return { success: true, message: 'Snapshot saved for "' + displayName + '".' };
+  } catch (err) {
+    return { success: false, message: err.message };
+  }
+}
+
 function addAccountToPool(id, name, tokenContent, apiKey) {
   try {
     const accPath = getAccountsFilePath();
     const tokensDir = getTokensDirPath();
-    if (!fs.existsSync(tokensDir)) {
-      fs.mkdirSync(tokensDir, { recursive: true });
-    }
+    if (!fs.existsSync(tokensDir)) fs.mkdirSync(tokensDir, { recursive: true });
 
     let data = readAccountsData() || {
       version: 1,
@@ -265,14 +547,13 @@ function removeAccountFromPool(targetId) {
     if (removed.tokenFilePath && fs.existsSync(removed.tokenFilePath)) {
       try { fs.unlinkSync(removed.tokenFilePath); } catch (e) {}
     }
+    const stateFile = path.join(getTokensDirPath(), targetId + '.state.json');
+    if (fs.existsSync(stateFile)) {
+      try { fs.unlinkSync(stateFile); } catch (e) {}
+    }
 
     if (removed.isActive && data.accounts.length > 0) {
-      data.accounts[0].isActive = true;
-      data.accounts[0].status = 'active';
-      data.activeAccountId = data.accounts[0].id;
-      if (data.accounts[0].tokenFilePath && fs.existsSync(data.accounts[0].tokenFilePath)) {
-        fs.copyFileSync(data.accounts[0].tokenFilePath, getLiveJetskiTokenPath());
-      }
+      switchAccount(data.accounts[0].id, 'Previous active account removed');
     }
 
     fs.writeFileSync(accPath, JSON.stringify(data, null, 2), 'utf-8');
@@ -393,8 +674,10 @@ function updateStatusBar() {
 
   const data = readAccountsData();
   const activeAcc = data && data.accounts && data.accounts.find(a => a.isActive || a.id === data.activeAccountId);
-  const quota = activeAcc && typeof activeAcc.remainingPercent === 'number' ? activeAcc.remainingPercent : 100;
-  const accName = activeAcc ? (activeAcc.name || activeAcc.id) : 'Primary';
+  const live = queryLiveQuota();
+
+  const quota = live ? live.lowestRemainingPercent : (activeAcc && typeof activeAcc.remainingPercent === 'number' ? activeAcc.remainingPercent : 100);
+  const accName = (live && live.userName) ? live.userName : (activeAcc ? (activeAcc.name || activeAcc.id) : 'Primary');
   const awake = isSleepPreventionActive();
   const autoAccept = getAutoAcceptStatus();
 
@@ -407,7 +690,11 @@ function updateStatusBar() {
   const task = getActiveTaskInfo();
   const taskBadge = (task && task.status === 'active') ? \`[\${task.id}] \` : '';
 
-  statusBarItem.text = \`\$(shield) Agent Guard \${taskBadge}\${awakeBadge} \${turboBadge} \${quotaIcon} \${quota}% (\${accName})\`;
+  const gText = live && live.gemini5h !== undefined ? 'G:' + live.gemini5h + '%' : '';
+  const cText = live && live.claude5h !== undefined ? 'C:' + live.claude5h + '%' : '';
+  const breakdownBadge = [gText, cText].filter(Boolean).join(' ');
+
+  statusBarItem.text = \`\$(shield) Agent Guard \${taskBadge}\${awakeBadge} \${turboBadge} \${quotaIcon} \${quota}% \${breakdownBadge ? '(' + breakdownBadge + ')' : '(' + accName + ')'}\`;
 
   let taskMarkdown = '';
   if (task && task.status === 'active') {
@@ -416,12 +703,21 @@ function updateStatusBar() {
     taskMarkdown = \`• **Supervised Task**: \${task.id} (\${doneCount}/\${totalCount} steps) [ACTIVE]\\n\`;
   }
 
+  let liveBreakdownMd = '';
+  if (live) {
+    liveBreakdownMd =
+      \`• **User**: \${live.userName || 'User'} (\${live.userEmail || ''}) [Plan: \${live.planName}]\\n\` +
+      \`• **Gemini Models**: 5h: \${live.gemini5h}% (reset: \${live.gemini5hReset || 'active'}) | Weekly: \${live.geminiWeekly}%\\n\` +
+      \`• **Claude & GPT**: 5h: \${live.claude5h}% (reset: \${live.claude5hReset || 'active'}) | Weekly: \${live.claudeWeekly}%\\n\` +
+      (live.availablePromptCredits !== undefined ? \`• **Credits**: \${live.availablePromptCredits} prompt / \${live.availableFlowCredits || 0} flow\\n\` : '');
+  }
+
   const autoSwitchText = (data && data.autoRotateEnabled) ? 'ENABLED (at <= ' + (data.thresholdPercent || 1.0) + '%)' : 'DISABLED';
   statusBarItem.tooltip = new vscode.MarkdownString(
     \`### 🛡️ Agent Guard Active\\n\\n\` +
     taskMarkdown +
-    \`• **Active Account**: \${accName} (\${activeAcc ? activeAcc.id : 'primary'})\\n\` +
-    \`• **Quota Remaining**: \${quota}% \${quotaIcon}\\n\` +
+    liveBreakdownMd +
+    \`• **Active Profile**: \${accName} (\${activeAcc ? activeAcc.id : 'primary'})\\n\` +
     \`• **Sleep Prevention**: \${awake ? '🟢 ACTIVE (Caffeinate)' : '⚪ Inactive'}\\n\` +
     \`• **Auto-Accept**: \${autoAccept.enabled ? '⚡ Turbo (' + autoAccept.count + ' grants)' : 'Manual'}\\n\` +
     \`• **Auto-Switch at 1%**: \${autoSwitchText}\\n\\n\` +
@@ -451,13 +747,18 @@ function refreshAllWebviews() {
 function showQuickMenu() {
   const data = readAccountsData();
   const activeAcc = data && data.accounts && data.accounts.find(a => a.isActive || a.id === data.activeAccountId);
+  const live = queryLiveQuota();
   const awake = isSleepPreventionActive();
   const autoAccept = getAutoAcceptStatus();
 
+  const quotaStr = live ? live.lowestRemainingPercent + '%' : (activeAcc ? activeAcc.remainingPercent + '%' : '100%');
+  const userStr = live && live.userEmail ? live.userEmail : (activeAcc ? activeAcc.name : 'Primary');
+
   const items = [
     { label: '$(dashboard) Open Agent Guard Dashboard', description: 'Full control center & metrics', action: 'dashboard' },
-    { label: '$(sync) Switch Antigravity Account', description: 'Active: ' + (activeAcc ? activeAcc.name : 'Primary') + ' (' + (activeAcc ? activeAcc.remainingPercent : 100) + '%)', action: 'switch_account' },
-    { label: '$(add) Add Account to Pool', description: 'Register OAuth token or API key', action: 'add_account' },
+    { label: '$(sync) Switch Antigravity Account', description: 'Active: ' + userStr + ' (' + quotaStr + ')', action: 'switch_account' },
+    { label: '$(camera) Snapshot Active Account', description: 'Save current IDE session credentials into pool', action: 'snapshot_account' },
+    { label: '$(add) Add Account Manually', description: 'Register OAuth token or API key', action: 'add_account' },
     { label: awake ? '$(flame) Release Sleep Prevention' : '$(flame) Acquire Keep-Awake Lease', description: awake ? 'Sleep prevented (Click to release)' : 'Select duration (30m, 1h, 2h, 4h)', action: 'awake_lease' },
     { label: '$(zap) Toggle Auto-Accept Turbo', description: autoAccept.enabled ? 'Turbo active (' + autoAccept.count + ' tools approved)' : 'Configure auto-approval', action: 'auto_accept' },
     { label: '$(symbol-number) Count Tokens in Active File', description: 'Model: ' + activeModel, action: 'count_tokens' },
@@ -472,6 +773,7 @@ function showQuickMenu() {
     if (!sel) return;
     if (sel.action === 'dashboard') openDashboard();
     else if (sel.action === 'switch_account') showAccountPicker();
+    else if (sel.action === 'snapshot_account') promptSnapshotAccount();
     else if (sel.action === 'add_account') promptAddAccount();
     else if (sel.action === 'awake_lease') promptAwakeDuration();
     else if (sel.action === 'auto_accept') toggleKeepAwake();
@@ -544,6 +846,24 @@ function showAccountPicker() {
   });
 }
 
+function promptSnapshotAccount() {
+  const live = queryLiveQuota();
+  const defaultId = live && live.userEmail ? live.userEmail.split('@')[0] : 'account-' + Date.now().toString().slice(-4);
+  const defaultName = live && live.userName ? live.userName + ' (' + (live.userEmail || defaultId) + ')' : defaultId;
+
+  vscode.window.showInputBox({ prompt: 'Enter Account Identifier for this session:', value: defaultId }).then(id => {
+    if (!id) return;
+    vscode.window.showInputBox({ prompt: 'Enter Display Name:', value: defaultName }).then(name => {
+      const res = snapshotCurrentAccount(id, name);
+      if (res.success) {
+        vscode.window.showInformationMessage(\`✅ Agent Guard: \${res.message}\`);
+      } else {
+        vscode.window.showErrorMessage('Failed to snapshot: ' + res.message);
+      }
+    });
+  });
+}
+
 function promptAddAccount() {
   vscode.window.showInputBox({ prompt: 'Enter Account Identifier (e.g. backup-work, secondary-google):' }).then(id => {
     if (!id) return;
@@ -563,7 +883,7 @@ function promptAddAccount() {
 function triggerTestTripwire() {
   const data = readAccountsData();
   if (!data || !data.accounts || data.accounts.length < 2) {
-    vscode.window.showInformationMessage('Tripwire test requires at least 2 accounts in the pool. Add an account via "Add Account to Pool".');
+    vscode.window.showInformationMessage('Tripwire test requires at least 2 accounts in the pool. Use "Snapshot Active Account" or "Add Account" to register a second account.');
     return;
   }
   const current = data.accounts.find(a => a.isActive);
@@ -619,6 +939,17 @@ function runDoctorDiagnostics() {
   const auto = getAutoAcceptStatus();
   output.appendLine('• Auto-Accept:     ' + (auto.enabled ? '[OK] Turbo (' + auto.count + ' grants active)' : '[WARN] Partial grants'));
 
+  const live = queryLiveQuota();
+  if (live) {
+    output.appendLine('• Antigravity RPC: [ONLINE] Connected to Language Server');
+    output.appendLine('  User: ' + (live.userName || 'User') + ' (' + (live.userEmail || '') + ') [Plan: ' + live.planName + ']');
+    output.appendLine('  Gemini 5h Limit: ' + live.gemini5h + '% (resets: ' + live.gemini5hReset + ') | Weekly: ' + live.geminiWeekly + '%');
+    output.appendLine('  Claude 5h Limit: ' + live.claude5h + '% (resets: ' + live.claude5hReset + ') | Weekly: ' + live.claudeWeekly + '%');
+    output.appendLine('  Credits: ' + (live.availablePromptCredits || 0) + ' prompt / ' + (live.availableFlowCredits || 0) + ' flow');
+  } else {
+    output.appendLine('• Antigravity RPC: [STANDBY] Language Server offline or starting');
+  }
+
   const accData = readAccountsData();
   if (accData) {
     const active = accData.accounts.find(a => a.isActive);
@@ -633,10 +964,13 @@ function runDoctorDiagnostics() {
 
 function getWebviewContent() {
   const data = readAccountsData() || { accounts: [], autoRotateEnabled: true, thresholdPercent: 1.0 };
+  const live = queryLiveQuota();
   const activeAcc = data.accounts.find(a => a.isActive) || data.accounts[0] || { name: 'Primary', remainingPercent: 100, id: 'primary', status: 'active' };
   const awake = isSleepPreventionActive();
   const autoAccept = getAutoAcceptStatus();
   const task = getActiveTaskInfo();
+
+  const lowestQuota = live ? live.lowestRemainingPercent : (activeAcc.remainingPercent || 100);
 
   return \`<!DOCTYPE html>
 <html lang="en">
@@ -791,7 +1125,7 @@ function getWebviewContent() {
       <div>
         <h1>Agent Guard Supervisor</h1>
         <span class="badge badge-green">LIVE IN-APP EXTENSION</span>
-        <span class="badge badge-blue">ALL FEATURES CONTROLLED</span>
+        <span class="badge badge-blue">\${live ? 'RPC LIVE (75ms)' : 'STANDBY'}</span>
       </div>
     </div>
     <div>
@@ -803,7 +1137,7 @@ function getWebviewContent() {
   <div class="tabs">
     <button class="tab-btn active" onclick="setTab('overview')">📊 Overview</button>
     <button class="tab-btn" onclick="setTab('accounts')">🔄 Account Switcher</button>
-    <button class="tab-btn" onclick="setTab('tokens')">🪙 Token Counter</button>
+    <button class="tab-btn" onclick="setTab('tokens')">🪙 Live Quota & Tokens</button>
     <button class="tab-btn" onclick="setTab('awake')">☕ Sleep & Turbo</button>
     <button class="tab-btn" onclick="setTab('skills')">🛡️ Skills Catalog</button>
   </div>
@@ -814,7 +1148,7 @@ function getWebviewContent() {
       <div class="card">
         <h3>☕ Sleep Prevention</h3>
         <div class="val">\${awake ? '🟢 ACTIVE' : '⚪ INACTIVE'}</div>
-        <div style="font-size: 11px; opacity: 0.8;">macOS caffeinate native inhibitor</div>
+        <div style="font-size: 11px; opacity: 0.8;">macOS native caffeinate inhibitor</div>
         <button class="btn" onclick="post('toggleAwake')">\${awake ? 'Release Lease' : 'Acquire Lease'}</button>
       </div>
 
@@ -826,10 +1160,10 @@ function getWebviewContent() {
       </div>
 
       <div class="card">
-        <h3>🪙 Token Quota Headroom</h3>
-        <div class="val">\${activeAcc.remainingPercent || 100}% Remaining</div>
+        <h3>🪙 Antigravity Quota Headroom</h3>
+        <div class="val">\${lowestQuota}% Remaining</div>
         <div class="progress-bar-bg">
-          <div class="progress-bar-fill" style="width: \${activeAcc.remainingPercent || 100}%;"></div>
+          <div class="progress-bar-fill" style="width: \${lowestQuota}%;"></div>
         </div>
         <div style="font-size: 11px; opacity: 0.8;">Tripwire armed at &le; \${data.thresholdPercent || 1.0}%</div>
         <button class="btn" onclick="post('testTripwire')">Test 1% Tripwire</button>
@@ -837,11 +1171,30 @@ function getWebviewContent() {
 
       <div class="card">
         <h3>🔄 Active Account</h3>
-        <div class="val">\${activeAcc.name}</div>
-        <div style="font-size: 11px; opacity: 0.8;">\${data.accounts.length} in pool | Auto-switch: \${data.autoRotateEnabled ? 'ON' : 'OFF'}</div>
+        <div class="val">\${live && live.userName ? live.userName : activeAcc.name}</div>
+        <div style="font-size: 11px; opacity: 0.8;">\${live && live.userEmail ? live.userEmail : activeAcc.id} | Plan: \${live ? live.planName : 'Pro'}</div>
         <button class="btn" onclick="post('switchAccount')">Switch Account</button>
+        <button class="btn btn-secondary" onclick="post('snapshotAccount')">Snapshot Active</button>
       </div>
     </div>
+
+    \${live ? \`
+      <div class="grid" style="margin-top: 12px;">
+        <div class="card">
+          <h3>⚡ Gemini Models Live Quota</h3>
+          <div style="font-size: 13px; margin-bottom: 4px;">5-Hour Limit: <strong>\${live.gemini5h}%</strong> (resets: \${live.gemini5hReset || 'active'})</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: \${live.gemini5h}%;"></div></div>
+          <div style="font-size: 12px; opacity: 0.8;">Weekly Limit: <strong>\${live.geminiWeekly}%</strong> (resets: \${live.geminiWeeklyReset || 'active'})</div>
+        </div>
+
+        <div class="card">
+          <h3>⚡ Claude & GPT Models Live Quota</h3>
+          <div style="font-size: 13px; margin-bottom: 4px;">5-Hour Limit: <strong>\${live.claude5h}%</strong> (resets: \${live.claude5hReset || 'active'})</div>
+          <div class="progress-bar-bg"><div class="progress-bar-fill" style="width: \${live.claude5h}%;"></div></div>
+          <div style="font-size: 12px; opacity: 0.8;">Weekly Limit: <strong>\${live.claudeWeekly}%</strong> (resets: \${live.claudeWeeklyReset || 'active'})</div>
+        </div>
+      </div>
+    \` : ''}
 
     \${task && task.status === 'active' ? \`
       <div class="card" style="margin-top: 12px; border-left: 4px solid var(--blue);">
@@ -851,12 +1204,7 @@ function getWebviewContent() {
           Progress: \${Array.isArray(task.steps) ? task.steps.filter(s => s.status === 'done').length : 0} of \${Array.isArray(task.steps) ? task.steps.length : 0} steps completed.
         </div>
       </div>
-    \` : \`
-      <div class="card" style="margin-top: 12px; opacity: 0.85;">
-        <h3>🎯 Task Supervisor</h3>
-        <div style="font-size: 12px;">No active task running. Mention <strong>@agent-guard</strong> or run <code>task_start</code> to begin supervised pairing.</div>
-      </div>
-    \`}
+    \` : ''}
   </div>
 
   <!-- TAB 2: ACCOUNT SWITCHER -->
@@ -878,7 +1226,8 @@ function getWebviewContent() {
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
       <h3>Registered Account Pool (\${data.accounts.length})</h3>
       <div>
-        <button class="btn" onclick="post('addAccount')">+ Add Account</button>
+        <button class="btn" onclick="post('snapshotAccount')">📸 Snapshot Current Account</button>
+        <button class="btn btn-secondary" onclick="post('addAccount')">+ Add Manually</button>
         <button class="btn btn-secondary" onclick="post('testTripwire')">Simulate 1% Rotation</button>
       </div>
     </div>
@@ -902,7 +1251,7 @@ function getWebviewContent() {
   <!-- TAB 3: TOKEN COUNTER -->
   <div id="tab-tokens" class="tab-content">
     <div class="card" style="margin-bottom: 16px;">
-      <h3>Active Model & Context Window</h3>
+      <h3>Active Model & Context Budget</h3>
       <div style="display: flex; gap: 12px; align-items: center; margin-top: 8px;">
         <select id="modelSelect" onchange="post('selectModel', this.value)">
           \${SUPPORTED_MODELS.map(m => \`<option value="\${m.id}" \${m.id === activeModel ? 'selected' : ''}>\${m.name} (\${(m.contextWindow/1000).toFixed(0)}k context)</option>\`).join('')}
@@ -920,7 +1269,7 @@ function getWebviewContent() {
       </div>
       <div class="card">
         <h3>Active Quota Remaining</h3>
-        <div class="val">\${activeAcc.remainingPercent || 100}%</div>
+        <div class="val">\${lowestQuota}%</div>
         <div style="font-size: 11px; opacity: 0.8;">Monitored by 1% Tripwire Engine</div>
       </div>
     </div>
@@ -1020,6 +1369,7 @@ function handleWebviewMessage(message) {
   const { command, payload } = message;
 
   if (command === 'refresh') {
+    queryLiveQuota(true);
     updateStatusBar();
     refreshAllWebviews();
   } else if (command === 'toggleAwake') {
@@ -1030,6 +1380,8 @@ function handleWebviewMessage(message) {
     releaseAwakeLease();
   } else if (command === 'switchAccount') {
     showAccountPicker();
+  } else if (command === 'snapshotAccount') {
+    promptSnapshotAccount();
   } else if (command === 'selectAccount') {
     const res = switchAccount(payload, 'Switched via Webview Dashboard');
     if (res.success) {
@@ -1149,6 +1501,7 @@ function activate(context) {
     vscode.commands.registerCommand('agentGuard.toggleAutoAccept', () => toggleKeepAwake()),
     vscode.commands.registerCommand('agentGuard.manageGrants', () => promptManageGrants()),
     vscode.commands.registerCommand('agentGuard.switchAccount', () => showAccountPicker()),
+    vscode.commands.registerCommand('agentGuard.snapshotAccount', () => promptSnapshotAccount()),
     vscode.commands.registerCommand('agentGuard.addAccount', () => promptAddAccount()),
     vscode.commands.registerCommand('agentGuard.removeAccount', () => {
       const data = readAccountsData();
@@ -1189,6 +1542,7 @@ function activate(context) {
       vscode.window.showInformationMessage('Agent Guard is up to date.');
     }),
     vscode.commands.registerCommand('agentGuard.refresh', () => {
+      queryLiveQuota(true);
       updateStatusBar();
       refreshAllWebviews();
       vscode.window.showInformationMessage('Agent Guard status refreshed.');

@@ -367,7 +367,7 @@ export class AccountManager {
             const live = getLiveQuotaSummarySync(true);
             if (live.isReachable) {
                 target.remainingPercent = live.lowestRemainingPercent;
-                if (live.userName) {
+                if (live.userName && (!target.name || target.name === target.id || target.name.startsWith('Primary Antigravity'))) {
                     target.name = `${live.userName} (${live.userEmail || target.id})`;
                 }
             }
