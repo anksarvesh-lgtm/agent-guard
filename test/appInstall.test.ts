@@ -19,9 +19,11 @@ import {
 describe('Universal Multi-App MCP Installer', () => {
   let tempDir: string;
   let dummyContext: InstallContext;
+  const originalEnvHome = process.env.AGENT_GUARD_HOME;
 
   beforeEach(() => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-guard-apps-test-'));
+    process.env.AGENT_GUARD_HOME = tempDir;
     dummyContext = {
       nodeBin: '/usr/local/bin/node',
       serverPath: '/repo/dist/index.js',
@@ -33,6 +35,11 @@ describe('Universal Multi-App MCP Installer', () => {
   });
 
   afterEach(() => {
+    if (originalEnvHome !== undefined) {
+      process.env.AGENT_GUARD_HOME = originalEnvHome;
+    } else {
+      delete process.env.AGENT_GUARD_HOME;
+    }
     if (fs.existsSync(tempDir)) {
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -49,37 +56,67 @@ describe('Universal Multi-App MCP Installer', () => {
     expect(ids).toContain('zed');
   });
 
-  it('detects installed applications on the current system', () => {
-    const detected = detectInstalledApps();
-    expect(Array.isArray(detected)).toBe(true);
-    // On this machine with ~/.gemini, antigravity must be detected
-    const hasAntigravity = detected.some((a) => a.id === 'antigravity');
-    expect(hasAntigravity).toBe(true);
+  it('detects installed applications hermetically based on home directory structure', () => {
+    // When no app directories exist in isolated home
+    expect(detectInstalledApps()).toEqual([]);
+
+    // Create .gemini directory -> antigravity detected
+    fs.mkdirSync(path.join(tempDir, '.gemini'), { recursive: true });
+    const detected1 = detectInstalledApps();
+    expect(detected1.some((a) => a.id === 'antigravity')).toBe(true);
+
+    // Create .cursor directory -> cursor detected
+    fs.mkdirSync(path.join(tempDir, '.cursor'), { recursive: true });
+    const detected2 = detectInstalledApps();
+    expect(detected2.some((a) => a.id === 'cursor')).toBe(true);
+
+    // Create .config/zed directory -> zed detected
+    fs.mkdirSync(path.join(tempDir, '.config', 'zed'), { recursive: true });
+    const detected3 = detectInstalledApps();
+    expect(detected3.some((a) => a.id === 'zed')).toBe(true);
   });
 
-  it('installs to specific target applications', () => {
+  it('installs to specific target applications and writes valid JSON configs', () => {
     const results = installToApps(['antigravity'], dummyContext);
     expect(results.length).toBe(1);
     expect(results[0].appId).toBe('antigravity');
     expect(results[0].installed).toBe(true);
+
+    const mcpConfigPath = path.join(tempDir, '.gemini', 'config', 'mcp_config.json');
+    expect(fs.existsSync(mcpConfigPath)).toBe(true);
+    const cfg = JSON.parse(fs.readFileSync(mcpConfigPath, 'utf-8'));
+    expect(cfg.mcpServers['agent-guard']).toBeDefined();
+    expect(cfg.mcpServers['agent-guard'].command).toBe('/usr/local/bin/node');
   });
 
   it('installs to all targets when targetIds is "all"', () => {
-    const dryContext = { ...dummyContext, dryRun: true };
-    const results = installToApps('all', dryContext);
+    const results = installToApps('all', dummyContext);
     expect(results.length).toBe(ALL_APP_TARGETS.length);
     for (const r of results) {
       expect(r.installed).toBe(true);
     }
+
+    // Verify Cursor config was written
+    const cursorConfigPath = path.join(tempDir, '.cursor', 'mcp.json');
+    expect(fs.existsSync(cursorConfigPath)).toBe(true);
+    const cursorCfg = JSON.parse(fs.readFileSync(cursorConfigPath, 'utf-8'));
+    expect(cursorCfg.mcpServers['agent-guard']).toBeDefined();
+
+    // Verify Zed config was written
+    const zedConfigPath = path.join(tempDir, '.config', 'zed', 'settings.json');
+    expect(fs.existsSync(zedConfigPath)).toBe(true);
+    const zedCfg = JSON.parse(fs.readFileSync(zedConfigPath, 'utf-8'));
+    expect(zedCfg.experimental.model_context_protocol.servers['agent-guard']).toBeDefined();
   });
 
-  it('installs with "auto" detection fallback', () => {
-    const dryContext = { ...dummyContext, dryRun: true };
-    const results = installToApps('auto', dryContext);
-    expect(results.length).toBeGreaterThanOrEqual(1);
+  it('installs with "auto" detection fallback when no apps exist', () => {
+    // When no apps detected, fallback to Antigravity
+    const results = installToApps('auto', dummyContext);
+    expect(results.length).toBe(1);
+    expect(results[0].appId).toBe('antigravity');
   });
 
-  it('respects dryRun without throwing or failing', () => {
+  it('respects dryRun without writing files to disk', () => {
     const dryContext = { ...dummyContext, dryRun: true };
     const res = claudeTarget.install(dryContext);
     expect(res.installed).toBe(true);
@@ -104,5 +141,9 @@ describe('Universal Multi-App MCP Installer', () => {
     const resWindsurf = windsurfTarget.install(dryContext);
     expect(resWindsurf.installed).toBe(true);
     expect(resWindsurf.appId).toBe('windsurf');
+
+    // Confirm no files written in dry run
+    expect(fs.existsSync(path.join(tempDir, '.claude.json'))).toBe(false);
+    expect(fs.existsSync(path.join(tempDir, '.cursor', 'mcp.json'))).toBe(false);
   });
 });

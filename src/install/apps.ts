@@ -28,7 +28,9 @@ export interface AppTarget {
   install: (ctx: InstallContext) => AppInstallResult;
 }
 
-const home = os.homedir();
+export function getHomeDir(): string {
+  return process.env.AGENT_GUARD_HOME || os.homedir();
+}
 
 function safeJsonWrite(filePath: string, updater: (data: any) => any, dryRun?: boolean): void {
   let data: any = {};
@@ -52,10 +54,10 @@ function safeJsonWrite(filePath: string, updater: (data: any) => any, dryRun?: b
 export const antigravityTarget: AppTarget = {
   id: 'antigravity',
   name: 'Google Antigravity & Gemini CLI',
-  detect: () => fs.existsSync(path.join(home, '.gemini')),
-  getConfigPath: () => path.join(home, '.gemini', 'config', 'mcp_config.json'),
+  detect: () => fs.existsSync(path.join(getHomeDir(), '.gemini')),
+  getConfigPath: () => path.join(getHomeDir(), '.gemini', 'config', 'mcp_config.json'),
   install: (ctx) => {
-    const configPath = path.join(home, '.gemini', 'config', 'mcp_config.json');
+    const configPath = path.join(getHomeDir(), '.gemini', 'config', 'mcp_config.json');
     safeJsonWrite(configPath, (cfg) => {
       cfg.mcpServers = cfg.mcpServers || {};
       cfg.mcpServers['agent-guard'] = {
@@ -89,6 +91,7 @@ export const claudeTarget: AppTarget = {
   id: 'claude',
   name: 'Claude Code',
   detect: () => {
+    const home = getHomeDir();
     if (fs.existsSync(path.join(home, '.claude')) || fs.existsSync(path.join(home, '.claude.json'))) {
       return true;
     }
@@ -100,6 +103,7 @@ export const claudeTarget: AppTarget = {
     }
   },
   getConfigPath: () => {
+    const home = getHomeDir();
     const claudeDir = path.join(home, '.claude');
     if (fs.existsSync(claudeDir)) {
       return path.join(claudeDir, 'mcp.json');
@@ -107,6 +111,7 @@ export const claudeTarget: AppTarget = {
     return path.join(home, '.claude.json');
   },
   install: (ctx) => {
+    const home = getHomeDir();
     const claudeDir = path.join(home, '.claude');
     const configPath = fs.existsSync(claudeDir)
       ? path.join(claudeDir, 'mcp.json')
@@ -136,6 +141,7 @@ export const codexTarget: AppTarget = {
   id: 'codex',
   name: 'Codex CLI',
   detect: () => {
+    const home = getHomeDir();
     if (process.env.CODEX_HOME && fs.existsSync(process.env.CODEX_HOME)) return true;
     if (fs.existsSync(path.join(home, '.codex'))) return true;
     try {
@@ -146,10 +152,12 @@ export const codexTarget: AppTarget = {
     }
   },
   getConfigPath: () => {
+    const home = getHomeDir();
     const codexHome = process.env.CODEX_HOME || path.join(home, '.codex');
     return path.join(codexHome, 'mcp.json');
   },
   install: (ctx) => {
+    const home = getHomeDir();
     const codexHome = process.env.CODEX_HOME || path.join(home, '.codex');
     const configPath = path.join(codexHome, 'mcp.json');
 
@@ -177,6 +185,7 @@ export const cursorTarget: AppTarget = {
   id: 'cursor',
   name: 'Cursor IDE',
   detect: () => {
+    const home = getHomeDir();
     const paths = [
       path.join(home, '.cursor'),
       path.join(home, 'Library', 'Application Support', 'Cursor'),
@@ -184,9 +193,9 @@ export const cursorTarget: AppTarget = {
     ];
     return paths.some((p) => fs.existsSync(p));
   },
-  getConfigPath: () => path.join(home, '.cursor', 'mcp.json'),
+  getConfigPath: () => path.join(getHomeDir(), '.cursor', 'mcp.json'),
   install: (ctx) => {
-    const configPath = path.join(home, '.cursor', 'mcp.json');
+    const configPath = path.join(getHomeDir(), '.cursor', 'mcp.json');
     safeJsonWrite(configPath, (cfg) => {
       cfg.mcpServers = cfg.mcpServers || {};
       cfg.mcpServers['agent-guard'] = {
@@ -210,10 +219,13 @@ export const cursorTarget: AppTarget = {
 export const windsurfTarget: AppTarget = {
   id: 'windsurf',
   name: 'Windsurf (Codeium)',
-  detect: () => fs.existsSync(path.join(home, '.codeium', 'windsurf')) || fs.existsSync(path.join(home, '.codeium')),
-  getConfigPath: () => path.join(home, '.codeium', 'windsurf', 'mcp_config.json'),
+  detect: () => {
+    const home = getHomeDir();
+    return fs.existsSync(path.join(home, '.codeium', 'windsurf')) || fs.existsSync(path.join(home, '.codeium'));
+  },
+  getConfigPath: () => path.join(getHomeDir(), '.codeium', 'windsurf', 'mcp_config.json'),
   install: (ctx) => {
-    const configPath = path.join(home, '.codeium', 'windsurf', 'mcp_config.json');
+    const configPath = path.join(getHomeDir(), '.codeium', 'windsurf', 'mcp_config.json');
     safeJsonWrite(configPath, (cfg) => {
       cfg.mcpServers = cfg.mcpServers || {};
       cfg.mcpServers['agent-guard'] = {
@@ -238,6 +250,7 @@ export const clineTarget: AppTarget = {
   id: 'cline',
   name: 'VS Code (Cline / Roo Code)',
   detect: () => {
+    const home = getHomeDir();
     const candidateDirs = [
       path.join(home, 'Library', 'Application Support', 'Code', 'User', 'globalStorage', 'saoudrizwan.claude-dev'),
       path.join(home, 'Library', 'Application Support', 'Code', 'User', 'globalStorage', 'rooveterinaryinc.roo-cline'),
@@ -247,12 +260,14 @@ export const clineTarget: AppTarget = {
     return candidateDirs.some((p) => fs.existsSync(p));
   },
   getConfigPath: () => {
+    const home = getHomeDir();
     const base = process.platform === 'darwin'
       ? path.join(home, 'Library', 'Application Support', 'Code', 'User', 'globalStorage')
       : path.join(home, '.config', 'Code', 'User', 'globalStorage');
     return path.join(base, 'saoudrizwan.claude-dev', 'settings', 'cline_mcp_settings.json');
   },
   install: (ctx) => {
+    const home = getHomeDir();
     const base = process.platform === 'darwin'
       ? path.join(home, 'Library', 'Application Support', 'Code', 'User', 'globalStorage')
       : path.join(home, '.config', 'Code', 'User', 'globalStorage');
@@ -298,10 +313,10 @@ export const clineTarget: AppTarget = {
 export const zedTarget: AppTarget = {
   id: 'zed',
   name: 'Zed Editor',
-  detect: () => fs.existsSync(path.join(home, '.config', 'zed')),
-  getConfigPath: () => path.join(home, '.config', 'zed', 'settings.json'),
+  detect: () => fs.existsSync(path.join(getHomeDir(), '.config', 'zed')),
+  getConfigPath: () => path.join(getHomeDir(), '.config', 'zed', 'settings.json'),
   install: (ctx) => {
-    const configPath = path.join(home, '.config', 'zed', 'settings.json');
+    const configPath = path.join(getHomeDir(), '.config', 'zed', 'settings.json');
     safeJsonWrite(configPath, (cfg) => {
       cfg.experimental = cfg.experimental || {};
       cfg.experimental.model_context_protocol = cfg.experimental.model_context_protocol || {};

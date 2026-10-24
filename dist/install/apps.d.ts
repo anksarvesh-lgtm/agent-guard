@@ -20,6 +20,7 @@ export interface AppTarget {
     getConfigPath: () => string;
     install: (ctx: InstallContext) => AppInstallResult;
 }
+export declare function getHomeDir(): string;
 export declare const antigravityTarget: AppTarget;
 export declare const claudeTarget: AppTarget;
 export declare const codexTarget: AppTarget;
