@@ -16,6 +16,13 @@ export interface ExtensionInstallResult {
   error?: string;
 }
 
+export interface ExtensionStatusInfo {
+  target: InstalledExtensionTarget;
+  isInstalled: boolean;
+  version?: string;
+  installedPath?: string;
+}
+
 export interface ExtensionBuildOptions {
   version?: string;
   publisher?: string;

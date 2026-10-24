@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { InstalledExtensionTarget, ExtensionInstallResult } from './types.js';
+import { InstalledExtensionTarget, ExtensionInstallResult, ExtensionStatusInfo } from './types.js';
 import { generateExtensionManifest } from './manifest.js';
 import { generateExtensionRuntimeScript } from './runtime.js';
 
@@ -75,6 +75,20 @@ export function installExtensionToTarget(
 
     // 1. Ensure target directory exists
     fs.mkdirSync(targetInstallPath, { recursive: true });
+
+    // Clean up any older version directories in extensionsDir
+    try {
+      if (fs.existsSync(target.extensionsDir)) {
+        const entries = fs.readdirSync(target.extensionsDir);
+        for (const entry of entries) {
+          if (entry.startsWith('sarvesh.agent-guard-') && entry !== extensionFolder) {
+            try {
+              fs.rmSync(path.join(target.extensionsDir, entry), { recursive: true, force: true });
+            } catch {}
+          }
+        }
+      }
+    } catch {}
 
     // 2. Write package.json manifest
     const manifest = generateExtensionManifest(version);
@@ -236,3 +250,45 @@ export function installExtensionToAllDetected(
     installExtensionToTarget(target, assetsDir)
   );
 }
+
+/**
+ * Checks extension installation status across all targets.
+ */
+export function getExtensionStatus(customHome?: string): ExtensionStatusInfo[] {
+  const targets = detectExtensionTargets(customHome);
+  const results: ExtensionStatusInfo[] = [];
+
+  for (const target of targets) {
+    let isInstalled = false;
+    let version: string | undefined;
+    let installedPath: string | undefined;
+
+    if (fs.existsSync(target.extensionsDir)) {
+      try {
+        const entries = fs.readdirSync(target.extensionsDir);
+        const match = entries.find((e) => e.startsWith('sarvesh.agent-guard-'));
+        if (match) {
+          installedPath = path.join(target.extensionsDir, match);
+          const pkgJson = path.join(installedPath, 'package.json');
+          if (fs.existsSync(pkgJson)) {
+            try {
+              const parsed = JSON.parse(fs.readFileSync(pkgJson, 'utf-8'));
+              version = parsed.version;
+              isInstalled = true;
+            } catch {}
+          }
+        }
+      } catch {}
+    }
+
+    results.push({
+      target,
+      isInstalled,
+      version,
+      installedPath,
+    });
+  }
+
+  return results;
+}
+
