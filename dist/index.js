@@ -233,8 +233,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     properties: {
                         action: {
                             type: 'string',
-                            enum: ['status', 'switch', 'list', 'add', 'auto_rotate', 'configure'],
-                            description: 'Action: status, switch to account, list all accounts, add account, trigger auto_rotate check, or configure threshold.',
+                            enum: ['status', 'switch', 'list', 'add', 'snapshot', 'remove', 'auto_rotate', 'configure'],
+                            description: 'Action: status, switch to account, list all accounts, add account, snapshot active session, remove account, trigger auto_rotate check, or configure threshold.',
                         },
                         account_id: {
                             type: 'string',

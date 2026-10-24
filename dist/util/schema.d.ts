@@ -137,7 +137,7 @@ export declare const TokenCounterSchema: z.ZodObject<{
     compare_all?: boolean | undefined;
 }>;
 export declare const AccountSwitcherSchema: z.ZodObject<{
-    action: z.ZodEnum<["status", "switch", "list", "add", "auto_rotate", "configure"]>;
+    action: z.ZodEnum<["status", "switch", "list", "add", "snapshot", "remove", "auto_rotate", "configure"]>;
     account_id: z.ZodOptional<z.ZodString>;
     name: z.ZodOptional<z.ZodString>;
     provider: z.ZodDefault<z.ZodOptional<z.ZodEnum<["antigravity", "gemini", "claude", "openai", "custom"]>>>;
@@ -149,7 +149,7 @@ export declare const AccountSwitcherSchema: z.ZodObject<{
     reason: z.ZodOptional<z.ZodString>;
     project_path: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    action: "status" | "switch" | "list" | "add" | "auto_rotate" | "configure";
+    action: "status" | "switch" | "list" | "add" | "snapshot" | "remove" | "auto_rotate" | "configure";
     provider: "antigravity" | "claude" | "custom" | "gemini" | "openai";
     threshold_percent: number;
     project_path?: string | undefined;
@@ -161,7 +161,7 @@ export declare const AccountSwitcherSchema: z.ZodObject<{
     api_key?: string | undefined;
     enabled?: boolean | undefined;
 }, {
-    action: "status" | "switch" | "list" | "add" | "auto_rotate" | "configure";
+    action: "status" | "switch" | "list" | "add" | "snapshot" | "remove" | "auto_rotate" | "configure";
     project_path?: string | undefined;
     reason?: string | undefined;
     account_id?: string | undefined;

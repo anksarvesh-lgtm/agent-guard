@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import { AccountSwitcherSchema, formatZodError } from '../util/schema.js';
 import { resolveProjectPath } from '../util/paths.js';
 import { logToolCall } from '../util/log.js';
@@ -67,9 +68,28 @@ export function handleAccountSwitcher(rawArgs) {
             }
             return `❌ **Switch Failed**: ${result.message}`;
         }
+        if (action === 'snapshot') {
+            const snapRes = globalAccountManager.snapshotActiveSession(account_id, name);
+            logToolCall('account_switcher', null, snapRes.success ? 'SNAPSHOT_OK' : 'SNAPSHOT_FAILED', validatedProject);
+            if (snapRes.success && snapRes.account) {
+                return `✅ **Active Session Snapshot Saved**\n• Account ID: "${snapRes.account.id}"\n• Display Name: "${snapRes.account.name}"\n• Quota Headroom: ${snapRes.account.remainingPercent}%\n• Pool Size: ${globalAccountManager.getConfig().accounts.length} account(s)`;
+            }
+            return `❌ **Snapshot Failed**: ${snapRes.message}`;
+        }
+        if (action === 'remove') {
+            if (!account_id) {
+                return 'BAD_INPUT: "account_id" is required to remove an account.';
+            }
+            const remRes = globalAccountManager.removeAccount(account_id);
+            logToolCall('account_switcher', null, remRes.success ? 'REMOVE_OK' : 'REMOVE_FAILED', validatedProject);
+            return remRes.success ? `✅ ${remRes.message}` : `❌ ${remRes.message}`;
+        }
         if (action === 'add') {
             if (!account_id) {
                 return 'BAD_INPUT: "account_id" is required to add an account (e.g. "acc-backup-1").';
+            }
+            if (token_source_file && !fs.existsSync(token_source_file)) {
+                return `BAD_INPUT: token_source_file not found at "${token_source_file}".`;
             }
             const addRes = globalAccountManager.addAccount({
                 id: account_id,
