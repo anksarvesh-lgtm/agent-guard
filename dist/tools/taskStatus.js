@@ -3,6 +3,7 @@ import { resolveProjectPath } from '../util/paths.js';
 import { readLedger, getNextStep } from '../ledger.js';
 import { logToolCall } from '../util/log.js';
 import { findRecentTranscript } from './tokenCounter.js';
+import { globalAccountManager } from '../accounts/index.js';
 import { calculateContextBudget, formatTokenNumber, parseTranscriptTokens, estimateTextTokens } from '../tokens/index.js';
 export function handleTaskStatus(rawArgs) {
     const parseResult = TaskStatusSchema.safeParse(rawArgs);
@@ -72,6 +73,18 @@ export function handleTaskStatus(rawArgs) {
         }
         const budget = calculateContextBudget(usedTokens);
         lines.push(`Context Budget: ${budget.statusEmoji} ${formatTokenNumber(budget.usedTokens)} used / ${formatTokenNumber(budget.remainingTokens)} remaining (${budget.percentUsed}% of ${budget.model.name}) [${budget.status}]`);
+    }
+    catch { }
+    // Active Account and auto-rotate badge
+    try {
+        const activeAcc = globalAccountManager.getActiveAccount();
+        const accConfig = globalAccountManager.getConfig();
+        if (activeAcc) {
+            const rotateStatus = accConfig.autoRotateEnabled
+                ? `[Auto-Switch at <=${accConfig.thresholdPercent}%: ON]`
+                : '[Auto-Switch: OFF]';
+            lines.push(`Active Account: "${activeAcc.name}" (${activeAcc.id}, ${activeAcc.remainingPercent}% quota) ${rotateStatus}`);
+        }
     }
     catch { }
     logToolCall('task_status', inProgressStep?.id || nextCandidate?.id || null, 'OK', validatedProject);

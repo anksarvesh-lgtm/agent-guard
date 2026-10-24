@@ -410,4 +410,9 @@ export class AccountManager {
 }
 
 // Global singleton instance
-export const globalAccountManager = new AccountManager();
+export let globalAccountManager = new AccountManager();
+
+export function setGlobalAccountManager(mgr: AccountManager): void {
+  globalAccountManager = mgr;
+}
+

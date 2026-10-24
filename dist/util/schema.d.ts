@@ -136,6 +136,43 @@ export declare const TokenCounterSchema: z.ZodObject<{
     transcript_path?: string | undefined;
     compare_all?: boolean | undefined;
 }>;
+export declare const AccountSwitcherSchema: z.ZodObject<{
+    action: z.ZodEnum<["status", "switch", "list", "add", "auto_rotate", "configure"]>;
+    account_id: z.ZodOptional<z.ZodString>;
+    name: z.ZodOptional<z.ZodString>;
+    provider: z.ZodDefault<z.ZodOptional<z.ZodEnum<["antigravity", "gemini", "claude", "openai", "custom"]>>>;
+    token_content: z.ZodOptional<z.ZodString>;
+    token_source_file: z.ZodOptional<z.ZodString>;
+    api_key: z.ZodOptional<z.ZodString>;
+    threshold_percent: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    enabled: z.ZodOptional<z.ZodBoolean>;
+    reason: z.ZodOptional<z.ZodString>;
+    project_path: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    action: "status" | "switch" | "list" | "add" | "auto_rotate" | "configure";
+    provider: "antigravity" | "claude" | "custom" | "gemini" | "openai";
+    threshold_percent: number;
+    project_path?: string | undefined;
+    reason?: string | undefined;
+    account_id?: string | undefined;
+    name?: string | undefined;
+    token_content?: string | undefined;
+    token_source_file?: string | undefined;
+    api_key?: string | undefined;
+    enabled?: boolean | undefined;
+}, {
+    action: "status" | "switch" | "list" | "add" | "auto_rotate" | "configure";
+    project_path?: string | undefined;
+    reason?: string | undefined;
+    account_id?: string | undefined;
+    name?: string | undefined;
+    provider?: "antigravity" | "claude" | "custom" | "gemini" | "openai" | undefined;
+    token_content?: string | undefined;
+    token_source_file?: string | undefined;
+    api_key?: string | undefined;
+    threshold_percent?: number | undefined;
+    enabled?: boolean | undefined;
+}>;
 /**
  * Formats Zod errors into a clean, human-readable BAD_INPUT error string
  */

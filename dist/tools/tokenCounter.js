@@ -5,6 +5,7 @@ import { TokenCounterSchema, formatZodError } from '../util/schema.js';
 import { resolveProjectPath } from '../util/paths.js';
 import { logToolCall } from '../util/log.js';
 import { estimateTextTokens, estimateFileTokens, calculateContextBudget, compareAcrossModels, parseTranscriptTokens, formatTokenNumber } from '../tokens/index.js';
+import { globalAccountManager } from '../accounts/index.js';
 export function findRecentTranscript(workspacePath) {
     // 1. Check environment variable override
     if (process.env.AGENT_GUARD_TRANSCRIPT && fs.existsSync(process.env.AGENT_GUARD_TRANSCRIPT)) {
@@ -144,6 +145,16 @@ export function handleTokenCounter(rawArgs) {
             lines.push(`| **${item.modelName}** | ${item.provider} | ${formatTokenNumber(item.contextLimit)} | ${formatTokenNumber(item.usedTokens)} | ${formatTokenNumber(item.remainingTokens)} | ${item.percentUsed}% | ${emoji} ${item.status} |`);
         }
     }
+    // 1% Remaining Quota Tripwire: Auto-switch account seamlessly without disturbing user
+    try {
+        if (budget.percentRemaining <= 1.0) {
+            const rotateRes = globalAccountManager.checkAndAutoRotate(budget.percentRemaining, `Token budget at ${budget.percentRemaining}% remaining (${formatTokenNumber(budget.remainingTokens)} tokens left)`);
+            if (rotateRes.triggered && rotateRes.switchResult?.success) {
+                lines.push(`\n🔄 **Auto-Switch Notice**: Token headroom reached ${budget.percentRemaining}%. Seamlessly rotated to account "${rotateRes.switchResult.currentAccountName}" (${rotateRes.switchResult.currentAccountId}) without task disruption.`);
+            }
+        }
+    }
+    catch { }
     return lines.join('\n');
 }
 //# sourceMappingURL=tokenCounter.js.map

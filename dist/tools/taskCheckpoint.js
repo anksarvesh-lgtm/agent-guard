@@ -3,6 +3,7 @@ import { resolveProjectPath } from '../util/paths.js';
 import { readLedger, writeLedger, cascadeBlockedDependencies, getNextStep, evaluateTaskStatus, } from '../ledger.js';
 import { logToolCall } from '../util/log.js';
 import { globalAwakeManager } from '../awake/manager.js';
+import { globalAccountManager } from '../accounts/index.js';
 import { findRecentTranscript } from './tokenCounter.js';
 import { calculateContextBudget, formatTokenNumber, parseTranscriptTokens, estimateTextTokens } from '../tokens/index.js';
 export function handleTaskCheckpoint(rawArgs) {
@@ -131,7 +132,14 @@ export function handleTaskCheckpoint(rawArgs) {
         const recentTranscript = findRecentTranscript(validatedProject);
         const used = recentTranscript ? parseTranscriptTokens(recentTranscript).totalEstimatedTokens : estimateTextTokens(JSON.stringify(ledger));
         const budget = calculateContextBudget(used);
-        if (budget.status === 'WARNING' || budget.status === 'CRITICAL') {
+        // 1% Quota Tripwire: Seamless auto-switch
+        if (budget.percentRemaining <= 1.0) {
+            const rotateRes = globalAccountManager.checkAndAutoRotate(budget.percentRemaining, `Task checkpoint detected ${budget.percentRemaining}% token headroom`);
+            if (rotateRes.triggered && rotateRes.switchResult?.success) {
+                instruction += ` [Auto-switched account to "${rotateRes.switchResult.currentAccountName}"]`;
+            }
+        }
+        else if (budget.status === 'WARNING' || budget.status === 'CRITICAL') {
             instruction += ` [Context: ${budget.statusEmoji} ${budget.percentUsed}% used, ${formatTokenNumber(budget.remainingTokens)} remaining]`;
         }
     }

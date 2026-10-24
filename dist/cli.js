@@ -11,6 +11,8 @@ import { installToApps, detectInstalledApps } from './install/apps.js';
 import { loadSkillsIndex, listFeaturedSkills, searchSkills, getSkillInfo, getCategories, installSkill, formatSkillsTable } from './skills/manager.js';
 import { globalAwakeManager } from './awake/manager.js';
 import { handleTokenCounter } from './tools/tokenCounter.js';
+import { handleAccountSwitcher } from './tools/accountSwitcher.js';
+import { globalAccountManager } from './accounts/index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -72,6 +74,7 @@ export function configureAutoAcceptGrants(dryRun) {
             'mcp(agent-guard/agent_enforce)',
             'mcp(agent-guard/project_map)',
             'mcp(agent-guard/token_counter)',
+            'mcp(agent-guard/account_switcher)',
             // Antigravity plugin-scoped tool grants
             'mcp(agent-guard_agent-guard/task_start)',
             'mcp(agent-guard_agent-guard/task_checkpoint)',
@@ -81,6 +84,7 @@ export function configureAutoAcceptGrants(dryRun) {
             'mcp(agent-guard_agent-guard/agent_enforce)',
             'mcp(agent-guard_agent-guard/project_map)',
             'mcp(agent-guard_agent-guard/token_counter)',
+            'mcp(agent-guard_agent-guard/account_switcher)',
             // Command execution grants for autonomous agent workflow
             'command(agent-guard)',
             'command(npx agent-guard)',
@@ -91,6 +95,7 @@ export function configureAutoAcceptGrants(dryRun) {
             'command(npm run map)',
             'command(npm run skills)',
             'command(npm run tokens)',
+            'command(npm run accounts)',
             'command(./install.sh)',
             'command(node dist/cli.js)',
             'command(node dist/cli.js doctor)',
@@ -419,6 +424,21 @@ export function doctorCheck() {
     // Check active awake lease
     const leaseStatus = globalAwakeManager.status();
     console.log(`• Awake Lease:     ${leaseStatus.isHolding ? `[ACTIVE] Holding until ${leaseStatus.heldUntil} (${leaseStatus.minutesRemaining}m remaining)` : '[INACTIVE] Normal OS sleep policy'}`);
+    // Check Account Switcher pool
+    try {
+        const activeAcc = globalAccountManager.getActiveAccount();
+        const accCfg = globalAccountManager.getConfig();
+        if (activeAcc) {
+            const autoText = accCfg.autoRotateEnabled ? `Auto-switch at <=${accCfg.thresholdPercent}%: ENABLED` : 'Auto-switch: DISABLED';
+            console.log(`• Account Switcher: [OK] Active: "${activeAcc.name}" (${activeAcc.id}) (${autoText}, ${accCfg.accounts.length} in pool)`);
+        }
+        else {
+            console.log('• Account Switcher: [INFO] No account pool configured');
+        }
+    }
+    catch {
+        console.log('• Account Switcher: [WARN] Could not read accounts.json');
+    }
     console.log('');
 }
 // CLI argument parsing
@@ -615,12 +635,75 @@ else if (command === 'tokens') {
     });
     console.log(report);
 }
+else if (command === 'accounts') {
+    const sub = args[1] || 'status';
+    if (sub === 'list') {
+        console.log(handleAccountSwitcher({ action: 'list', project_path: process.cwd() }));
+    }
+    else if (sub === 'status') {
+        console.log(handleAccountSwitcher({ action: 'status', project_path: process.cwd() }));
+    }
+    else if (sub === 'switch') {
+        const accId = args[2];
+        if (!accId) {
+            console.error('Usage: node dist/cli.js accounts switch <account-id>');
+            process.exit(1);
+        }
+        console.log(handleAccountSwitcher({ action: 'switch', account_id: accId, project_path: process.cwd() }));
+    }
+    else if (sub === 'add') {
+        const accId = args[2];
+        if (!accId) {
+            console.error('Usage: node dist/cli.js accounts add <id> [--name <name>] [--token-file <path>] [--api-key <key>]');
+            process.exit(1);
+        }
+        const nameIdx = args.indexOf('--name');
+        const name = nameIdx !== -1 ? args[nameIdx + 1] : accId;
+        const fileIdx = args.indexOf('--token-file');
+        const tokenFile = fileIdx !== -1 ? args[fileIdx + 1] : undefined;
+        const keyIdx = args.indexOf('--api-key');
+        const apiKey = keyIdx !== -1 ? args[keyIdx + 1] : undefined;
+        console.log(handleAccountSwitcher({
+            action: 'add',
+            account_id: accId,
+            name,
+            token_source_file: tokenFile,
+            api_key: apiKey,
+            project_path: process.cwd()
+        }));
+    }
+    else if (sub === 'rotate') {
+        console.log(handleAccountSwitcher({ action: 'auto_rotate', project_path: process.cwd() }));
+    }
+    else if (sub === 'auto-switch') {
+        const setting = args[2]?.toLowerCase();
+        const enabled = setting === 'on' || setting === 'true' || setting === '1';
+        const threshIdx = args.indexOf('--threshold');
+        const threshold = threshIdx !== -1 ? parseFloat(args[threshIdx + 1]) : 1.0;
+        console.log(handleAccountSwitcher({
+            action: 'configure',
+            enabled,
+            threshold_percent: threshold,
+            project_path: process.cwd()
+        }));
+    }
+    else {
+        console.log('Usage:');
+        console.log('  node dist/cli.js accounts list');
+        console.log('  node dist/cli.js accounts status');
+        console.log('  node dist/cli.js accounts switch <account-id>');
+        console.log('  node dist/cli.js accounts add <id> [--name <name>] [--token-file <file>] [--api-key <key>]');
+        console.log('  node dist/cli.js accounts rotate');
+        console.log('  node dist/cli.js accounts auto-switch <on|off> [--threshold <pct>]');
+    }
+}
 else {
     console.log('Usage:');
     console.log('  node dist/cli.js install [--all|--claude|--cursor|--codex|--antigravity|--windsurf|--cline|--zed] [--workspace <path>] [--dry-run]');
     console.log('  node dist/cli.js auto-accept [--dry-run]');
     console.log('  node dist/cli.js awake [status|hold <mins>|release]');
     console.log('  node dist/cli.js tokens [file] [--model <name>] [--text <str>] [--no-compare]');
+    console.log('  node dist/cli.js accounts [list|status|switch|add|rotate|auto-switch]');
     console.log('  node dist/cli.js map [--workspace <path>]');
     console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');

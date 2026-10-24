@@ -9,6 +9,7 @@ import { handleKeepAwake } from './tools/keepAwake.js';
 import { handleRepoBrief } from './tools/repoBrief.js';
 import { handleAgentEnforce } from './tools/agentEnforce.js';
 import { handleTokenCounter } from './tools/tokenCounter.js';
+import { handleAccountSwitcher } from './tools/accountSwitcher.js';
 import { maybeBackgroundUpdate } from './update.js';
 const server = new Server({
     name: 'agent-guard',
@@ -224,6 +225,62 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     },
                 },
             },
+            {
+                name: 'account_switcher',
+                description: 'Seamlessly rotate and manage Antigravity and AI agent accounts. Automatically switches accounts when quota reaches 1% without disturbing task execution.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        action: {
+                            type: 'string',
+                            enum: ['status', 'switch', 'list', 'add', 'auto_rotate', 'configure'],
+                            description: 'Action: status, switch to account, list all accounts, add account, trigger auto_rotate check, or configure threshold.',
+                        },
+                        account_id: {
+                            type: 'string',
+                            description: 'Target account ID (e.g. "acc-backup-1") for switch or add.',
+                        },
+                        name: {
+                            type: 'string',
+                            description: 'Display name for new account profile.',
+                        },
+                        provider: {
+                            type: 'string',
+                            enum: ['antigravity', 'gemini', 'claude', 'openai', 'custom'],
+                            description: 'Provider type (defaults to antigravity).',
+                        },
+                        token_content: {
+                            type: 'string',
+                            description: 'Optional OAuth token JSON string for new account.',
+                        },
+                        token_source_file: {
+                            type: 'string',
+                            description: 'Optional file path to import token from.',
+                        },
+                        api_key: {
+                            type: 'string',
+                            description: 'Optional API key for API key-based models.',
+                        },
+                        threshold_percent: {
+                            type: 'number',
+                            description: 'Quota percentage remaining threshold for auto-switch (default: 1.0%).',
+                        },
+                        enabled: {
+                            type: 'boolean',
+                            description: 'Enable or disable automatic switching at threshold.',
+                        },
+                        reason: {
+                            type: 'string',
+                            description: 'Reason for manual or automatic rotation.',
+                        },
+                        project_path: {
+                            type: 'string',
+                            description: 'Absolute path to workspace directory.',
+                        },
+                    },
+                    required: ['action'],
+                },
+            },
         ],
     };
 });
@@ -253,6 +310,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 break;
             case 'token_counter':
                 resultText = handleTokenCounter(args);
+                break;
+            case 'account_switcher':
+                resultText = handleAccountSwitcher(args);
                 break;
             default:
                 resultText = `UNKNOWN_TOOL: Tool "${name}" is not supported by agent-guard.`;
