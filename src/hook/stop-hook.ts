@@ -24,6 +24,14 @@ export function runStopHook(projectDir?: string, stdinData: string = ''): void {
   try {
     const project = resolveProjectPath(projectDir || process.cwd());
 
+    let conversationId = '';
+    if (stdinData) {
+      try {
+        const parsed = JSON.parse(stdinData);
+        conversationId = parsed.conversationId || '';
+      } catch {}
+    }
+
     // Debug: capture input from Antigravity to learn payload structure
     try {
       const inputLogPath = path.join(project, '.agent', 'hook-input.log');
@@ -35,6 +43,22 @@ export function runStopHook(projectDir?: string, stdinData: string = ''): void {
         );
       }
     } catch {}
+
+    // Register active agent conversation ID in .agent/active_agents.json
+    if (conversationId) {
+      try {
+        const agentFile = path.join(project, '.agent', 'active_agents.json');
+        let agents: Record<string, { last_seen: string; role: string }> = {};
+        if (fs.existsSync(agentFile)) {
+          agents = JSON.parse(fs.readFileSync(agentFile, 'utf-8'));
+        }
+        agents[conversationId] = {
+          last_seen: new Date().toISOString(),
+          role: 'active_worker'
+        };
+        fs.writeFileSync(agentFile, JSON.stringify(agents, null, 2), 'utf-8');
+      } catch {}
+    }
 
     const ledgerPath = getLedgerPath(project);
     if (!fs.existsSync(ledgerPath)) {
@@ -118,10 +142,22 @@ export function runStopHook(projectDir?: string, stdinData: string = ''): void {
       ledger.steps.find((s) => s.status === 'failed') ||
       unfinished[0];
 
+    // Check for pending inter-agent directive
+    let directivePrefix = '';
+    try {
+      const directiveFile = path.join(project, '.agent', 'agent_directives.json');
+      if (fs.existsSync(directiveFile)) {
+        const d = JSON.parse(fs.readFileSync(directiveFile, 'utf-8'));
+        if (d.active && d.directive) {
+          directivePrefix = `[SUPERVISOR DIRECTIVE: ${d.directive}] `;
+        }
+      }
+    } catch {}
+
     const triesLeft = currentStep.max_tries - currentStep.tries;
-    const reason = `${unfinished.length} step${unfinished.length === 1 ? '' : 's'} not finished. Current: ${currentStep.id} "${currentStep.title}" (${triesLeft} tries left). Call task_status and continue. Do not stop.`.slice(
+    const reason = `${directivePrefix}[AGENT GUARD ENFORCEMENT] STOP REJECTED. Task is incomplete (${unfinished.length} remaining). You MUST complete step ${currentStep.id}: "${currentStep.title}" (${triesLeft} tries left). Execute work and report proof via task_checkpoint. Do NOT stop.`.slice(
       0,
-      290
+      350
     );
 
     logToolCall(

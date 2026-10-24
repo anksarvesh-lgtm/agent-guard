@@ -7,7 +7,8 @@
   "bin": {
     "agent-guard": "./dist/cli.js",
     "agent-guard-server": "./dist/index.js",
-    "agent-guard-stop": "./dist/hook/stop-hook.js"
+    "agent-guard-stop": "./dist/hook/stop-hook.js",
+    "agent-guard-enforce": "./dist/hook/post-invocation-hook.js"
   },
   "scripts": {
     "build": "tsc",
