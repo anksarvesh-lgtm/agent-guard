@@ -10,6 +10,7 @@ import { getProjectFreshness } from './brief/stale.js';
 import { installToApps, detectInstalledApps } from './install/apps.js';
 import { loadSkillsIndex, listFeaturedSkills, searchSkills, getSkillInfo, getCategories, installSkill, formatSkillsTable } from './skills/manager.js';
 import { globalAwakeManager } from './awake/manager.js';
+import { handleTokenCounter } from './tools/tokenCounter.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const REPO_ROOT = path.resolve(__dirname, '..');
@@ -70,6 +71,7 @@ export function configureAutoAcceptGrants(dryRun) {
             'mcp(agent-guard/repo_brief)',
             'mcp(agent-guard/agent_enforce)',
             'mcp(agent-guard/project_map)',
+            'mcp(agent-guard/token_counter)',
             // Antigravity plugin-scoped tool grants
             'mcp(agent-guard_agent-guard/task_start)',
             'mcp(agent-guard_agent-guard/task_checkpoint)',
@@ -78,6 +80,7 @@ export function configureAutoAcceptGrants(dryRun) {
             'mcp(agent-guard_agent-guard/repo_brief)',
             'mcp(agent-guard_agent-guard/agent_enforce)',
             'mcp(agent-guard_agent-guard/project_map)',
+            'mcp(agent-guard_agent-guard/token_counter)',
             // Command execution grants for autonomous agent workflow
             'command(agent-guard)',
             'command(npx agent-guard)',
@@ -87,6 +90,7 @@ export function configureAutoAcceptGrants(dryRun) {
             'command(npm run update)',
             'command(npm run map)',
             'command(npm run skills)',
+            'command(npm run tokens)',
             'command(./install.sh)',
             'command(node dist/cli.js)',
             'command(node dist/cli.js doctor)',
@@ -594,11 +598,29 @@ else if (command === 'awake') {
         }
     }
 }
+else if (command === 'tokens') {
+    const modelIdx = args.indexOf('--model');
+    const targetModel = modelIdx !== -1 ? args[modelIdx + 1] : undefined;
+    const fileIdx = args.indexOf('--file');
+    const targetFile = fileIdx !== -1 ? args[fileIdx + 1] : (args[1] && !args[1].startsWith('--') ? args[1] : undefined);
+    const textIdx = args.indexOf('--text');
+    const targetText = textIdx !== -1 ? args[textIdx + 1] : undefined;
+    const noCompare = args.includes('--no-compare');
+    const report = handleTokenCounter({
+        model: targetModel,
+        file_path: targetFile,
+        text: targetText,
+        compare_all: !noCompare,
+        project_path: process.cwd(),
+    });
+    console.log(report);
+}
 else {
     console.log('Usage:');
     console.log('  node dist/cli.js install [--all|--claude|--cursor|--codex|--antigravity|--windsurf|--cline|--zed] [--workspace <path>] [--dry-run]');
     console.log('  node dist/cli.js auto-accept [--dry-run]');
     console.log('  node dist/cli.js awake [status|hold <mins>|release]');
+    console.log('  node dist/cli.js tokens [file] [--model <name>] [--text <str>] [--no-compare]');
     console.log('  node dist/cli.js map [--workspace <path>]');
     console.log('  node dist/cli.js update');
     console.log('  node dist/cli.js doctor');

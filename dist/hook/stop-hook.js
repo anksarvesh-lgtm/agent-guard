@@ -3,6 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { getLedgerPath, getHookStatePath, resolveProjectPath, } from '../util/paths.js';
 import { logToolCall } from '../util/log.js';
+import { findRecentTranscript } from '../tools/tokenCounter.js';
+import { calculateContextBudget, parseTranscriptTokens } from '../tokens/index.js';
 function readStdinSilently() {
     try {
         if (process.stdin.isTTY) {
@@ -103,6 +105,19 @@ export function runStopHook(projectDir, stdinData = '') {
             logToolCall('stop_hook', null, `LOOP_BREAKER_ALLOWED (idle_pushes=${state.pushes_in_a_row}, total=${state.total_pushes})`, project);
             return;
         }
+        // Context budget guard: if context is >92% full, allow stop to prevent crash/truncation
+        try {
+            const recentTranscript = findRecentTranscript(project);
+            const used = recentTranscript ? parseTranscriptTokens(recentTranscript).totalEstimatedTokens : 0;
+            if (used > 0) {
+                const budget = calculateContextBudget(used);
+                if (budget.percentUsed >= 92) {
+                    logToolCall('stop_hook', null, `CONTEXT_OVERFLOW_GUARD_ALLOWED (${budget.percentUsed}% consumed)`, project);
+                    return;
+                }
+            }
+        }
+        catch { }
         // Increment push counters
         state.pushes_in_a_row += 1;
         state.total_pushes += 1;

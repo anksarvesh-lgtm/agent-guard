@@ -3,6 +3,8 @@ import { resolveProjectPath } from '../util/paths.js';
 import { readLedger, writeLedger, cascadeBlockedDependencies, getNextStep, evaluateTaskStatus, } from '../ledger.js';
 import { logToolCall } from '../util/log.js';
 import { globalAwakeManager } from '../awake/manager.js';
+import { findRecentTranscript } from './tokenCounter.js';
+import { calculateContextBudget, formatTokenNumber, parseTranscriptTokens, estimateTextTokens } from '../tokens/index.js';
 export function handleTaskCheckpoint(rawArgs) {
     const parseResult = TaskCheckpointSchema.safeParse(rawArgs);
     if (!parseResult.success) {
@@ -124,6 +126,16 @@ export function handleTaskCheckpoint(rawArgs) {
     }
     catch { }
     writeLedger(ledger, validatedProject);
+    // Check context budget headroom and append warning badge if nearing limits
+    try {
+        const recentTranscript = findRecentTranscript(validatedProject);
+        const used = recentTranscript ? parseTranscriptTokens(recentTranscript).totalEstimatedTokens : estimateTextTokens(JSON.stringify(ledger));
+        const budget = calculateContextBudget(used);
+        if (budget.status === 'WARNING' || budget.status === 'CRITICAL') {
+            instruction += ` [Context: ${budget.statusEmoji} ${budget.percentUsed}% used, ${formatTokenNumber(budget.remainingTokens)} remaining]`;
+        }
+    }
+    catch { }
     // Return instruction capped to 300 characters
     return instruction.slice(0, 300);
 }

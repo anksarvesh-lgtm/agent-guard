@@ -114,6 +114,28 @@ export declare const RepoBriefSchema: z.ZodObject<{
     project_path?: string | undefined;
     refresh?: boolean | undefined;
 }>;
+export declare const TokenCounterSchema: z.ZodObject<{
+    model: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    text: z.ZodOptional<z.ZodString>;
+    file_path: z.ZodOptional<z.ZodString>;
+    transcript_path: z.ZodOptional<z.ZodString>;
+    compare_all: z.ZodDefault<z.ZodOptional<z.ZodBoolean>>;
+    project_path: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    model: string;
+    compare_all: boolean;
+    project_path?: string | undefined;
+    text?: string | undefined;
+    file_path?: string | undefined;
+    transcript_path?: string | undefined;
+}, {
+    project_path?: string | undefined;
+    model?: string | undefined;
+    text?: string | undefined;
+    file_path?: string | undefined;
+    transcript_path?: string | undefined;
+    compare_all?: boolean | undefined;
+}>;
 /**
  * Formats Zod errors into a clean, human-readable BAD_INPUT error string
  */

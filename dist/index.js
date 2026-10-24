@@ -8,6 +8,7 @@ import { handleTaskStatus } from './tools/taskStatus.js';
 import { handleKeepAwake } from './tools/keepAwake.js';
 import { handleRepoBrief } from './tools/repoBrief.js';
 import { handleAgentEnforce } from './tools/agentEnforce.js';
+import { handleTokenCounter } from './tools/tokenCounter.js';
 import { maybeBackgroundUpdate } from './update.js';
 const server = new Server({
     name: 'agent-guard',
@@ -190,6 +191,39 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
                     required: ['action'],
                 },
             },
+            {
+                name: 'token_counter',
+                description: 'Measure tokens used and remaining across Gemini, Claude, OpenAI, and DeepSeek. Check context budget headroom and prevent overflow.',
+                inputSchema: {
+                    type: 'object',
+                    properties: {
+                        model: {
+                            type: 'string',
+                            description: 'Target model: gemini-1.5-pro, gemini-2.0-flash, claude-3-5-sonnet, gpt-4o, o1, deepseek-chat, etc.',
+                        },
+                        text: {
+                            type: 'string',
+                            description: 'Optional raw text snippet to count tokens for.',
+                        },
+                        file_path: {
+                            type: 'string',
+                            description: 'Optional file path to measure token size for.',
+                        },
+                        transcript_path: {
+                            type: 'string',
+                            description: 'Optional path to conversation transcript JSONL file.',
+                        },
+                        compare_all: {
+                            type: 'boolean',
+                            description: 'Include cross-model comparison table across Gemini, Claude, OpenAI, and DeepSeek (default true).',
+                        },
+                        project_path: {
+                            type: 'string',
+                            description: 'Absolute path to workspace directory.',
+                        },
+                    },
+                },
+            },
         ],
     };
 });
@@ -216,6 +250,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 break;
             case 'agent_enforce':
                 resultText = handleAgentEnforce(args);
+                break;
+            case 'token_counter':
+                resultText = handleTokenCounter(args);
                 break;
             default:
                 resultText = `UNKNOWN_TOOL: Tool "${name}" is not supported by agent-guard.`;
