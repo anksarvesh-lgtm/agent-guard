@@ -13,7 +13,7 @@
   <a href="#test-suite"><img src="https://img.shields.io/badge/Tests-122%2F122%20Passing-brightgreen.svg" alt="Vitest Passing" /></a>
   <a href="docs/AWESOME_SKILLS.md"><img src="https://img.shields.io/badge/Skills-2%2C740%2B%20Curated-blueviolet.svg" alt="Awesome Skills" /></a>
   <a href="#zero-telemetry"><img src="https://img.shields.io/badge/Telemetry-Zero%20%2F%20100%25%20Local-success.svg" alt="Zero Telemetry" /></a>
-  <img src="https://img.shields.io/badge/Version-v0.2.8-informational.svg" alt="Version 0.2.8" />
+  <img src="https://img.shields.io/badge/Version-v0.2.9-informational.svg" alt="Version 0.2.9" />
   <a href="#mention-agent-guard"><img src="https://img.shields.io/badge/Mention-%40agent--guard-orange.svg" alt="Mention @agent-guard" /></a>
   <a href="#auto-update"><img src="https://img.shields.io/badge/Auto--Update-Enabled-blue.svg" alt="Auto-Update Enabled" /></a>
   <a href="#prerequisites"><img src="https://img.shields.io/badge/Node.js-%3E%3D20.0.0-green.svg" alt="Node >= 20" /></a>
