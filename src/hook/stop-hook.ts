@@ -11,6 +11,7 @@ import { TaskLedger, HookState } from '../types.js';
 import { findRecentTranscript } from '../tools/tokenCounter.js';
 import { calculateContextBudget, parseTranscriptTokens } from '../tokens/index.js';
 import { globalAccountManager } from '../accounts/index.js';
+import { globalIslandBridge } from '../island/index.js';
 
 function readStdinSilently(): string {
   try {
@@ -187,6 +188,29 @@ export function runStopHook(projectDir?: string, stdinData: string = ''): void {
       `PUSH_BACK (idle=${state.pushes_in_a_row}, total=${state.total_pushes})`,
       project
     );
+
+    // Notify LiquidDynamo Dynamic Island that agent was pushed back to finish step
+    try {
+      globalIslandBridge.sendEvent({
+        version: '1.0',
+        coucou_agent: 'antigravity',
+        agent: 'antigravity',
+        session_id: ledger.task_id,
+        hook_event_name: 'PreToolUse',
+        tool_name: currentStep.id,
+        step_id: currentStep.id,
+        step_title: currentStep.title,
+        status: 'working',
+        notification: {
+          title: `Continuing Step ${currentStep.id}`,
+          subtitle: currentStep.title,
+          iconName: 'bolt.shield.fill',
+          tintColor: '#f59e0b',
+          dwellDuration: 3.0,
+          kind: 'notification',
+        },
+      });
+    } catch {}
 
     const payload = JSON.stringify({
       decision: 'continue',

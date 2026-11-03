@@ -3,6 +3,8 @@ import { resolveProjectPath } from '../util/paths.js';
 import { readLedger, writeLedger, archiveCurrentTask } from '../ledger.js';
 import { logToolCall } from '../util/log.js';
 import { globalAwakeManager } from '../awake/manager.js';
+import { globalIslandBridge } from '../island/index.js';
+import { globalAccountManager } from '../accounts/index.js';
 import { TaskLedger, Step } from '../types.js';
 
 export function handleTaskStart(rawArgs: any): string {
@@ -73,6 +75,22 @@ export function handleTaskStart(rawArgs: any): string {
   } catch (e: any) {
     awakeNotice = ` (Awake lease notice: ${e.message})`;
   }
+
+  // Broadcast task initiation to LiquidDynamo Dynamic Island
+  try {
+    let accName: string | undefined;
+    const acc = globalAccountManager.getActiveAccount();
+    if (acc) {
+      accName = `${acc.name} (${acc.remainingPercent}%)`;
+    }
+    globalIslandBridge.broadcastTaskStart({
+      sessionId: taskId,
+      goal,
+      totalSteps: ledgerSteps.length,
+      firstStepTitle: ledgerSteps[0]?.title,
+      account: accName,
+    });
+  } catch {}
 
   logToolCall('task_start', 's1', 'OK', validatedProject);
 

@@ -3,6 +3,7 @@ import { AccountSwitcherSchema, formatZodError } from '../util/schema.js';
 import { resolveProjectPath } from '../util/paths.js';
 import { logToolCall } from '../util/log.js';
 import { globalAccountManager } from '../accounts/index.js';
+import { globalIslandBridge } from '../island/index.js';
 
 export function handleAccountSwitcher(rawArgs: any): string {
   const parseResult = AccountSwitcherSchema.safeParse(rawArgs);
@@ -89,6 +90,14 @@ export function handleAccountSwitcher(rawArgs: any): string {
       logToolCall('account_switcher', null, result.success ? 'SWITCH_OK' : 'SWITCH_FAILED', validatedProject);
 
       if (result.success) {
+        try {
+          const active = globalAccountManager.getActiveAccount();
+          globalIslandBridge.broadcastAccountSwitch({
+            oldAccount: result.previousAccountId,
+            newAccount: result.currentAccountName || result.currentAccountId,
+            quotaPercent: active?.remainingPercent ?? 100,
+          });
+        } catch {}
         return `✅ **Account Switched Successfully**\n• Active Account: "${result.currentAccountName}" (${result.currentAccountId})\n• Previous: ${result.previousAccountId || 'None'}\n• Mode: Seamless atomic swap (zero disruption to current task execution).`;
       }
       return `❌ **Switch Failed**: ${result.message}`;
@@ -148,6 +157,13 @@ export function handleAccountSwitcher(rawArgs: any): string {
       logToolCall('account_switcher', null, res.triggered ? 'AUTO_ROTATED' : 'HEADROOM_OK', validatedProject);
 
       if (res.triggered && res.switchResult?.success) {
+        try {
+          globalIslandBridge.broadcastAccountSwitch({
+            oldAccount: res.switchResult.previousAccountId,
+            newAccount: res.switchResult.currentAccountName || res.switchResult.currentAccountId,
+            quotaPercent: res.currentRemainingPercent ?? 100,
+          });
+        } catch {}
         return `🔄 **Auto-Switch Triggered at ${res.currentRemainingPercent}% remaining**\n• New Active Account: "${res.switchResult.currentAccountName}" (${res.switchResult.currentAccountId})\n• Seamless atomic credential update complete.`;
       }
       return `ℹ️ No rotation needed: current account headroom is ${res.currentRemainingPercent}% (threshold: <= ${res.thresholdPercent}%).`;

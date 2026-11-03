@@ -1,6 +1,7 @@
 import { KeepAwakeSchema, formatZodError } from '../util/schema.js';
 import { resolveProjectPath } from '../util/paths.js';
 import { globalAwakeManager } from '../awake/manager.js';
+import { globalIslandBridge } from '../island/index.js';
 import { logToolCall } from '../util/log.js';
 export function handleKeepAwake(rawArgs) {
     const parseResult = KeepAwakeSchema.safeParse(rawArgs);
@@ -25,12 +26,26 @@ export function handleKeepAwake(rawArgs) {
             const holdMinutes = minutes || 30;
             const status = globalAwakeManager.hold(holdMinutes, reason);
             logToolCall('keep_awake', null, 'HOLD_OK', validatedProject);
+            try {
+                globalIslandBridge.broadcastKeepAwake({
+                    enabled: true,
+                    remainingMinutes: status.minutesRemaining,
+                    reason,
+                });
+            }
+            catch { }
             const warningText = status.warning ? ` [Warning: ${status.warning}]` : '';
             return `Awake lease active: holding until ${status.heldUntil} (${status.minutesRemaining}m remaining).${warningText}`;
         }
         if (action === 'release') {
             const status = globalAwakeManager.release();
             logToolCall('keep_awake', null, 'RELEASE_OK', validatedProject);
+            try {
+                globalIslandBridge.broadcastKeepAwake({
+                    enabled: false,
+                });
+            }
+            catch { }
             return 'Awake lease released. System sleep restored to normal.';
         }
         if (action === 'status') {

@@ -1,0 +1,1 @@
+{"version":3,"file":"island.d.ts","sourceRoot":"","sources":["../../src/tools/island.ts"],"names":[],"mappings":"AAEA,wBAAgB,kBAAkB,IAAI,MAAM,CAmB3C;AAED,wBAAgB,kBAAkB,CAAC,IAAI,EAAE;IACvC,KAAK,EAAE,MAAM,CAAC;IACd,OAAO,EAAE,MAAM,CAAC;IAChB,IAAI,CAAC,EAAE,MAAM,CAAC;IACd,IAAI,CAAC,EAAE,MAAM,CAAC;IACd,QAAQ,CAAC,EAAE,MAAM,CAAC;CACnB,GAAG,MAAM,CAYT"}

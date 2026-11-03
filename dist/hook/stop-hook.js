@@ -6,6 +6,7 @@ import { logToolCall } from '../util/log.js';
 import { findRecentTranscript } from '../tools/tokenCounter.js';
 import { calculateContextBudget, parseTranscriptTokens } from '../tokens/index.js';
 import { globalAccountManager } from '../accounts/index.js';
+import { globalIslandBridge } from '../island/index.js';
 function readStdinSilently() {
     try {
         if (process.stdin.isTTY) {
@@ -151,6 +152,29 @@ export function runStopHook(projectDir, stdinData = '') {
         const lockPrefix = isUserGuided ? `[USER STEP LOCK ENFORCED: ${currentStep.id}] ` : '';
         const reason = `${directivePrefix}${lockPrefix}[AGENT GUARD ENFORCEMENT] STOP REJECTED. Task is incomplete (${unfinished.length} remaining). You MUST complete step ${currentStep.id}: "${currentStep.title}" (${triesLeft} tries left). Execute work and report proof via task_checkpoint. Do NOT stop.`.slice(0, 350);
         logToolCall('stop_hook', currentStep.id, `PUSH_BACK (idle=${state.pushes_in_a_row}, total=${state.total_pushes})`, project);
+        // Notify LiquidDynamo Dynamic Island that agent was pushed back to finish step
+        try {
+            globalIslandBridge.sendEvent({
+                version: '1.0',
+                coucou_agent: 'antigravity',
+                agent: 'antigravity',
+                session_id: ledger.task_id,
+                hook_event_name: 'PreToolUse',
+                tool_name: currentStep.id,
+                step_id: currentStep.id,
+                step_title: currentStep.title,
+                status: 'working',
+                notification: {
+                    title: `Continuing Step ${currentStep.id}`,
+                    subtitle: currentStep.title,
+                    iconName: 'bolt.shield.fill',
+                    tintColor: '#f59e0b',
+                    dwellDuration: 3.0,
+                    kind: 'notification',
+                },
+            });
+        }
+        catch { }
         const payload = JSON.stringify({
             decision: 'continue',
             reason,

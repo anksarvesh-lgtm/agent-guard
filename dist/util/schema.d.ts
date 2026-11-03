@@ -41,8 +41,8 @@ export declare const TaskStartSchema: z.ZodObject<{
         depends_on?: string[] | undefined;
     }[];
     replace?: boolean | undefined;
-    max_tries?: number | undefined;
     project_path?: string | undefined;
+    max_tries?: number | undefined;
 }>;
 export declare const TaskCheckpointSchema: z.ZodObject<{
     step_id: z.ZodString;
@@ -64,8 +64,8 @@ export declare const TaskCheckpointSchema: z.ZodObject<{
     step_id: string;
     status: "in_progress" | "done" | "failed";
     note: string;
-    error?: string | undefined;
     project_path?: string | undefined;
+    error?: string | undefined;
     add_steps?: {
         title: string;
         depends_on: string[];
@@ -74,8 +74,8 @@ export declare const TaskCheckpointSchema: z.ZodObject<{
     step_id: string;
     status: "in_progress" | "done" | "failed";
     note: string;
-    error?: string | undefined;
     project_path?: string | undefined;
+    error?: string | undefined;
     add_steps?: {
         title: string;
         depends_on?: string[] | undefined;
@@ -201,8 +201,8 @@ export declare const MemoryStoreSchema: z.ZodObject<{
     project_path?: string | undefined;
 }, {
     content: string;
-    category?: "decision" | "architecture" | "learning" | "convention" | "general" | undefined;
     project_path?: string | undefined;
+    category?: "decision" | "architecture" | "learning" | "convention" | "general" | undefined;
     tags?: string[] | undefined;
 }>;
 export declare const MemoryRecallSchema: z.ZodObject<{
@@ -215,13 +215,13 @@ export declare const MemoryRecallSchema: z.ZodObject<{
     query: string;
     limit: number;
     tag?: string | undefined;
-    category?: string | undefined;
     project_path?: string | undefined;
+    category?: string | undefined;
 }, {
     query: string;
     tag?: string | undefined;
-    category?: string | undefined;
     project_path?: string | undefined;
+    category?: string | undefined;
     limit?: number | undefined;
 }>;
 /**

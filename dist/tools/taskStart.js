@@ -3,6 +3,8 @@ import { resolveProjectPath } from '../util/paths.js';
 import { readLedger, writeLedger, archiveCurrentTask } from '../ledger.js';
 import { logToolCall } from '../util/log.js';
 import { globalAwakeManager } from '../awake/manager.js';
+import { globalIslandBridge } from '../island/index.js';
+import { globalAccountManager } from '../accounts/index.js';
 export function handleTaskStart(rawArgs) {
     const parseResult = TaskStartSchema.safeParse(rawArgs);
     if (!parseResult.success) {
@@ -65,6 +67,22 @@ export function handleTaskStart(rawArgs) {
     catch (e) {
         awakeNotice = ` (Awake lease notice: ${e.message})`;
     }
+    // Broadcast task initiation to LiquidDynamo Dynamic Island
+    try {
+        let accName;
+        const acc = globalAccountManager.getActiveAccount();
+        if (acc) {
+            accName = `${acc.name} (${acc.remainingPercent}%)`;
+        }
+        globalIslandBridge.broadcastTaskStart({
+            sessionId: taskId,
+            goal,
+            totalSteps: ledgerSteps.length,
+            firstStepTitle: ledgerSteps[0]?.title,
+            account: accName,
+        });
+    }
+    catch { }
     logToolCall('task_start', 's1', 'OK', validatedProject);
     const stepLines = ledgerSteps.map((s) => `- [${s.id}] (${s.status}) ${s.title}`).join('\n');
     return `Task started: ${taskId}\nGoal: ${goal}\nSteps:\n${stepLines}\n\nFirst step to do: s1 (${ledgerSteps[0].title})${awakeNotice}`;

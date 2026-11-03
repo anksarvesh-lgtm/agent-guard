@@ -5,6 +5,7 @@ import { resolveProjectPath } from '../util/paths.js';
 import { logToolCall } from '../util/log.js';
 import { globalJitSkillRouter } from '../skills/router.js';
 import { findRecentTranscript } from '../tools/tokenCounter.js';
+import { globalIslandBridge } from '../island/index.js';
 function readStdinSilently() {
     try {
         if (process.stdin.isTTY) {
@@ -86,6 +87,19 @@ export function runPreInvocationHook(projectDir, stdinData = '') {
             process.stdout.write(defaultResponse);
             return;
         }
+        // Broadcast user prompt to LiquidDynamo Dynamic Island
+        try {
+            globalIslandBridge.sendEvent({
+                version: '1.0',
+                coucou_agent: 'antigravity',
+                agent: 'antigravity',
+                session_id: conversationId,
+                hook_event_name: 'UserPromptSubmit',
+                prompt: cleanQuery,
+                status: 'thinking',
+            });
+        }
+        catch { }
         // Route against 3,600+ skills library
         const matches = globalJitSkillRouter.route(cleanQuery, {
             limit: 1,

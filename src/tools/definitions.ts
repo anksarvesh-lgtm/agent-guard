@@ -483,6 +483,44 @@ export const AGENT_GUARD_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  {
+    name: 'island_status',
+    description: 'Inspect LiquidDynamo Dynamic Island connection status, app process, and active IPC socket.',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+    },
+  },
+  {
+    name: 'island_notify',
+    description: 'Trigger a real-time notification or popup alert in the LiquidDynamo Dynamic Island.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Headline text shown in Dynamic Island capsule.',
+        },
+        message: {
+          type: 'string',
+          description: 'Body/subtitle detail text.',
+        },
+        icon: {
+          type: 'string',
+          description: 'SF Symbol name (e.g. "bolt.shield.fill", "bell.fill", "checkmark.circle.fill").',
+        },
+        tint: {
+          type: 'string',
+          description: 'Hex color or name (e.g. "#06c77a", "cyan", "orange").',
+        },
+        duration: {
+          type: 'number',
+          description: 'Dwell duration in seconds (default 4.0).',
+        },
+      },
+      required: ['title', 'message'],
+    },
+  },
 ];
 
 export function syncMcpSchemaFiles(customDirs?: string[]): string[] {

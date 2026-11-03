@@ -10,6 +10,7 @@ import {
 import { logToolCall } from '../util/log.js';
 import { globalAwakeManager } from '../awake/manager.js';
 import { globalAccountManager } from '../accounts/index.js';
+import { globalIslandBridge } from '../island/index.js';
 import { findRecentTranscript } from './tokenCounter.js';
 import {
   calculateContextBudget,
@@ -144,6 +145,28 @@ export function handleTaskCheckpoint(rawArgs: any): string {
   } catch {}
 
   writeLedger(ledger, validatedProject);
+
+  // Broadcast step checkpoint to LiquidDynamo Dynamic Island
+  try {
+    const stepIdx = ledger.steps.findIndex((s) => s.id === step.id);
+    let accName: string | undefined;
+    const acc = globalAccountManager.getActiveAccount();
+    if (acc) {
+      accName = `${acc.name} (${acc.remainingPercent}%)`;
+    }
+    globalIslandBridge.broadcastStepCheckpoint({
+      sessionId: ledger.task_id,
+      goal: ledger.goal,
+      stepId: step.id,
+      stepTitle: step.title,
+      stepIndex: stepIdx >= 0 ? stepIdx + 1 : 1,
+      totalSteps: ledger.steps.length,
+      status: status,
+      note: note || undefined,
+      error: error || undefined,
+      account: accName,
+    });
+  } catch {}
 
   // Check context budget headroom and append warning badge if nearing limits
   try {

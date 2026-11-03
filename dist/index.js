@@ -14,6 +14,8 @@ import { handleModelCompressor } from './tools/modelCompressor.js';
 import { handleSkillActivate } from './tools/skillActivate.js';
 import { handleMemoryStore, handleMemoryRecall } from './tools/memory.js';
 import { handleCodeMap } from './tools/codeMap.js';
+import { handleIslandStatus, handleIslandNotify } from './tools/island.js';
+import { globalIslandBridge } from './island/index.js';
 import { AGENT_GUARD_TOOLS, syncMcpSchemaFiles } from './tools/definitions.js';
 import { maybeBackgroundUpdate } from './update.js';
 const server = new Server({
@@ -34,6 +36,14 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const { name, arguments: args } = request.params;
     try {
+        // Notify LiquidDynamo Dynamic Island of tool invocation
+        try {
+            globalIslandBridge.broadcastToolPre({
+                sessionId: args?.project_path || 'agent-guard',
+                toolName: name,
+            });
+        }
+        catch { }
         let resultText = '';
         switch (name) {
             case 'task_start':
@@ -75,10 +85,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             case 'code_map':
                 resultText = handleCodeMap((args || {}));
                 break;
+            case 'island_status':
+                resultText = handleIslandStatus();
+                break;
+            case 'island_notify':
+                resultText = handleIslandNotify((args || {}));
+                break;
             default:
                 resultText = `UNKNOWN_TOOL: Tool "${name}" is not supported by agent-guard.`;
                 break;
         }
+        // Notify LiquidDynamo Dynamic Island of tool result
+        try {
+            const isErr = resultText.startsWith('UNKNOWN_TOOL') || resultText.startsWith('BAD_INPUT');
+            globalIslandBridge.broadcastToolPost({
+                sessionId: args?.project_path || 'agent-guard',
+                toolName: name,
+                success: !isErr,
+                summary: resultText.slice(0, 100),
+            });
+        }
+        catch { }
         return {
             content: [
                 {
