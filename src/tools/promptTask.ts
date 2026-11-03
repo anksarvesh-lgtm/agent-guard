@@ -126,3 +126,4 @@ export function initializePromptTask(
     message: `Initialized ${ledgerSteps.length} prompt-guided steps for task ${taskId}. Agent is now strictly locked onto step s1.`,
   };
 }
+

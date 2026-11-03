@@ -130,3 +130,4 @@ export function completeRunningTask(
   writeRunningTasks(tasks, projectPath);
   return true;
 }
+

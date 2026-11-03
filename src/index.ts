@@ -24,7 +24,7 @@ import { maybeBackgroundUpdate } from './update.js';
 const server = new Server(
   {
     name: 'agent-guard',
-    version: '0.2.21',
+    version: '0.2.22',
   },
   {
     capabilities: {
