@@ -16,6 +16,7 @@ export declare class AccountManager {
     getConfig(): AccountPoolConfig;
     listAccounts(): AccountProfile[];
     getActiveAccount(): AccountProfile | null;
+    getAccount(id: string): AccountProfile | null;
     addAccount(options: {
         id: string;
         name: string;
@@ -60,6 +61,15 @@ export declare class AccountManager {
         success: boolean;
         message: string;
         account?: AccountProfile;
+    };
+    /**
+     * Starts a non-disruptive OAuth loopback enrolment session to add a secondary Google account.
+     * Does NOT disturb or replace the active Antigravity session.
+     */
+    startOAuthEnrolment(port?: number): {
+        authUrl: string;
+        waitForAccount: () => Promise<AccountProfile>;
+        cancel: () => void;
     };
     removeAccount(id: string): {
         success: boolean;

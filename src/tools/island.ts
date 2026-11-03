@@ -40,3 +40,4 @@ export function handleIslandNotify(args: {
     ? `Notification sent to LiquidDynamo Dynamic Island: "${args.title}"`
     : `Notification queued for LiquidDynamo Dynamic Island: "${args.title}" (waiting for socket)`;
 }
+

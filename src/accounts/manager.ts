@@ -177,6 +177,11 @@ export class AccountManager {
     return active;
   }
 
+  public getAccount(id: string): AccountProfile | null {
+    const cfg = this.loadConfig();
+    return cfg.accounts.find((a) => a.id === id) || null;
+  }
+
   public addAccount(options: {
     id: string;
     name: string;

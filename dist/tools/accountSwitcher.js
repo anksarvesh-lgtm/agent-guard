@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import { AccountSwitcherSchema, formatZodError } from '../util/schema.js';
 import { resolveProjectPath } from '../util/paths.js';
 import { logToolCall } from '../util/log.js';
-import { globalAccountManager } from '../accounts/index.js';
+import { globalAccountManager, ensureAccountTokenFreshSync } from '../accounts/index.js';
 import { globalIslandBridge } from '../island/index.js';
 export function handleAccountSwitcher(rawArgs) {
     const parseResult = AccountSwitcherSchema.safeParse(rawArgs);
@@ -164,6 +164,40 @@ export function handleAccountSwitcher(rawArgs) {
                 '# 2. Or open web dashboard:',
                 'node ../antigravity-account-switcher/bin/cli.js web',
                 '```'
+            ].join('\n');
+        }
+        if (action === 'refresh') {
+            const targetAcc = account_id
+                ? globalAccountManager.getAccount(account_id)
+                : globalAccountManager.getActiveAccount();
+            if (!targetAcc) {
+                return `BAD_INPUT: Account ${account_id ? `"${account_id}"` : 'active'} not found.`;
+            }
+            if (!targetAcc.tokenFilePath || !fs.existsSync(targetAcc.tokenFilePath)) {
+                return `BAD_INPUT: Account "${targetAcc.id}" does not have a valid token file on disk.`;
+            }
+            const { refreshed, tokenData } = ensureAccountTokenFreshSync(targetAcc.tokenFilePath);
+            const rawExpiry = tokenData.expiry || tokenData.token?.expiry;
+            const statusText = refreshed
+                ? `✅ **Google OAuth Token Successfully Refreshed (Zero Re-Auth)**\n• Account: "${targetAcc.name}" (${targetAcc.id})\n• New Expiry: ${rawExpiry || 'in 1 hour'}\n• Access Token: Valid (ya29...)\n• Status: Ready for autonomous auto-rotation`
+                : `ℹ️ **Token is Already Fresh**\n• Account: "${targetAcc.name}" (${targetAcc.id})\n• Expiry: ${rawExpiry || 'Fresh'}\n• No refresh needed (> 5 min remaining).`;
+            logToolCall('account_switcher', null, 'REFRESH_OK', validatedProject);
+            return statusText;
+        }
+        if (action === 'enrol') {
+            const { authUrl } = globalAccountManager.startOAuthEnrolment(52132);
+            logToolCall('account_switcher', null, 'ENROL_STARTED', validatedProject);
+            return [
+                '## 🔑 Antigravity Standby Account Enrolment',
+                '',
+                'To add a secondary/tertiary Google account to your pool with **zero disruption** to your active session:',
+                '',
+                '1. **Open this Google OAuth Authorization URL in your browser**:',
+                `   [Click here to Authorize Google Account](${authUrl})`,
+                '',
+                '2. Select your Google account and grant offline access (`select_account & access_type=offline`).',
+                '3. The local loopback listener (`http://127.0.0.1:52132/oauth/callback`) will capture the permanent refresh token and enroll it directly as a standby account.',
+                '4. Once enrolled, Antigravity will automatically hot-swap to it whenever your primary quota drops below 1%!'
             ].join('\n');
         }
         return 'BAD_INPUT: Unknown action';

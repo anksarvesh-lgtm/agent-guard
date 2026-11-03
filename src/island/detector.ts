@@ -110,3 +110,4 @@ export function ensureWatcherEnabled(): boolean {
     return false;
   }
 }
+

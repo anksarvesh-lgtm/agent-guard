@@ -977,6 +977,11 @@ if (command === 'install') {
       threshold_percent: threshold,
       project_path: process.cwd()
     }));
+  } else if (sub === 'refresh') {
+    const accId = args[2];
+    console.log(handleAccountSwitcher({ action: 'refresh', account_id: accId, project_path: process.cwd() }));
+  } else if (sub === 'enrol' || sub === 'enroll') {
+    console.log(handleAccountSwitcher({ action: 'enrol', project_path: process.cwd() }));
   } else if (sub === 'proxy' || sub === 'failover') {
     console.log(handleAccountSwitcher({ action: 'failover_proxy', project_path: process.cwd() }));
   } else {
@@ -987,6 +992,8 @@ if (command === 'install') {
     console.log('  node dist/cli.js accounts import-stock [name] [--id <id>]');
     console.log('  node dist/cli.js accounts detect');
     console.log('  node dist/cli.js accounts switch <account-id>');
+    console.log('  node dist/cli.js accounts refresh [account-id]');
+    console.log('  node dist/cli.js accounts enrol [--port <port>]');
     console.log('  node dist/cli.js accounts add <id> [--name <name>] [--token <json>] [--token-file <file>] [--api-key <key>] [--snapshot]');
     console.log('  node dist/cli.js accounts import <file-path> [--id <id>] [--name <name>]');
     console.log('  node dist/cli.js accounts remove <account-id>');
@@ -1101,7 +1108,7 @@ if (command === 'install') {
   console.log('  node dist/cli.js auto-accept [--dry-run]');
   console.log('  node dist/cli.js awake [status|hold <mins>|release]');
   console.log('  node dist/cli.js tokens [file] [--model <name>] [--text <str>] [--no-compare]');
-  console.log('  node dist/cli.js accounts [list|status|switch|add|rotate|auto-switch]');
+  console.log('  node dist/cli.js accounts [list|status|switch|add|refresh|enrol|rotate|auto-switch]');
   console.log('  node dist/cli.js compress [list-algos|list-models|estimate|recommend|generate]');
   console.log('  node dist/cli.js memory [store|recall|list]');
   console.log('  node dist/cli.js map [--workspace <path>]');

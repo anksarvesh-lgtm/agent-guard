@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { getStateDbPath, readStateDbCredentials, writeStateDbCredentials } from './stateDb.js';
+import { ensureAccountTokenFreshSync, startOAuthEnrollmentServer } from './tokenRefresh.js';
 import { getLiveQuotaSummarySync } from '../tokens/liveQuota.js';
 export function getAccountsHome() {
     return process.env.AGENT_GUARD_HOME || os.homedir();
@@ -159,6 +160,10 @@ export class AccountManager {
             catch { }
         }
         return active;
+    }
+    getAccount(id) {
+        const cfg = this.loadConfig();
+        return cfg.accounts.find((a) => a.id === id) || null;
     }
     addAccount(options) {
         const cfg = this.loadConfig();
@@ -451,6 +456,68 @@ export class AccountManager {
             tokenSourceFile: filePath,
         });
     }
+    /**
+     * Starts a non-disruptive OAuth loopback enrolment session to add a secondary Google account.
+     * Does NOT disturb or replace the active Antigravity session.
+     */
+    startOAuthEnrolment(port = 52132) {
+        const { authUrl, waitForAccount: waitRaw, cancel } = startOAuthEnrollmentServer(port);
+        const waitForAccount = async () => {
+            const enrolled = await waitRaw();
+            const tokenFile = path.join(this.tokensDir, `${enrolled.id}.token`);
+            fs.writeFileSync(tokenFile, JSON.stringify(enrolled.token, null, 2), 'utf-8');
+            if (process.platform !== 'win32') {
+                try {
+                    fs.chmodSync(tokenFile, 0o600);
+                }
+                catch { }
+            }
+            const cfg = this.loadConfig();
+            const now = new Date().toISOString();
+            const existingIdx = cfg.accounts.findIndex((a) => a.id === enrolled.id);
+            let profile;
+            if (existingIdx !== -1) {
+                profile = {
+                    ...cfg.accounts[existingIdx],
+                    name: enrolled.name,
+                    email: enrolled.email,
+                    tokenFilePath: tokenFile,
+                    remainingPercent: 100,
+                    status: cfg.accounts[existingIdx].isActive ? 'active' : 'standby',
+                    lastUsedAt: now,
+                };
+                cfg.accounts[existingIdx] = profile;
+            }
+            else {
+                const isFirst = cfg.accounts.length === 0;
+                profile = {
+                    id: enrolled.id,
+                    name: enrolled.name,
+                    email: enrolled.email,
+                    provider: 'antigravity',
+                    type: 'oauth_token',
+                    tokenFilePath: tokenFile,
+                    isActive: isFirst,
+                    usedTokens: 0,
+                    remainingPercent: 100,
+                    status: isFirst ? 'active' : 'standby',
+                    priority: cfg.accounts.length + 1,
+                    createdAt: now,
+                    lastUsedAt: now,
+                    requestCount: 0,
+                    errorCount: 0,
+                };
+                cfg.accounts.push(profile);
+                if (isFirst) {
+                    cfg.activeAccountId = profile.id;
+                }
+            }
+            this.saveConfig(cfg);
+            this.logRotation(`Enrolled standby account via OAuth: "${profile.name}" (${profile.id})`);
+            return profile;
+        };
+        return { authUrl, waitForAccount, cancel };
+    }
     removeAccount(id) {
         const cfg = this.loadConfig();
         const idx = cfg.accounts.findIndex((a) => a.id === id);
@@ -480,6 +547,28 @@ export class AccountManager {
         return { success: true, message: `Account "${id}" removed from pool.` };
     }
     applyLiveCredential(account) {
+        // 0. Pre-Flight Zero-Reauth Token Refresh:
+        // If target token is expired or within 5 minutes of expiring, silently renew via Google OAuth
+        if (account.tokenFilePath && fs.existsSync(account.tokenFilePath)) {
+            try {
+                const { refreshed, tokenData } = ensureAccountTokenFreshSync(account.tokenFilePath);
+                if (refreshed) {
+                    this.logRotation(`Pre-flight silently refreshed Google OAuth token for "${account.name}" (${account.id})`);
+                    // If authCache exists, update its tokenJson with the fresh access_token
+                    if (account.authCachePath && fs.existsSync(account.authCachePath)) {
+                        try {
+                            const bundle = JSON.parse(fs.readFileSync(account.authCachePath, 'utf-8'));
+                            bundle.tokenJson = JSON.stringify(tokenData, null, 2);
+                            fs.writeFileSync(account.authCachePath, JSON.stringify(bundle, null, 2), 'utf-8');
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch (err) {
+                this.logRotation(`Pre-flight token refresh notice for "${account.id}": ${err.message}`);
+            }
+        }
         // 1. Restore from full AuthCache bundle if available
         if (account.authCachePath && fs.existsSync(account.authCachePath)) {
             try {
