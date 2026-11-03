@@ -355,8 +355,14 @@ function performAgentGuardUpdate() {
         try {
           execSync('git pull --rebase origin main --quiet', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 20000 });
         } catch (e) {
-          execSync('git stash', { cwd: repoDir, stdio: ['ignore', 'ignore', 'ignore'] });
-          execSync('git checkout -B main origin/main --quiet', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 15000 });
+          let aheadCount = 0;
+          try {
+            aheadCount = parseInt(execSync('git rev-list --count origin/main..HEAD', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), 10) || 0;
+          } catch {}
+          if (aheadCount === 0) {
+            execSync('git stash', { cwd: repoDir, stdio: ['ignore', 'ignore', 'ignore'] });
+            execSync('git checkout -B main origin/main --quiet', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 15000 });
+          }
         }
 
         progress.report({ message: 'Building TypeScript bundles...' });

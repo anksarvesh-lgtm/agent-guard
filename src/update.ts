@@ -259,6 +259,15 @@ export function performUpdate(repoDir: string = DEFAULT_REPO_ROOT): PerformUpdat
         timeout: 20000
       });
     } catch {
+      // Check if local has unpushed commits ahead of origin/main before any destructive reset
+      let aheadCount = 0;
+      try {
+        aheadCount = parseInt(execSync('git rev-list --count origin/main..HEAD', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), 10) || 0;
+      } catch {}
+      if (aheadCount > 0) {
+        return { success: false, updated: false, message: `Local repository has ${aheadCount} unpushed commit(s) ahead of origin/main. Skipping auto-reset.` };
+      }
+
       // Fallback: stash local untracked/dirty changes and reset to origin/main
       try {
         execSync('git stash', { cwd: repoDir, stdio: ['ignore', 'ignore', 'ignore'] });

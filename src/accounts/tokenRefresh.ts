@@ -356,7 +356,7 @@ export function decodeJwtPayload(jwt: string): any {
 /**
  * Generates the Google OAuth authorization URL for enrolling secondary accounts.
  */
-export function generateOAuthEnrollmentUrl(port: number = 52132): string {
+export function generateOAuthEnrollmentUrl(port: number = 52132, state?: string): string {
   const { clientId } = getAntigravityNativeCredentials();
   const redirectUri = `http://127.0.0.1:${port}/oauth/callback`;
   const params = new URLSearchParams({
@@ -367,6 +367,9 @@ export function generateOAuthEnrollmentUrl(port: number = 52132): string {
     access_type: 'offline',
     prompt: 'select_account consent',
   });
+  if (state) {
+    params.set('state', state);
+  }
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 

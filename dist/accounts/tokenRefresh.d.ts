@@ -67,7 +67,7 @@ export declare function decodeJwtPayload(jwt: string): any;
 /**
  * Generates the Google OAuth authorization URL for enrolling secondary accounts.
  */
-export declare function generateOAuthEnrollmentUrl(port?: number): string;
+export declare function generateOAuthEnrollmentUrl(port?: number, state?: string): string;
 /**
  * Starts an ephemeral local HTTP server to capture the Google OAuth callback code
  * and exchange it for a full offline token bundle with refresh_token.
