@@ -17,6 +17,11 @@ import {
   writeStateDbCredentials,
   StateDbCredentials
 } from './stateDb.js';
+import {
+  ensureAccountTokenFreshSync,
+  startOAuthEnrollmentServer,
+  EnrolledOAuthAccount
+} from './tokenRefresh.js';
 import { getLiveQuotaSummarySync } from '../tokens/liveQuota.js';
 
 export function getAccountsHome(): string {
@@ -504,6 +509,74 @@ export class AccountManager {
     });
   }
 
+  /**
+   * Starts a non-disruptive OAuth loopback enrolment session to add a secondary Google account.
+   * Does NOT disturb or replace the active Antigravity session.
+   */
+  public startOAuthEnrolment(port: number = 52132): {
+    authUrl: string;
+    waitForAccount: () => Promise<AccountProfile>;
+    cancel: () => void;
+  } {
+    const { authUrl, waitForAccount: waitRaw, cancel } = startOAuthEnrollmentServer(port);
+
+    const waitForAccount = async (): Promise<AccountProfile> => {
+      const enrolled = await waitRaw();
+      const tokenFile = path.join(this.tokensDir, `${enrolled.id}.token`);
+      fs.writeFileSync(tokenFile, JSON.stringify(enrolled.token, null, 2), 'utf-8');
+      if (process.platform !== 'win32') {
+        try { fs.chmodSync(tokenFile, 0o600); } catch {}
+      }
+
+      const cfg = this.loadConfig();
+      const now = new Date().toISOString();
+      const existingIdx = cfg.accounts.findIndex((a) => a.id === enrolled.id);
+
+      let profile: AccountProfile;
+      if (existingIdx !== -1) {
+        profile = {
+          ...cfg.accounts[existingIdx],
+          name: enrolled.name,
+          email: enrolled.email,
+          tokenFilePath: tokenFile,
+          remainingPercent: 100,
+          status: cfg.accounts[existingIdx].isActive ? 'active' : 'standby',
+          lastUsedAt: now,
+        };
+        cfg.accounts[existingIdx] = profile;
+      } else {
+        const isFirst = cfg.accounts.length === 0;
+        profile = {
+          id: enrolled.id,
+          name: enrolled.name,
+          email: enrolled.email,
+          provider: 'antigravity',
+          type: 'oauth_token',
+          tokenFilePath: tokenFile,
+          isActive: isFirst,
+          usedTokens: 0,
+          remainingPercent: 100,
+          status: isFirst ? 'active' : 'standby',
+          priority: cfg.accounts.length + 1,
+          createdAt: now,
+          lastUsedAt: now,
+          requestCount: 0,
+          errorCount: 0,
+        };
+        cfg.accounts.push(profile);
+        if (isFirst) {
+          cfg.activeAccountId = profile.id;
+        }
+      }
+
+      this.saveConfig(cfg);
+      this.logRotation(`Enrolled standby account via OAuth: "${profile.name}" (${profile.id})`);
+      return profile;
+    };
+
+    return { authUrl, waitForAccount, cancel };
+  }
+
   public removeAccount(id: string): { success: boolean; message: string } {
     const cfg = this.loadConfig();
     const idx = cfg.accounts.findIndex((a) => a.id === id);
@@ -536,6 +609,27 @@ export class AccountManager {
   }
 
   private applyLiveCredential(account: AccountProfile): void {
+    // 0. Pre-Flight Zero-Reauth Token Refresh:
+    // If target token is expired or within 5 minutes of expiring, silently renew via Google OAuth
+    if (account.tokenFilePath && fs.existsSync(account.tokenFilePath)) {
+      try {
+        const { refreshed, tokenData } = ensureAccountTokenFreshSync(account.tokenFilePath);
+        if (refreshed) {
+          this.logRotation(`Pre-flight silently refreshed Google OAuth token for "${account.name}" (${account.id})`);
+          // If authCache exists, update its tokenJson with the fresh access_token
+          if (account.authCachePath && fs.existsSync(account.authCachePath)) {
+            try {
+              const bundle: StockAuthCache = JSON.parse(fs.readFileSync(account.authCachePath, 'utf-8'));
+              bundle.tokenJson = JSON.stringify(tokenData, null, 2);
+              fs.writeFileSync(account.authCachePath, JSON.stringify(bundle, null, 2), 'utf-8');
+            } catch {}
+          }
+        }
+      } catch (err: any) {
+        this.logRotation(`Pre-flight token refresh notice for "${account.id}": ${err.message}`);
+      }
+    }
+
     // 1. Restore from full AuthCache bundle if available
     if (account.authCachePath && fs.existsSync(account.authCachePath)) {
       try {
