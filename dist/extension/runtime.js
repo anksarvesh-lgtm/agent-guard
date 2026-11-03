@@ -23,6 +23,7 @@ const os = require('os');
 const { execSync, spawn, exec } = require('child_process');
 
 const EXTENSION_VERSION = '${extensionVersion}';
+const LOGO_SVG_DATA_URI = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIj4KICA8ZGVmcz4KICAgIDwhLS0gQmFja2dyb3VuZCBHcmFkaWVudCAtLT4KICAgIDxyYWRpYWxHcmFkaWVudCBpZD0iYmdHcmFkIiBjeD0iNTAlIiBjeT0iNTAlIiByPSI3MCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMGYxNzJhIiAvPgogICAgICA8c3RvcCBvZmZzZXQ9IjYwJSIgc3RvcC1jb2xvcj0iIzA5MGQxNiIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMDMwNzEyIiAvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KCiAgICA8IS0tIFNoaWVsZCBQcmltYXJ5IEdyYWRpZW50IC0tPgogICAgPGxpbmVhckdyYWRpZW50IGlkPSJzaGllbGRHcmFkIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj4KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzM4YmRmOCIgLz4KICAgICAgPHN0b3Agb2Zmc2V0PSI1MCUiIHN0b3AtY29sb3I9IiMwMjg0YzciIC8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzAzNjlhMSIgLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CgogICAgPCEtLSBHbG93aW5nIEFjY2VudCBHcmFkaWVudCAtLT4KICAgIDxsaW5lYXJHcmFkaWVudCBpZD0iY3lhbkdsb3ciIHgxPSIwJSIgeTE9IjAlIiB4Mj0iMTAwJSIgeTI9IjEwMCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjMzhiZGY4IiAvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwNmI2ZDQiIC8+CiAgICA8L2xpbmVhckdyYWRpZW50PgoKICAgIDwhLS0gU2hpZWxkIElubmVyIEZpbGwgLS0+CiAgICA8bGluZWFyR3JhZGllbnQgaWQ9ImlubmVyU2hpZWxkR3JhZCIgeDE9IjUwJSIgeTE9IjAlIiB4Mj0iNTAlIiB5Mj0iMTAwJSI+CiAgICAgIDxzdG9wIG9mZnNldD0iMCUiIHN0b3AtY29sb3I9IiMxZTI5M2IiIHN0b3Atb3BhY2l0eT0iMC45IiAvPgogICAgICA8c3RvcCBvZmZzZXQ9IjEwMCUiIHN0b3AtY29sb3I9IiMwZjE3MmEiIHN0b3Atb3BhY2l0eT0iMC45NSIgLz4KICAgIDwvbGluZWFyR3JhZGllbnQ+CgogICAgPCEtLSBDb3JlIEdsb3cgRmlsdGVyIC0tPgogICAgPGZpbHRlciBpZD0iZ2xvdyIgeD0iLTMwJSIgeT0iLTMwJSIgd2lkdGg9IjE2MCUiIGhlaWdodD0iMTYwJSI+CiAgICAgIDxmZUdhdXNzaWFuQmx1ciBzdGREZXZpYXRpb249IjEyIiByZXN1bHQ9ImJsdXIiIC8+CiAgICAgIDxmZU1lcmdlPgogICAgICAgIDxmZU1lcmdlTm9kZSBpbj0iYmx1ciIgLz4KICAgICAgICA8ZmVNZXJnZU5vZGUgaW49IlNvdXJjZUdyYXBoaWMiIC8+CiAgICAgIDwvZmVNZXJnZT4KICAgIDwvZmlsdGVyPgogICAgPGZpbHRlciBpZD0ic29mdEdsb3ciIHg9Ii0yMCUiIHk9Ii0yMCUiIHdpZHRoPSIxNDAlIiBoZWlnaHQ9IjE0MCUiPgogICAgICA8ZmVHYXVzc2lhbkJsdXIgc3RkRGV2aWF0aW9uPSI2IiByZXN1bHQ9ImJsdXIiIC8+CiAgICAgIDxmZU1lcmdlPgogICAgICAgIDxmZU1lcmdlTm9kZSBpbj0iYmx1ciIgLz4KICAgICAgICA8ZmVNZXJnZU5vZGUgaW49IlNvdXJjZUdyYXBoaWMiIC8+CiAgICAgIDwvZmVNZXJnZT4KICAgIDwvZmlsdGVyPgogIDwvZGVmcz4KCiAgPCEtLSBCYWNrZ3JvdW5kIENhbnZhcyAtLT4KICA8cmVjdCB3aWR0aD0iNTEyIiBoZWlnaHQ9IjUxMiIgcng9IjEwMCIgZmlsbD0idXJsKCNiZ0dyYWQpIiAvPgoKICA8IS0tIE91dGVyIFByb3RlY3RpdmUgSGV4IFJpbmcgLS0+CiAgPHBvbHlnb24gcG9pbnRzPSIyNTYsNDIgNDI4LDE0MSA0MjgsMzQwIDI1Niw0MzkgODQsMzQwIDg0LDE0MSIgCiAgICAgICAgICAgZmlsbD0ibm9uZSIgCiAgICAgICAgICAgc3Ryb2tlPSIjMWUyOTNiIiAKICAgICAgICAgICBzdHJva2Utd2lkdGg9IjIiIAogICAgICAgICAgIHN0cm9rZS1kYXNoYXJyYXk9IjggOCIgLz4KCiAgPCEtLSBPdXRlciBTaGllbGQgR2xvdyAtLT4KICA8cGF0aCBkPSJNIDI1Niw3MCAKICAgICAgICAgICBMIDQxMCwxMzIgCiAgICAgICAgICAgQyA0MTAsMjY1IDM1MiwzNzAgMjU2LDQzNiAKICAgICAgICAgICBDIDE2MCwzNzAgMTAyLDI2NSAxMDIsMTMyIAogICAgICAgICAgIFoiIAogICAgICAgIGZpbGw9Im5vbmUiIAogICAgICAgIHN0cm9rZT0idXJsKCNjeWFuR2xvdykiIAogICAgICAgIHN0cm9rZS13aWR0aD0iNiIgCiAgICAgICAgZmlsdGVyPSJ1cmwoI2dsb3cpIiAKICAgICAgICBvcGFjaXR5PSIwLjYiIC8+CgogIDwhLS0gU2hpZWxkIEJhc2UgQm9keSAtLT4KICA8cGF0aCBkPSJNIDI1Niw3NiAKICAgICAgICAgICBMIDQwNCwxMzYgCiAgICAgICAgICAgQyA0MDQsMjYxIDM0OCwzNjIgMjU2LDQyNiAKICAgICAgICAgICBDIDE2NCwzNjIgMTA4LDI2MSAxMDgsMTM2IAogICAgICAgICAgIFoiIAogICAgICAgIGZpbGw9InVybCgjaW5uZXJTaGllbGRHcmFkKSIgCiAgICAgICAgc3Ryb2tlPSJ1cmwoI3NoaWVsZEdyYWQpIiAKICAgICAgICBzdHJva2Utd2lkdGg9IjQiIC8+CgogIDwhLS0gSW5uZXIgQ2lyY3VpdCBHcmlkICYgRW5lcmd5IENvbmR1aXRzIC0tPgogIDxnIHN0cm9rZT0iIzM4YmRmOCIgc3Ryb2tlLXdpZHRoPSIyIiBvcGFjaXR5PSIwLjM1IiBmaWxsPSJub25lIj4KICAgIDwhLS0gVG9wIENlbnRyYWwgQ29uZHVpdCAtLT4KICAgIDxwYXRoIGQ9Ik0gMjU2LDc2IEwgMjU2LDE3MCIgLz4KICAgIDxwYXRoIGQ9Ik0gMjU2LDE3MCBMIDE5NiwyMTAgTCAxOTYsMjYwIiAvPgogICAgPHBhdGggZD0iTSAyNTYsMTcwIEwgMzE2LDIxMCBMIDMxNiwyNjAiIC8+CiAgICAKICAgIDwhLS0gRGlhZ29uYWwgU2hpZWxkIEFjY2VudHMgLS0+CiAgICA8cGF0aCBkPSJNIDE2MCwxNTcgTCAyMjAsMTk3IiAvPgogICAgPHBhdGggZD0iTSAzNTIsMTU3IEwgMjkyLDE5NyIgLz4KICAgIAogICAgPCEtLSBCYXNlIENvbnZlcmdlbmNlIC0tPgogICAgPHBhdGggZD0iTSAxOTYsMjYwIEwgMjU2LDMzMCBMIDMxNiwyNjAiIC8+CiAgICA8cGF0aCBkPSJNIDI1NiwzMzAgTCAyNTYsNDAwIiAvPgogIDwvZz4KCiAgPCEtLSBTZW50aW5lbCBOb2RlIE5vZGVzIC0tPgogIDxjaXJjbGUgY3g9IjE5NiIgY3k9IjIxMCIgcj0iNCIgZmlsbD0iIzM4YmRmOCIgZmlsdGVyPSJ1cmwoI3NvZnRHbG93KSIgLz4KICA8Y2lyY2xlIGN4PSIzMTYiIGN5PSIyMTAiIHI9IjQiIGZpbGw9IiMzOGJkZjgiIGZpbHRlcj0idXJsKCNzb2Z0R2xvdykiIC8+CiAgPGNpcmNsZSBjeD0iMTk2IiBjeT0iMjYwIiByPSI0IiBmaWxsPSIjMzhiZGY4IiBmaWx0ZXI9InVybCgjc29mdEdsb3cpIiAvPgogIDxjaXJjbGUgY3g9IjMxNiIgY3k9IjI2MCIgcj0iNCIgZmlsbD0iIzM4YmRmOCIgZmlsdGVyPSJ1cmwoI3NvZnRHbG93KSIgLz4KCiAgPCEtLSBDZW50cmFsIFNlbnRpbmVsIEV5ZSAvIENvcmUgU2hpZWxkIFByaXNtIC0tPgogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDI1NiwgMjQ1KSI+CiAgICA8IS0tIE91dGVyIENvcmUgRGlhbW9uZCAtLT4KICAgIDxwb2x5Z29uIHBvaW50cz0iMCwtNTIgNTIsMCAwLDUyIC01MiwwIiAKICAgICAgICAgICAgIGZpbGw9IiMwZjE3MmEiIAogICAgICAgICAgICAgc3Ryb2tlPSJ1cmwoI2N5YW5HbG93KSIgCiAgICAgICAgICAgICBzdHJva2Utd2lkdGg9IjMiIAogICAgICAgICAgICAgZmlsdGVyPSJ1cmwoI3NvZnRHbG93KSIgLz4KCiAgICA8IS0tIElubmVyIENvcmUgRGlhbW9uZCAtLT4KICAgIDxwb2x5Z29uIHBvaW50cz0iMCwtMzQgMzQsMCAwLDM0IC0zNCwwIiAKICAgICAgICAgICAgIGZpbGw9IiMxZTI5M2IiIAogICAgICAgICAgICAgc3Ryb2tlPSIjMzhiZGY4IiAKICAgICAgICAgICAgIHN0cm9rZS13aWR0aD0iMiIgLz4KCiAgICA8IS0tIENlbnRlciBTZW50aW5lbCBOb2RlIC0tPgogICAgPGNpcmNsZSBjeD0iMCIgY3k9IjAiIHI9IjE0IiBmaWxsPSIjMzhiZGY4IiBmaWx0ZXI9InVybCgjZ2xvdykiIC8+CiAgICA8Y2lyY2xlIGN4PSIwIiBjeT0iMCIgcj0iNyIgZmlsbD0iI2YwZjlmZiIgLz4KICA8L2c+CgogIDwhLS0gSG9yaXpvbnRhbCBTY2FubGluZSBCZWFtIC0tPgogIDxsaW5lIHgxPSIxNDAiIHkxPSIyNDUiIHgyPSIzNzIiIHkyPSIyNDUiIAogICAgICAgIHN0cm9rZT0idXJsKCNjeWFuR2xvdykiIAogICAgICAgIHN0cm9rZS13aWR0aD0iMS41IiAKICAgICAgICBvcGFjaXR5PSIwLjUiIAogICAgICAgIHN0cm9rZS1kYXNoYXJyYXk9IjEyIDYiIC8+Cjwvc3ZnPgo=';
 
 let statusBarItem;
 let pollTimer;
@@ -31,6 +32,9 @@ let caffeinateProc = null;
 let activeModel = 'gemini-2.5-flash';
 let sessionTokens = { input: 0, output: 0, total: 0 };
 let leaseTimeout = null;
+let awakeLeaseEndTime = null;
+let awakeLeaseDurationMins = null;
+let awakeTicker = null;
 let cachedLiveQuota = null;
 let lastQuotaCheck = 0;
 let cachedUpdateInfo = { hasUpdate: false, isGit: true, checked: false, message: 'Up to date' };
@@ -526,21 +530,140 @@ function getAutoAcceptStatus() {
 function getActiveTaskInfo() {
   try {
     const folders = vscode.workspace.workspaceFolders;
+    const roots = [];
     if (folders && folders.length > 0) {
       for (const f of folders) {
-        const root = f.uri.fsPath;
-        const taskPath = path.join(root, '.agent-guard', 'task.json');
-        if (fs.existsSync(taskPath)) {
-          return JSON.parse(fs.readFileSync(taskPath, 'utf-8'));
-        }
-        const altPath = path.join(root, '.agents', 'task.json');
-        if (fs.existsSync(altPath)) {
-          return JSON.parse(fs.readFileSync(altPath, 'utf-8'));
-        }
+        roots.push(f.uri.fsPath);
+      }
+    }
+    if (roots.length === 0 && typeof process !== 'undefined' && process.cwd) {
+      roots.push(process.cwd());
+    }
+
+    for (const root of roots) {
+      // 1. Primary: Standard Agent Guard DAG ledger (.agent/ledger.json)
+      const ledgerPath = path.join(root, '.agent', 'ledger.json');
+      if (fs.existsSync(ledgerPath)) {
+        try {
+          const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf-8'));
+          if (ledger) {
+            ledger.id = ledger.task_id || ledger.id || 'current-task';
+            ledger.workspaceRoot = root;
+
+            // Also check for background running tasks (e.g. app packaging, builds)
+            const bgTasksPath = path.join(root, '.agent', 'running_tasks.json');
+            if (fs.existsSync(bgTasksPath)) {
+              try {
+                const bgData = JSON.parse(fs.readFileSync(bgTasksPath, 'utf-8'));
+                ledger.runningBackgroundTasks = (bgData.tasks || []).filter(t => t.status === 'in_progress' || t.status === 'running');
+              } catch (e) {}
+            }
+            return ledger;
+          }
+        } catch (e) {}
+      }
+
+      // 2. Check for background tasks even if ledger is idle
+      const bgOnlyPath = path.join(root, '.agent', 'running_tasks.json');
+      if (fs.existsSync(bgOnlyPath)) {
+        try {
+          const bgData = JSON.parse(fs.readFileSync(bgOnlyPath, 'utf-8'));
+          const activeBg = (bgData.tasks || []).filter(t => t.status === 'in_progress' || t.status === 'running');
+          if (activeBg.length > 0) {
+            return {
+              id: activeBg[0].id,
+              task_id: activeBg[0].id,
+              goal: activeBg[0].name,
+              status: 'active',
+              steps: [],
+              runningBackgroundTasks: activeBg,
+              workspaceRoot: root
+            };
+          }
+        } catch (e) {}
+      }
+
+      // 3. Fallbacks
+      const taskPath = path.join(root, '.agent-guard', 'task.json');
+      if (fs.existsSync(taskPath)) {
+        try {
+          const t = JSON.parse(fs.readFileSync(taskPath, 'utf-8'));
+          t.id = t.task_id || t.id;
+          t.workspaceRoot = root;
+          return t;
+        } catch (e) {}
+      }
+
+      const altPath = path.join(root, '.agents', 'task.json');
+      if (fs.existsSync(altPath)) {
+        try {
+          const t = JSON.parse(fs.readFileSync(altPath, 'utf-8'));
+          t.id = t.task_id || t.id;
+          t.workspaceRoot = root;
+          return t;
+        } catch (e) {}
       }
     }
   } catch (e) {}
   return null;
+}
+
+function getTaskRunningDetails(task) {
+  if (!task) return null;
+  const isLedgerActive = task.status === 'active';
+  const steps = Array.isArray(task.steps) ? task.steps : [];
+  const activeStep = steps.find(s => s.status === 'in_progress');
+  const doneCount = steps.filter(s => s.status === 'done').length;
+  const totalCount = steps.length;
+  const percentDone = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+
+  const bgTasks = Array.isArray(task.runningBackgroundTasks) ? task.runningBackgroundTasks : [];
+  const activeBgTask = bgTasks.find(t => t.status === 'in_progress' || t.status === 'running') || null;
+
+  let icon = '$(sync~spin)';
+  let shortText = '';
+  let fullTitle = '';
+
+  if (activeBgTask) {
+    const bgName = activeBgTask.name || '';
+    if (activeBgTask.type === 'packaging' || /packag|dmg|bundle|installer/i.test(bgName)) {
+      icon = '$(package)';
+    } else if (activeBgTask.type === 'test' || /test|vitest|spec/i.test(bgName)) {
+      icon = '$(beaker)';
+    } else if (activeBgTask.type === 'build' || /build|compile/i.test(bgName)) {
+      icon = '$(tools)';
+    }
+    shortText = bgName.length > 25 ? bgName.slice(0, 22) + '...' : bgName;
+    fullTitle = activeBgTask.current_phase ? (bgName + ': ' + activeBgTask.current_phase) : bgName;
+  } else if (activeStep) {
+    const title = activeStep.title || '';
+    if (/packag|dmg|bundle|installer/i.test(title)) {
+      icon = '$(package)';
+    } else if (/test|vitest|spec/i.test(title)) {
+      icon = '$(beaker)';
+    } else if (/build|compile/i.test(title)) {
+      icon = '$(tools)';
+    }
+    shortText = title.length > 25 ? title.slice(0, 22) + '...' : title;
+    fullTitle = '[' + (activeStep.id || 'step') + '] ' + title;
+  } else if (isLedgerActive) {
+    shortText = 'Task ' + (task.id || '');
+    fullTitle = task.goal || shortText;
+  }
+
+  return {
+    isLedgerActive,
+    hasRunningTask: !!(activeStep || activeBgTask || isLedgerActive),
+    activeStep,
+    activeBgTask,
+    doneCount,
+    totalCount,
+    percentDone,
+    icon,
+    shortText,
+    fullTitle,
+    steps
+  };
 }
 
 function switchAccount(targetId, reason) {
@@ -863,10 +986,14 @@ function setAutoRotateConfig(enabled, thresholdPercent) {
 }
 
 function acquireAwakeLease(minutes) {
-  const mins = minutes || 120;
+  const mins = Math.max(1, parseInt(minutes, 10) || 120);
   if (leaseTimeout) {
     clearTimeout(leaseTimeout);
     leaseTimeout = null;
+  }
+  if (awakeTicker) {
+    clearInterval(awakeTicker);
+    awakeTicker = null;
   }
 
   if (process.platform === 'darwin') {
@@ -882,19 +1009,46 @@ function acquireAwakeLease(minutes) {
       caffeinateProc.unref();
 
       if (mins < 999999) {
+        awakeLeaseEndTime = Date.now() + mins * 60 * 1000;
+        awakeLeaseDurationMins = mins;
+
         leaseTimeout = setTimeout(() => {
           releaseAwakeLease();
           vscode.window.showInformationMessage('☕ Agent Guard: Keep-Awake lease expired after ' + mins + ' minutes.');
         }, mins * 60 * 1000);
+
+        awakeTicker = setInterval(() => {
+          if (!isSleepPreventionActive()) {
+            if (awakeTicker) clearInterval(awakeTicker);
+            return;
+          }
+          updateStatusBar();
+        }, 15000);
+      } else {
+        awakeLeaseEndTime = null;
+        awakeLeaseDurationMins = 999999;
       }
     } catch (e) {
       vscode.window.showErrorMessage('Failed to start caffeinate: ' + e.message);
       return;
     }
+  } else {
+    if (mins < 999999) {
+      awakeLeaseEndTime = Date.now() + mins * 60 * 1000;
+      awakeLeaseDurationMins = mins;
+      leaseTimeout = setTimeout(() => {
+        releaseAwakeLease();
+        vscode.window.showInformationMessage('☕ Agent Guard: Keep-Awake lease expired after ' + mins + ' minutes.');
+      }, mins * 60 * 1000);
+    } else {
+      awakeLeaseEndTime = null;
+      awakeLeaseDurationMins = 999999;
+    }
   }
   updateStatusBar();
   refreshAllWebviews();
-  vscode.window.showInformationMessage('🔥 Agent Guard: Sleep prevention lease ACTIVE for ' + (mins >= 999999 ? 'indefinite time' : mins + ' minutes') + '.');
+  const timeMsg = (mins >= 999999) ? 'indefinite time' : (mins + ' minutes (timer active)');
+  vscode.window.showInformationMessage('🔥 Agent Guard: Sleep prevention lease ACTIVE for ' + timeMsg + '.');
 }
 
 function releaseAwakeLease() {
@@ -902,6 +1056,12 @@ function releaseAwakeLease() {
     clearTimeout(leaseTimeout);
     leaseTimeout = null;
   }
+  if (awakeTicker) {
+    clearInterval(awakeTicker);
+    awakeTicker = null;
+  }
+  awakeLeaseEndTime = null;
+  awakeLeaseDurationMins = null;
   if (caffeinateProc) {
     try { caffeinateProc.kill(); } catch (e) {}
     caffeinateProc = null;
@@ -964,10 +1124,38 @@ function updateStatusBar() {
   if (quota <= 1.0) quotaIcon = '🔴';
   else if (quota <= 20) quotaIcon = '🟡';
 
-  const awakeBadge = awake ? '☕' : '💤';
+  let awakeBadge = '💤';
+  let awakeTooltipText = '⚪ Inactive';
+  if (awake) {
+    if (awakeLeaseEndTime) {
+      const now = Date.now();
+      const msLeft = Math.max(0, awakeLeaseEndTime - now);
+      const minsLeft = Math.ceil(msLeft / 60000);
+      awakeBadge = '☕ ' + minsLeft + 'm';
+      const expireTime = new Date(awakeLeaseEndTime).toLocaleTimeString();
+      awakeTooltipText = '🟢 ACTIVE (' + minsLeft + 'm remaining, expires at ' + expireTime + ')';
+    } else if (awakeLeaseDurationMins >= 999999) {
+      awakeBadge = '☕ ∞';
+      awakeTooltipText = '🟢 ACTIVE (Indefinite until released)';
+    } else {
+      awakeBadge = '☕';
+      awakeTooltipText = '🟢 ACTIVE (Caffeinate)';
+    }
+  }
   const turboBadge = autoAccept.enabled ? '⚡' : '⚙️';
   const task = getActiveTaskInfo();
-  const taskBadge = (task && task.status === 'active') ? \`[\${task.id}] \` : '';
+  const taskDetails = getTaskRunningDetails(task);
+
+  let taskBadge = '';
+  if (taskDetails && taskDetails.hasRunningTask) {
+    if (taskDetails.activeBgTask) {
+      taskBadge = \`\${taskDetails.icon} \${taskDetails.shortText} \`;
+    } else if (taskDetails.activeStep) {
+      taskBadge = \`\${taskDetails.icon} [\${taskDetails.activeStep.id}: \${taskDetails.shortText}] \${taskDetails.doneCount}/\${taskDetails.totalCount} \`;
+    } else if (taskDetails.isLedgerActive) {
+      taskBadge = \`[\${task.id}] \`;
+    }
+  }
 
   const gText = live && live.gemini5h !== undefined ? 'G:' + live.gemini5h + '%' : '';
   const cText = live && live.claude5h !== undefined ? 'C:' + live.claude5h + '%' : '';
@@ -976,10 +1164,26 @@ function updateStatusBar() {
   statusBarItem.text = \`\$(shield) Agent Guard v\${EXTENSION_VERSION} \${taskBadge}\${awakeBadge} \${turboBadge} \${quotaIcon} \${quota}% \${breakdownBadge ? '(' + breakdownBadge + ')' : '(' + accName + ')'}\`;
 
   let taskMarkdown = '';
-  if (task && task.status === 'active') {
-    const doneCount = Array.isArray(task.steps) ? task.steps.filter(s => s.status === 'done').length : 0;
-    const totalCount = Array.isArray(task.steps) ? task.steps.length : 0;
-    taskMarkdown = \`• **Supervised Task**: \${task.id} (\${doneCount}/\${totalCount} steps) [ACTIVE]\\n\`;
+  if (taskDetails && taskDetails.hasRunningTask) {
+    taskMarkdown = '• **Active Supervised Task**: [' + task.id + ']\\n' +
+      '  *Goal*: ' + (task.goal || 'Development Task') + '\\n' +
+      '  *Progress*: ' + taskDetails.doneCount + '/' + taskDetails.totalCount + ' steps (' + taskDetails.percentDone + '%)\\n';
+    if (taskDetails.activeBgTask) {
+      taskMarkdown += '  *Running Process*: **' + taskDetails.activeBgTask.name + '**\\n' +
+        '  *Details*: ' + (taskDetails.activeBgTask.current_phase || taskDetails.activeBgTask.details || 'Active') + '\\n';
+    }
+    if (taskDetails.activeStep) {
+      taskMarkdown += '  *Current Step*: **[' + taskDetails.activeStep.id + '] ' + taskDetails.activeStep.title + '** (try ' + (taskDetails.activeStep.tries + 1) + '/' + (taskDetails.activeStep.max_tries || 3) + ')\\n';
+    }
+    if (taskDetails.steps && taskDetails.steps.length > 0) {
+      taskMarkdown += '  **Step Breakdown**:\\n';
+      for (const s of taskDetails.steps) {
+        const mark = s.status === 'done' ? '✅' : (s.status === 'in_progress' ? '⏳' : (s.status === 'failed' ? '❌' : (s.status === 'blocked' ? '🚫' : '⚪')));
+        const cleanNote = s.note ? ' — *' + String(s.note).replace(/[\\r\\n]+/g, ' ').slice(0, 45) + '...*' : '';
+        taskMarkdown += '  - ' + mark + ' [' + s.id + ']: ' + s.title + cleanNote + '\\n';
+      }
+    }
+    taskMarkdown += '\\n';
   }
 
   let liveBreakdownMd = '';
@@ -997,7 +1201,7 @@ function updateStatusBar() {
     taskMarkdown +
     liveBreakdownMd +
     \`• **Active Profile**: \${accName} (\${activeAcc ? activeAcc.id : 'primary'})\\n\` +
-    \`• **Sleep Prevention**: \${awake ? '🟢 ACTIVE (Caffeinate)' : '⚪ Inactive'}\\n\` +
+    \ +
     \`• **Auto-Accept**: \${autoAccept.enabled ? '⚡ Turbo (' + autoAccept.count + ' grants)' : 'Manual'}\\n\` +
     \`• **Auto-Switch at 1%**: \${autoSwitchText}\\n\\n\` +
     \`*Click to open Quick Menu or Agent Guard Dashboard*\`
@@ -1079,7 +1283,10 @@ function showQuickMenu() {
 
 function promptAwakeDuration() {
   const durations = [
+    { label: '⏱️ Custom Manual Timer...', mins: -1, description: 'Enter any duration in minutes or hours' },
+    { label: '15 Minutes', mins: 15 },
     { label: '30 Minutes', mins: 30 },
+    { label: '45 Minutes', mins: 45 },
     { label: '1 Hour (60m)', mins: 60 },
     { label: '2 Hours (120m) [Recommended]', mins: 120 },
     { label: '4 Hours (240m)', mins: 240 },
@@ -1087,9 +1294,38 @@ function promptAwakeDuration() {
     { label: 'Indefinite (Until Manually Released)', mins: 9999999 }
   ];
 
-  vscode.window.showQuickPick(durations, { placeHolder: 'Select Sleep Prevention Lease Duration' }).then(sel => {
+  vscode.window.showQuickPick(durations, { placeHolder: 'Select Sleep Prevention Lease Duration or Set Manual Timer' }).then(sel => {
     if (!sel) return;
-    acquireAwakeLease(sel.mins);
+    if (sel.mins === -1) {
+      vscode.window.showInputBox({
+        prompt: 'Enter duration in minutes (e.g. 45, 90) or hours (e.g. 1.5h, 3h):',
+        placeHolder: 'e.g. 45 or 1.5h',
+        validateInput: (val) => {
+          if (!val || !val.trim()) return 'Please enter a duration.';
+          const clean = val.trim().toLowerCase();
+          const matchHours = clean.match(/^([0-9]+(?:\.[0-9]+)?)\s*h/);
+          const matchMins = clean.match(/^([0-9]+)\s*m/);
+          const matchRaw = clean.match(/^[0-9]+$/);
+          if (!matchHours && !matchMins && !matchRaw) {
+            return 'Invalid duration. Use numbers (45) or units like 1.5h, 90m.';
+          }
+          return null;
+        }
+      }).then(inputVal => {
+        if (!inputVal) return;
+        const clean = inputVal.trim().toLowerCase();
+        let calculatedMins = 30;
+        const matchHours = clean.match(/^([0-9]+(?:\.[0-9]+)?)\s*h/);
+        if (matchHours) {
+          calculatedMins = Math.round(parseFloat(matchHours[1]) * 60);
+        } else {
+          calculatedMins = parseInt(clean, 10) || 30;
+        }
+        acquireAwakeLease(calculatedMins);
+      });
+    } else {
+      acquireAwakeLease(sel.mins);
+    }
   });
 }
 
@@ -1443,7 +1679,7 @@ function getWebviewContent() {
 <body>
   <div class="header">
     <div class="header-left">
-      <span style="font-size: 26px;">🛡️</span>
+      <img src="\${LOGO_SVG_DATA_URI}" width="28" height="28" style="border-radius: 6px; flex-shrink: 0;" alt="Agent Guard" />
       <div>
         <h1>Agent Guard Supervisor <span style="font-size: 13px; font-weight: normal; opacity: 0.7;">v\${EXTENSION_VERSION}</span></h1>
         <span class="badge badge-green">LIVE IN-APP EXTENSION</span>
@@ -1460,6 +1696,7 @@ function getWebviewContent() {
 
   <div class="tabs">
     <button class="tab-btn active" onclick="setTab('overview')">📊 Overview</button>
+    <button class="tab-btn" onclick="setTab('prompt')">🎯 Prompt & Steps</button>
     <button class="tab-btn" onclick="setTab('mcp')">⚡ MCP Tools</button>
     <button class="tab-btn" onclick="setTab('accounts')">🔄 Account Switcher</button>
     <button class="tab-btn" onclick="setTab('tokens')">🪙 Live Quota & Tokens</button>
@@ -1483,7 +1720,7 @@ function getWebviewContent() {
     <div class="grid">
       <div class="card">
         <h3>☕ Sleep Prevention</h3>
-        <div class="val">\${awake ? '🟢 ACTIVE' : '⚪ INACTIVE'}</div>
+        <div class="val">\${awake ? (awakeLeaseEndTime ? '⏳ <span id="overviewCountdown">Active</span>' : '🟢 ACTIVE (∞)') : '⚪ INACTIVE'}</div>
         <div style="font-size: 11px; opacity: 0.8;">macOS native caffeinate inhibitor</div>
         <button class="btn" onclick="post('toggleAwake')">\${awake ? 'Release Lease' : 'Acquire Lease'}</button>
       </div>
@@ -1548,6 +1785,42 @@ function getWebviewContent() {
         </div>
       </div>
     \` : ''}
+  </div>
+
+  <!-- TAB: PROMPT & STEPS (ZERO MISTAKE GUARD) -->
+  <div id="tab-prompt" class="tab-content">
+    <div class="card" style="margin-bottom: 16px; border-left: 4px solid var(--blue);">
+      <h3 style="color: var(--blue);">🎯 Agent Guided Prompt & Step Execution Engine</h3>
+      <p style="font-size: 12px; opacity: 0.85;">
+        Give your instructions and steps here. Agent Guard decomposes your prompt into deterministic, verified DAG steps with strict proof gates so AI agents never skip steps or make mistakes.
+      </p>
+      <div style="margin-top: 10px;">
+        <label style="font-size: 11px; font-weight: 600; text-transform: uppercase; opacity: 0.8;">Task Prompt Instructions & Steps:</label>
+        <textarea id="userPromptInput" rows="6" placeholder="Enter instructions with steps, e.g.:&#10;1. Research the codebase and inspect models&#10;2. Implement feature X in src/&#10;3. Run test suite and verify 0 regressions&#10;4. Package application (DMG/installer) and verify output" style="width: 100%; box-sizing: border-box; margin-top: 6px; font-family: monospace; font-size: 12px; resize: vertical;"></textarea>
+      </div>
+      <div style="display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap;">
+        <button class="btn" style="background: var(--blue);" onclick="const p = document.getElementById('userPromptInput').value; if (p) post('initializePromptTask', { prompt: p });">🚀 Initialize Guarded Steps</button>
+        <button class="btn btn-secondary" onclick="post('refresh')">↻ Refresh Ledger State</button>
+      </div>
+      \${task && task.status === 'active' && Array.isArray(task.steps) ? \`
+        <div style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 12px;">
+          <h4 style="margin-bottom: 8px; font-size: 12px; text-transform: uppercase; color: var(--blue);">Guarded Step Sequence (\${task.id}):</h4>
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            \${task.steps.map((st, i) => \`
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: 6px; background: rgba(0,0,0,0.25); border-left: 3px solid \${st.status === 'done' ? 'var(--green)' : (st.status === 'in_progress' ? 'var(--blue)' : 'var(--border, #444)')};">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="font-weight: 700; font-family: monospace; font-size: 11px; opacity: 0.8;">\${st.id}</span>
+                  <span style="font-size: 12px; font-weight: \${st.status === 'in_progress' ? '600' : 'normal'};">\${st.title}</span>
+                </div>
+                <span style="font-size: 10px; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; background: \${st.status === 'done' ? 'rgba(16,185,129,0.2); color: #34d399;' : (st.status === 'in_progress' ? 'rgba(59,130,246,0.2); color: #60a5fa;' : 'rgba(255,255,255,0.1);')};">
+                  \${st.status === 'done' ? '✓ DONE' : (st.status === 'in_progress' ? '▶ ACTIVE' : 'PENDING')}
+                </span>
+              </div>
+            \`).join('')}
+          </div>
+        </div>
+      \` : ''}
+    </div>
   </div>
 
   <!-- TAB: MCP TOOLS -->
@@ -1718,11 +1991,30 @@ function getWebviewContent() {
 
   <!-- TAB 4: SLEEP & TURBO -->
   <div id="tab-awake" class="tab-content">
+    \${awake ? \`
+      <div class="card" style="margin-bottom: 16px; border-left: 4px solid var(--orange);">
+        <h3 style="color: var(--orange);">⏳ Sleep Prevention Countdown Timer</h3>
+        <div style="font-size: 32px; font-weight: 700; font-family: monospace; color: #ffab70; margin: 8px 0;" id="liveCountdownDisplay">
+          \${awakeLeaseEndTime ? 'Calculating...' : 'Indefinite (Active)'}
+        </div>
+        <div class="progress-bar-bg">
+          <div id="liveCountdownBar" class="progress-bar-fill" style="width: 100%; background: var(--orange);"></div>
+        </div>
+        <div style="font-size: 12px; opacity: 0.85; margin-top: 6px;" id="liveCountdownSub">
+          \${awakeLeaseEndTime ? 'Lease active until ' + new Date(awakeLeaseEndTime).toLocaleTimeString() : 'Operating system will stay awake until manually released.'}
+        </div>
+      </div>
+    \` : ''}
+
     <div class="card" style="margin-bottom: 16px;">
-      <h3>☕ Sleep Prevention (OS Keep-Awake)</h3>
-      <p style="font-size: 12px; opacity: 0.85;">Prevents computer from sleeping while builds, long agent reasoning chains, or overnight workflows run.</p>
-      <div style="margin-top: 10px;">
+      <h3>⏱️ Sleep Prevention & Custom Manual Timer</h3>
+      <p style="font-size: 12px; opacity: 0.85;">Set custom minutes or pick a preset duration to prevent computer sleep during long builds, tests, or packaging.</p>
+      <div style="display: flex; gap: 8px; margin-top: 12px; align-items: center; flex-wrap: wrap;">
+        <input type="number" id="customAwakeMinutes" min="1" max="1440" placeholder="Custom mins (e.g. 45)" style="width: 160px; padding: 6px 10px; border-radius: 4px; border: 1px solid var(--vscode-input-border, #444); background: var(--vscode-input-background, #222); color: var(--vscode-input-foreground, #fff);" />
+        <button class="btn" style="background: var(--orange);" onclick="const v = document.getElementById('customAwakeMinutes').value; if (v) post('acquireAwake', parseInt(v, 10));">Set Custom Timer</button>
+        <button class="btn" onclick="post('acquireAwake', 15)">15m</button>
         <button class="btn" onclick="post('acquireAwake', 30)">30m</button>
+        <button class="btn" onclick="post('acquireAwake', 45)">45m</button>
         <button class="btn" onclick="post('acquireAwake', 60)">1 hour</button>
         <button class="btn" onclick="post('acquireAwake', 120)">2 hours</button>
         <button class="btn" onclick="post('acquireAwake', 240)">4 hours</button>
@@ -1765,6 +2057,44 @@ function getWebviewContent() {
 
   <script>
     const vscode = acquireVsCodeApi();
+    const leaseEnd = \${awakeLeaseEndTime ? awakeLeaseEndTime : 'null'};
+    const leaseTotalMins = \${awakeLeaseDurationMins ? awakeLeaseDurationMins : 'null'};
+
+    if (leaseEnd) {
+      function tickAwake() {
+        const now = Date.now();
+        const msLeft = Math.max(0, leaseEnd - now);
+        const sTotal = Math.floor(msLeft / 1000);
+        const hours = Math.floor(sTotal / 3600);
+        const mins = Math.floor((sTotal % 3600) / 60);
+        const secs = sTotal % 60;
+
+        const hh = hours < 10 ? '0' + hours : hours;
+        const mm = mins < 10 ? '0' + mins : mins;
+        const ss = secs < 10 ? '0' + secs : secs;
+        const formatted = (hours > 0 ? (hh + ':') : '') + mm + ':' + ss;
+
+        const liveDisplay = document.getElementById('liveCountdownDisplay');
+        if (liveDisplay) liveDisplay.innerText = formatted;
+
+        const overDisplay = document.getElementById('overviewCountdown');
+        if (overDisplay) overDisplay.innerText = formatted;
+
+        if (leaseTotalMins && leaseTotalMins > 0) {
+          const totalMs = leaseTotalMins * 60 * 1000;
+          const pct = Math.max(0, Math.min(100, Math.round((msLeft / totalMs) * 100)));
+          const bar = document.getElementById('liveCountdownBar');
+          if (bar) bar.style.width = pct + '%';
+        }
+
+        if (msLeft <= 0) {
+          if (liveDisplay) liveDisplay.innerText = '00:00 (Expired)';
+          if (overDisplay) overDisplay.innerText = '00:00';
+        }
+      }
+      tickAwake();
+      setInterval(tickAwake, 1000);
+    }
     function post(command, payload) {
       vscode.postMessage({ command, payload });
     }
@@ -1834,7 +2164,62 @@ function openDashboard() {
 function handleWebviewMessage(message) {
   const { command, payload } = message;
 
-  if (command === 'refresh') {
+  if (command === 'initializePromptTask') {
+    if (!payload?.prompt) {
+      vscode.window.showWarningMessage('Please enter prompt instructions or steps.');
+    } else {
+      const root = (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders[0]) ? vscode.workspace.workspaceFolders[0].uri.fsPath : process.cwd();
+      const nl = String.fromCharCode(10);
+      const cr = String.fromCharCode(13);
+      const lines = String(payload.prompt).split(nl);
+      const steps = [];
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i].replace(cr, '').trim();
+        if (!line) continue;
+        const first = line.charAt(0);
+        if ((first >= '0' && first <= '9') || first === '-' || first === '*' || first === '#') {
+          const dot = line.indexOf('.');
+          const paren = line.indexOf(')');
+          const dash = line.indexOf('-');
+          if (dot > 0 && dot < 5) line = line.slice(dot + 1).trim();
+          else if (paren > 0 && paren < 5) line = line.slice(paren + 1).trim();
+          else if (dash >= 0 && dash < 3) line = line.slice(dash + 1).trim();
+        }
+        if (line.length > 3) steps.push(line);
+      }
+      if (steps.length === 0) steps.push(String(payload.prompt).trim().slice(0, 150));
+      const agentDir = path.join(root, '.agent');
+      if (!fs.existsSync(agentDir)) fs.mkdirSync(agentDir, { recursive: true });
+      const now = new Date().toISOString();
+      const randId = 't-' + now.slice(0, 10).replace(/-/g, '') + '-' + Math.floor(1000 + Math.random() * 9000);
+      const ledger = {
+        version: 1,
+        task_id: randId,
+        goal: steps[0] || 'Prompt Guided Task',
+        status: 'active',
+        created_at: now,
+        updated_at: now,
+        checkpoint_count: 0,
+        steps: steps.map((s, idx) => ({
+          id: 's' + (idx + 1),
+          title: s,
+          status: idx === 0 ? 'in_progress' : 'pending',
+          tries: 0,
+          max_tries: 3,
+          depends_on: idx > 0 ? ['s' + idx] : [],
+          note: null,
+          last_error: null,
+          updated_at: now
+        })),
+        user_prompt: payload.prompt
+      };
+      fs.writeFileSync(path.join(agentDir, 'ledger.json'), JSON.stringify(ledger, null, 2), 'utf-8');
+      acquireAwakeLease(60);
+      vscode.window.showInformationMessage('🚀 Agent Guard: Initialized ' + steps.length + ' prompt-guided steps for ' + randId + '. Agent locked to step s1.');
+      updateStatusBar();
+      refreshAllWebviews();
+    }
+  } else if (command === 'refresh') {
     queryLiveQuota(true);
     updateStatusBar();
     refreshAllWebviews();

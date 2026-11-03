@@ -174,7 +174,9 @@ export function runStopHook(projectDir?: string, stdinData: string = ''): void {
     } catch {}
 
     const triesLeft = currentStep.max_tries - currentStep.tries;
-    const reason = `${directivePrefix}[AGENT GUARD ENFORCEMENT] STOP REJECTED. Task is incomplete (${unfinished.length} remaining). You MUST complete step ${currentStep.id}: "${currentStep.title}" (${triesLeft} tries left). Execute work and report proof via task_checkpoint. Do NOT stop.`.slice(
+    const isUserGuided = Boolean((ledger as any).user_prompt);
+    const lockPrefix = isUserGuided ? `[USER STEP LOCK ENFORCED: ${currentStep.id}] ` : '';
+    const reason = `${directivePrefix}${lockPrefix}[AGENT GUARD ENFORCEMENT] STOP REJECTED. Task is incomplete (${unfinished.length} remaining). You MUST complete step ${currentStep.id}: "${currentStep.title}" (${triesLeft} tries left). Execute work and report proof via task_checkpoint. Do NOT stop.`.slice(
       0,
       350
     );
