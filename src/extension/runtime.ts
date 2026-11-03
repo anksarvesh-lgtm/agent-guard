@@ -526,21 +526,140 @@ function getAutoAcceptStatus() {
 function getActiveTaskInfo() {
   try {
     const folders = vscode.workspace.workspaceFolders;
+    const roots = [];
     if (folders && folders.length > 0) {
       for (const f of folders) {
-        const root = f.uri.fsPath;
-        const taskPath = path.join(root, '.agent-guard', 'task.json');
-        if (fs.existsSync(taskPath)) {
-          return JSON.parse(fs.readFileSync(taskPath, 'utf-8'));
-        }
-        const altPath = path.join(root, '.agents', 'task.json');
-        if (fs.existsSync(altPath)) {
-          return JSON.parse(fs.readFileSync(altPath, 'utf-8'));
-        }
+        roots.push(f.uri.fsPath);
+      }
+    }
+    if (roots.length === 0 && typeof process !== 'undefined' && process.cwd) {
+      roots.push(process.cwd());
+    }
+
+    for (const root of roots) {
+      // 1. Primary: Standard Agent Guard DAG ledger (.agent/ledger.json)
+      const ledgerPath = path.join(root, '.agent', 'ledger.json');
+      if (fs.existsSync(ledgerPath)) {
+        try {
+          const ledger = JSON.parse(fs.readFileSync(ledgerPath, 'utf-8'));
+          if (ledger) {
+            ledger.id = ledger.task_id || ledger.id || 'current-task';
+            ledger.workspaceRoot = root;
+
+            // Also check for background running tasks (e.g. app packaging, builds)
+            const bgTasksPath = path.join(root, '.agent', 'running_tasks.json');
+            if (fs.existsSync(bgTasksPath)) {
+              try {
+                const bgData = JSON.parse(fs.readFileSync(bgTasksPath, 'utf-8'));
+                ledger.runningBackgroundTasks = (bgData.tasks || []).filter(t => t.status === 'in_progress' || t.status === 'running');
+              } catch (e) {}
+            }
+            return ledger;
+          }
+        } catch (e) {}
+      }
+
+      // 2. Check for background tasks even if ledger is idle
+      const bgOnlyPath = path.join(root, '.agent', 'running_tasks.json');
+      if (fs.existsSync(bgOnlyPath)) {
+        try {
+          const bgData = JSON.parse(fs.readFileSync(bgOnlyPath, 'utf-8'));
+          const activeBg = (bgData.tasks || []).filter(t => t.status === 'in_progress' || t.status === 'running');
+          if (activeBg.length > 0) {
+            return {
+              id: activeBg[0].id,
+              task_id: activeBg[0].id,
+              goal: activeBg[0].name,
+              status: 'active',
+              steps: [],
+              runningBackgroundTasks: activeBg,
+              workspaceRoot: root
+            };
+          }
+        } catch (e) {}
+      }
+
+      // 3. Fallbacks
+      const taskPath = path.join(root, '.agent-guard', 'task.json');
+      if (fs.existsSync(taskPath)) {
+        try {
+          const t = JSON.parse(fs.readFileSync(taskPath, 'utf-8'));
+          t.id = t.task_id || t.id;
+          t.workspaceRoot = root;
+          return t;
+        } catch (e) {}
+      }
+
+      const altPath = path.join(root, '.agents', 'task.json');
+      if (fs.existsSync(altPath)) {
+        try {
+          const t = JSON.parse(fs.readFileSync(altPath, 'utf-8'));
+          t.id = t.task_id || t.id;
+          t.workspaceRoot = root;
+          return t;
+        } catch (e) {}
       }
     }
   } catch (e) {}
   return null;
+}
+
+function getTaskRunningDetails(task) {
+  if (!task) return null;
+  const isLedgerActive = task.status === 'active';
+  const steps = Array.isArray(task.steps) ? task.steps : [];
+  const activeStep = steps.find(s => s.status === 'in_progress');
+  const doneCount = steps.filter(s => s.status === 'done').length;
+  const totalCount = steps.length;
+  const percentDone = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+
+  const bgTasks = Array.isArray(task.runningBackgroundTasks) ? task.runningBackgroundTasks : [];
+  const activeBgTask = bgTasks.find(t => t.status === 'in_progress' || t.status === 'running') || null;
+
+  let icon = '$(sync~spin)';
+  let shortText = '';
+  let fullTitle = '';
+
+  if (activeBgTask) {
+    const bgName = activeBgTask.name || '';
+    if (activeBgTask.type === 'packaging' || /packag|dmg|bundle|installer/i.test(bgName)) {
+      icon = '$(package)';
+    } else if (activeBgTask.type === 'test' || /test|vitest|spec/i.test(bgName)) {
+      icon = '$(beaker)';
+    } else if (activeBgTask.type === 'build' || /build|compile/i.test(bgName)) {
+      icon = '$(tools)';
+    }
+    shortText = bgName.length > 25 ? bgName.slice(0, 22) + '...' : bgName;
+    fullTitle = activeBgTask.current_phase ? (bgName + ': ' + activeBgTask.current_phase) : bgName;
+  } else if (activeStep) {
+    const title = activeStep.title || '';
+    if (/packag|dmg|bundle|installer/i.test(title)) {
+      icon = '$(package)';
+    } else if (/test|vitest|spec/i.test(title)) {
+      icon = '$(beaker)';
+    } else if (/build|compile/i.test(title)) {
+      icon = '$(tools)';
+    }
+    shortText = title.length > 25 ? title.slice(0, 22) + '...' : title;
+    fullTitle = '[' + (activeStep.id || 'step') + '] ' + title;
+  } else if (isLedgerActive) {
+    shortText = 'Task ' + (task.id || '');
+    fullTitle = task.goal || shortText;
+  }
+
+  return {
+    isLedgerActive,
+    hasRunningTask: !!(activeStep || activeBgTask || isLedgerActive),
+    activeStep,
+    activeBgTask,
+    doneCount,
+    totalCount,
+    percentDone,
+    icon,
+    shortText,
+    fullTitle,
+    steps
+  };
 }
 
 function switchAccount(targetId, reason) {
@@ -967,7 +1086,18 @@ function updateStatusBar() {
   const awakeBadge = awake ? '☕' : '💤';
   const turboBadge = autoAccept.enabled ? '⚡' : '⚙️';
   const task = getActiveTaskInfo();
-  const taskBadge = (task && task.status === 'active') ? \`[\${task.id}] \` : '';
+  const taskDetails = getTaskRunningDetails(task);
+
+  let taskBadge = '';
+  if (taskDetails && taskDetails.hasRunningTask) {
+    if (taskDetails.activeBgTask) {
+      taskBadge = \`\${taskDetails.icon} \${taskDetails.shortText} \`;
+    } else if (taskDetails.activeStep) {
+      taskBadge = \`\${taskDetails.icon} [\${taskDetails.activeStep.id}: \${taskDetails.shortText}] \${taskDetails.doneCount}/\${taskDetails.totalCount} \`;
+    } else if (taskDetails.isLedgerActive) {
+      taskBadge = \`[\${task.id}] \`;
+    }
+  }
 
   const gText = live && live.gemini5h !== undefined ? 'G:' + live.gemini5h + '%' : '';
   const cText = live && live.claude5h !== undefined ? 'C:' + live.claude5h + '%' : '';
@@ -976,10 +1106,26 @@ function updateStatusBar() {
   statusBarItem.text = \`\$(shield) Agent Guard v\${EXTENSION_VERSION} \${taskBadge}\${awakeBadge} \${turboBadge} \${quotaIcon} \${quota}% \${breakdownBadge ? '(' + breakdownBadge + ')' : '(' + accName + ')'}\`;
 
   let taskMarkdown = '';
-  if (task && task.status === 'active') {
-    const doneCount = Array.isArray(task.steps) ? task.steps.filter(s => s.status === 'done').length : 0;
-    const totalCount = Array.isArray(task.steps) ? task.steps.length : 0;
-    taskMarkdown = \`• **Supervised Task**: \${task.id} (\${doneCount}/\${totalCount} steps) [ACTIVE]\\n\`;
+  if (taskDetails && taskDetails.hasRunningTask) {
+    taskMarkdown = '• **Active Supervised Task**: [' + task.id + ']\\n' +
+      '  *Goal*: ' + (task.goal || 'Development Task') + '\\n' +
+      '  *Progress*: ' + taskDetails.doneCount + '/' + taskDetails.totalCount + ' steps (' + taskDetails.percentDone + '%)\\n';
+    if (taskDetails.activeBgTask) {
+      taskMarkdown += '  *Running Process*: **' + taskDetails.activeBgTask.name + '**\\n' +
+        '  *Details*: ' + (taskDetails.activeBgTask.current_phase || taskDetails.activeBgTask.details || 'Active') + '\\n';
+    }
+    if (taskDetails.activeStep) {
+      taskMarkdown += '  *Current Step*: **[' + taskDetails.activeStep.id + '] ' + taskDetails.activeStep.title + '** (try ' + (taskDetails.activeStep.tries + 1) + '/' + (taskDetails.activeStep.max_tries || 3) + ')\\n';
+    }
+    if (taskDetails.steps && taskDetails.steps.length > 0) {
+      taskMarkdown += '  **Step Breakdown**:\\n';
+      for (const s of taskDetails.steps) {
+        const mark = s.status === 'done' ? '✅' : (s.status === 'in_progress' ? '⏳' : (s.status === 'failed' ? '❌' : (s.status === 'blocked' ? '🚫' : '⚪')));
+        const cleanNote = s.note ? ' — *' + String(s.note).replace(/[\\r\\n]+/g, ' ').slice(0, 45) + '...*' : '';
+        taskMarkdown += '  - ' + mark + ' [' + s.id + ']: ' + s.title + cleanNote + '\\n';
+      }
+    }
+    taskMarkdown += '\\n';
   }
 
   let liveBreakdownMd = '';
