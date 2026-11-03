@@ -7,6 +7,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const DEFAULT_REPO_ROOT = path.resolve(__dirname, '..');
 
+export const OFFICIAL_REPO_URL = 'https://github.com/anksarvesh-lgtm/agent-guard.git';
+export const GITHUB_RAW_PACKAGE_URL = 'https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/package.json';
+
 export interface UpdateCheckResult {
   isGit: boolean;
   hasUpdate: boolean;
@@ -14,6 +17,9 @@ export interface UpdateCheckResult {
   remoteSha?: string;
   behindCount?: number;
   error?: string;
+  message?: string;
+  remoteVersion?: string;
+  localVersion?: string;
 }
 
 export interface PerformUpdateResult {
@@ -24,13 +30,85 @@ export interface PerformUpdateResult {
   newSha?: string;
 }
 
+export function isVersionNewer(remote: string, local: string): boolean {
+  const r = String(remote).replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+  const l = String(local).replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const rv = r[i] || 0;
+    const lv = l[i] || 0;
+    if (rv > lv) return true;
+    if (rv < lv) return false;
+  }
+  return false;
+}
+
 /**
  * Check if the repository has incoming updates from GitHub origin main.
  */
 export function checkForUpdates(repoDir: string = DEFAULT_REPO_ROOT): UpdateCheckResult {
   const gitDir = path.join(repoDir, '.git');
+  const pkgPath = path.join(repoDir, 'package.json');
+  let localVersion = '';
+  if (fs.existsSync(pkgPath)) {
+    try {
+      localVersion = JSON.parse(fs.readFileSync(pkgPath, 'utf-8')).version || '';
+    } catch {}
+  }
+
+  const checkHttpsFallback = (curSha?: string): UpdateCheckResult | null => {
+    try {
+      const raw = execSync(`curl -s -m 5 "${GITHUB_RAW_PACKAGE_URL}"`, {
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        timeout: 6000
+      }).trim();
+      if (raw && raw.startsWith('{')) {
+        const data = JSON.parse(raw);
+        const remoteVersion = data.version;
+        if (remoteVersion && localVersion && isVersionNewer(remoteVersion, localVersion)) {
+          return {
+            isGit: fs.existsSync(gitDir),
+            hasUpdate: true,
+            currentSha: curSha || ('v' + localVersion),
+            remoteSha: 'v' + remoteVersion,
+            behindCount: 1,
+            remoteVersion,
+            localVersion,
+            message: `Update available: v${remoteVersion} on GitHub (Current: v${localVersion}).`
+          };
+        }
+      }
+    } catch {}
+    return null;
+  };
+
   if (!fs.existsSync(gitDir)) {
     return { isGit: false, hasUpdate: false, error: 'Not a git repository' };
+  }
+
+  // Self-heal remote origin if missing or pointing to outdated repo (e.g. anksarvash-prog)
+  try {
+    const remoteUrl = execSync('git remote get-url origin', {
+      cwd: repoDir,
+      encoding: 'utf-8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 2000
+    }).trim();
+    if (remoteUrl.includes('anksarvash-prog') || remoteUrl.includes('YOUR_NEW_TOKEN') || !remoteUrl.includes('anksarvesh-lgtm')) {
+      execSync(`git remote set-url origin ${OFFICIAL_REPO_URL}`, {
+        cwd: repoDir,
+        stdio: ['ignore', 'ignore', 'ignore'],
+        timeout: 2000
+      });
+    }
+  } catch {
+    try {
+      execSync(`git remote add origin ${OFFICIAL_REPO_URL}`, {
+        cwd: repoDir,
+        stdio: ['ignore', 'ignore', 'ignore'],
+        timeout: 2000
+      });
+    } catch {}
   }
 
   const gitEnv = {
@@ -48,40 +126,69 @@ export function checkForUpdates(repoDir: string = DEFAULT_REPO_ROOT): UpdateChec
       timeout: 4000
     }).trim();
 
-    // Fetch upstream refs quietly
+    // Fetch upstream refs quietly with 12s timeout and depth fallback
     try {
-      execSync('git fetch origin main --quiet', {
+      execSync('git fetch --depth=20 origin main --quiet', {
         cwd: repoDir,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],
         env: gitEnv,
-        timeout: 4000
+        timeout: 12000
       });
-    } catch (fetchErr: any) {
-      return {
-        isGit: true,
-        hasUpdate: false,
-        currentSha,
-        error: `Could not reach remote: ${fetchErr.message || 'offline'}`
-      };
+    } catch {
+      try {
+        execSync('git fetch origin main --quiet', {
+          cwd: repoDir,
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          env: gitEnv,
+          timeout: 12000
+        });
+      } catch (fetchErr: any) {
+        const httpsRes = checkHttpsFallback(currentSha);
+        if (httpsRes) return httpsRes;
+
+        return {
+          isGit: true,
+          hasUpdate: false,
+          currentSha,
+          error: `Could not reach remote: ${fetchErr.message || 'offline'}`
+        };
+      }
     }
 
-    const remoteSha = execSync('git rev-parse origin/main', {
-      cwd: repoDir,
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-      env: gitEnv,
-      timeout: 4000
-    }).trim();
+    let remoteSha = '';
+    try {
+      remoteSha = execSync('git rev-parse FETCH_HEAD', {
+        cwd: repoDir,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+        env: gitEnv,
+        timeout: 2000
+      }).trim();
+    } catch {
+      try {
+        remoteSha = execSync('git rev-parse origin/main', {
+          cwd: repoDir,
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+          env: gitEnv,
+          timeout: 2000
+        }).trim();
+      } catch {}
+    }
 
-    if (currentSha === remoteSha) {
-      return { isGit: true, hasUpdate: false, currentSha, remoteSha, behindCount: 0 };
+    if (!remoteSha || currentSha === remoteSha) {
+      const httpsRes = checkHttpsFallback(currentSha);
+      if (httpsRes) return httpsRes;
+
+      return { isGit: true, hasUpdate: false, currentSha, remoteSha: remoteSha || currentSha, behindCount: 0 };
     }
 
     // Count commits behind
     let behindCount = 0;
     try {
-      const revList = execSync('git rev-list --count HEAD..origin/main', {
+      const revList = execSync(`git rev-list --count HEAD..${remoteSha}`, {
         cwd: repoDir,
         encoding: 'utf-8',
         stdio: ['ignore', 'pipe', 'ignore'],
@@ -95,12 +202,14 @@ export function checkForUpdates(repoDir: string = DEFAULT_REPO_ROOT): UpdateChec
 
     return {
       isGit: true,
-      hasUpdate: behindCount > 0,
+      hasUpdate: true,
       currentSha,
       remoteSha,
-      behindCount
+      behindCount: Math.max(1, behindCount)
     };
   } catch (err: any) {
+    const httpsRes = checkHttpsFallback();
+    if (httpsRes) return httpsRes;
     return { isGit: true, hasUpdate: false, error: err.message };
   }
 }
@@ -134,14 +243,36 @@ export function performUpdate(repoDir: string = DEFAULT_REPO_ROOT): PerformUpdat
       GIT_TERMINAL_PROMPT: '0',
       GIT_ASKPASS: '',
     };
-    // 1. Pull changes
-    execSync('git pull --rebase origin main --quiet', {
-      cwd: repoDir,
-      encoding: 'utf-8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-      env: gitEnv,
-      timeout: 20000
-    });
+
+    // 1. Ensure remote is correct
+    try {
+      execSync(`git remote set-url origin ${OFFICIAL_REPO_URL}`, { cwd: repoDir, stdio: ['ignore', 'ignore', 'ignore'] });
+    } catch {}
+
+    // 2. Pull changes
+    try {
+      execSync('git pull --rebase origin main --quiet', {
+        cwd: repoDir,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: gitEnv,
+        timeout: 20000
+      });
+    } catch {
+      // Fallback: stash local untracked/dirty changes and reset to origin/main
+      try {
+        execSync('git stash', { cwd: repoDir, stdio: ['ignore', 'ignore', 'ignore'] });
+        execSync('git checkout -B main origin/main --quiet', {
+          cwd: repoDir,
+          encoding: 'utf-8',
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: gitEnv,
+          timeout: 10000
+        });
+      } catch (pullErr: any) {
+        throw new Error(`Git pull failed: ${pullErr.message}`);
+      }
+    }
 
     const newSha = execSync('git rev-parse HEAD', {
       cwd: repoDir,
@@ -150,7 +281,7 @@ export function performUpdate(repoDir: string = DEFAULT_REPO_ROOT): PerformUpdat
       timeout: 5000
     }).trim();
 
-    // 2. Recompile TypeScript build
+    // 3. Recompile TypeScript build
     try {
       execSync('npm run build', {
         cwd: repoDir,
@@ -159,7 +290,6 @@ export function performUpdate(repoDir: string = DEFAULT_REPO_ROOT): PerformUpdat
         timeout: 30000
       });
     } catch {
-      // Fallback: try npx tsc
       execSync('npx tsc', {
         cwd: repoDir,
         encoding: 'utf-8',
@@ -167,6 +297,16 @@ export function performUpdate(repoDir: string = DEFAULT_REPO_ROOT): PerformUpdat
         timeout: 30000
       });
     }
+
+    // 4. Automatically re-install extension if possible
+    try {
+      execSync('node dist/cli.js extension install', {
+        cwd: repoDir,
+        encoding: 'utf-8',
+        stdio: ['ignore', 'ignore', 'ignore'],
+        timeout: 15000
+      });
+    } catch {}
 
     return {
       success: true,

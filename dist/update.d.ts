@@ -1,3 +1,5 @@
+export declare const OFFICIAL_REPO_URL = "https://github.com/anksarvesh-lgtm/agent-guard.git";
+export declare const GITHUB_RAW_PACKAGE_URL = "https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/package.json";
 export interface UpdateCheckResult {
     isGit: boolean;
     hasUpdate: boolean;
@@ -5,6 +7,9 @@ export interface UpdateCheckResult {
     remoteSha?: string;
     behindCount?: number;
     error?: string;
+    message?: string;
+    remoteVersion?: string;
+    localVersion?: string;
 }
 export interface PerformUpdateResult {
     success: boolean;
@@ -13,6 +18,7 @@ export interface PerformUpdateResult {
     previousSha?: string;
     newSha?: string;
 }
+export declare function isVersionNewer(remote: string, local: string): boolean;
 /**
  * Check if the repository has incoming updates from GitHub origin main.
  */

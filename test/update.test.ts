@@ -2,7 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import { checkForUpdates, performUpdate, maybeBackgroundUpdate, autoUpdateOnStartup } from '../src/update.js';
+import { checkForUpdates, performUpdate, maybeBackgroundUpdate, autoUpdateOnStartup, isVersionNewer, OFFICIAL_REPO_URL } from '../src/update.js';
+import { execSync } from 'node:child_process';
 
 describe('Auto-Update Engine', () => {
   let tempDir: string;
@@ -62,5 +63,30 @@ describe('Auto-Update Engine', () => {
     let logMsg = '';
     const res = autoUpdateOnStartup(tempDir, (msg) => { logMsg = msg; });
     expect(res).toBeNull();
+  });
+
+  it('correctly compares semantic versions for incoming updates', () => {
+    expect(isVersionNewer('0.2.22', '0.2.21')).toBe(true);
+    expect(isVersionNewer('v0.2.22', 'v0.2.21')).toBe(true);
+    expect(isVersionNewer('0.3.0', '0.2.22')).toBe(true);
+    expect(isVersionNewer('1.0.0', '0.2.22')).toBe(true);
+    expect(isVersionNewer('0.2.21', '0.2.22')).toBe(false);
+    expect(isVersionNewer('0.2.22', '0.2.22')).toBe(false);
+  });
+
+  it('self-heals outdated or legacy anksarvash-prog git remotes to official anksarvesh-lgtm URL', () => {
+    // Initialize temporary git repo
+    execSync('git init --quiet', { cwd: tempDir, stdio: 'ignore' });
+    execSync('git config user.name "Test"', { cwd: tempDir, stdio: 'ignore' });
+    execSync('git config user.email "test@example.com"', { cwd: tempDir, stdio: 'ignore' });
+    execSync('git remote add origin https://github.com/anksarvash-prog/agent-guard.git', { cwd: tempDir, stdio: 'ignore' });
+    fs.writeFileSync(path.join(tempDir, 'README.md'), '# Test\n');
+    execSync('git add . && git commit -m "initial" --quiet', { cwd: tempDir, stdio: 'ignore' });
+
+    // Run checkForUpdates which should self-heal the remote
+    checkForUpdates(tempDir);
+
+    const healedUrl = execSync('git remote get-url origin', { cwd: tempDir, encoding: 'utf-8' }).trim();
+    expect(healedUrl).toBe(OFFICIAL_REPO_URL);
   });
 });

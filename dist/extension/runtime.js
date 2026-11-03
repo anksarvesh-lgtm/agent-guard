@@ -114,6 +114,9 @@ function getMcpConfigPath() {
   return path.join(getHomeDir(), '.gemini', 'config', 'mcp_config.json');
 }
 
+const OFFICIAL_GITHUB_REPO_URL = 'https://github.com/anksarvesh-lgtm/agent-guard.git';
+const OFFICIAL_GITHUB_RAW_PKG = 'https://raw.githubusercontent.com/anksarvesh-lgtm/agent-guard/main/package.json';
+
 function getAgentGuardRepoDir() {
   const mcpCfg = getMcpConfigPath();
   if (fs.existsSync(mcpCfg)) {
@@ -126,12 +129,28 @@ function getAgentGuardRepoDir() {
       }
     } catch (e) {}
   }
+  const home = getHomeDir();
   const candidates = [
-    path.join(getHomeDir(), 'Downloads', 'mcp', 'agent-guard'),
-    path.join(getHomeDir(), '.gemini', 'config', 'plugins', 'agent-guard'),
+    path.join(home, 'Downloads', 'mcp', 'agent-guard'),
+    path.join(home, 'agent-guard'),
+    path.join(home, 'Developer', 'agent-guard'),
+    path.join(home, 'projects', 'agent-guard'),
+    path.join(home, 'src', 'agent-guard'),
+    path.join(home, '.gemini', 'config', 'plugins', 'agent-guard'),
   ];
+  if (vscode.workspace && Array.isArray(vscode.workspace.workspaceFolders)) {
+    for (const f of vscode.workspace.workspaceFolders) {
+      candidates.unshift(path.join(f.uri.fsPath, 'agent-guard'));
+      candidates.unshift(f.uri.fsPath);
+    }
+  }
   for (const c of candidates) {
-    if (fs.existsSync(path.join(c, 'package.json'))) return c;
+    if (fs.existsSync(path.join(c, 'package.json'))) {
+      try {
+        const p = JSON.parse(fs.readFileSync(path.join(c, 'package.json'), 'utf-8'));
+        if (p.name === 'agent-guard') return c;
+      } catch (e) {}
+    }
   }
   return null;
 }
@@ -140,49 +159,162 @@ function checkAgentGuardUpdate() {
   return cachedUpdateInfo;
 }
 
-function refreshAgentGuardUpdateAsync(callback) {
+function isVersionNewerRuntime(remote, local) {
+  const r = String(remote || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+  const l = String(local || '').replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i++) {
+    const rv = r[i] || 0;
+    const lv = l[i] || 0;
+    if (rv > lv) return true;
+    if (rv < lv) return false;
+  }
+  return false;
+}
+
+function checkGitHubHttpsFallback(localVer, curSha, callback) {
+  try {
+    const https = require('https');
+    const req = https.get(OFFICIAL_GITHUB_RAW_PKG, {
+      headers: { 'User-Agent': 'agent-guard-extension' },
+      timeout: 6000
+    }, (res) => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => {
+        try {
+          const parsed = JSON.parse(body);
+          const remoteVer = parsed.version;
+          if (remoteVer && isVersionNewerRuntime(remoteVer, localVer)) {
+            cachedUpdateInfo = {
+              hasUpdate: true,
+              isGit: !!curSha,
+              checked: true,
+              behindCount: 1,
+              currentSha: curSha ? curSha.slice(0, 7) : ('v' + localVer),
+              remoteSha: 'v' + remoteVer,
+              message: 'Update available: v' + remoteVer + ' on GitHub (Current: v' + localVer + ').'
+            };
+          } else {
+            cachedUpdateInfo = {
+              hasUpdate: false,
+              isGit: !!curSha,
+              checked: true,
+              currentSha: curSha ? curSha.slice(0, 7) : ('v' + localVer),
+              remoteSha: 'v' + (remoteVer || localVer),
+              message: 'Agent Guard is up to date (v' + localVer + ').'
+            };
+          }
+        } catch (e) {
+          cachedUpdateInfo = { hasUpdate: false, isGit: !!curSha, checked: true, error: 'Could not parse GitHub release' };
+        }
+        isUpdateCheckInProgress = false;
+        refreshAllWebviews();
+        if (callback) callback(cachedUpdateInfo);
+      });
+    });
+    req.on('error', (err) => {
+      isUpdateCheckInProgress = false;
+      cachedUpdateInfo = { hasUpdate: false, isGit: !!curSha, checked: true, error: 'Could not reach GitHub: ' + err.message };
+      refreshAllWebviews();
+      if (callback) callback(cachedUpdateInfo);
+    });
+    req.on('timeout', () => {
+      req.destroy();
+      isUpdateCheckInProgress = false;
+      cachedUpdateInfo = { hasUpdate: false, isGit: !!curSha, checked: true, error: 'GitHub check timed out' };
+      refreshAllWebviews();
+      if (callback) callback(cachedUpdateInfo);
+    });
+  } catch (e) {
+    isUpdateCheckInProgress = false;
+    if (callback) callback(cachedUpdateInfo);
+  }
+}
+
+function refreshAgentGuardUpdateAsync(callback, force) {
   const now = Date.now();
-  if (isUpdateCheckInProgress || (now - lastUpdateCheckTime < 600000 && cachedUpdateInfo.checked)) {
+  if (!force && (isUpdateCheckInProgress || (now - lastUpdateCheckTime < 600000 && cachedUpdateInfo.checked))) {
     if (callback) callback(cachedUpdateInfo);
     return;
   }
   const repoDir = getAgentGuardRepoDir();
-  if (!repoDir || !fs.existsSync(path.join(repoDir, '.git'))) {
-    cachedUpdateInfo = { hasUpdate: false, isGit: false, checked: true, message: 'Agent Guard is installed as a standalone plugin.' };
-    if (callback) callback(cachedUpdateInfo);
-    return;
+  let localVersion = '0.2.22';
+  if (repoDir && fs.existsSync(path.join(repoDir, 'package.json'))) {
+    try {
+      localVersion = JSON.parse(fs.readFileSync(path.join(repoDir, 'package.json'), 'utf-8')).version || localVersion;
+    } catch (e) {}
   }
+
   isUpdateCheckInProgress = true;
   lastUpdateCheckTime = now;
 
+  // If not a git clone, query GitHub HTTPS directly so standalone users always see updates!
+  if (!repoDir || !fs.existsSync(path.join(repoDir, '.git'))) {
+    checkGitHubHttpsFallback(localVersion, '', callback);
+    return;
+  }
+
+  // 1. Self-heal remote origin if missing or pointing to outdated repo (e.g. anksarvash-prog)
+  try {
+    const remoteUrl = execSync('git remote get-url origin', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 }).trim();
+    if (remoteUrl.includes('anksarvash-prog') || remoteUrl.includes('YOUR_NEW_TOKEN') || !remoteUrl.includes('anksarvesh-lgtm')) {
+      execSync('git remote set-url origin ' + OFFICIAL_GITHUB_REPO_URL, { cwd: repoDir, stdio: ['ignore', 'ignore', 'ignore'], timeout: 2000 });
+    }
+  } catch (e) {
+    try {
+      execSync('git remote add origin ' + OFFICIAL_GITHUB_REPO_URL, { cwd: repoDir, stdio: ['ignore', 'ignore', 'ignore'], timeout: 2000 });
+    } catch (e2) {}
+  }
+
   const gitEnv = Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '' });
-  exec('git fetch origin main --quiet', { cwd: repoDir, env: gitEnv, timeout: 8000 }, (err) => {
-    isUpdateCheckInProgress = false;
+
+  // 2. Fetch origin main with depth fallback and 12s timeout
+  exec('git fetch --depth=20 origin main --quiet', { cwd: repoDir, env: gitEnv, timeout: 12000 }, (err) => {
     try {
       const currentSha = execSync('git rev-parse HEAD', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 }).trim();
       if (err) {
-        cachedUpdateInfo = { hasUpdate: false, isGit: true, checked: true, currentSha: currentSha.slice(0, 7), error: 'Could not reach remote (offline or network error)' };
+        // Fallback to direct HTTPS check if git fetch failed
+        checkGitHubHttpsFallback(localVersion, currentSha, callback);
+        return;
+      }
+
+      isUpdateCheckInProgress = false;
+
+      let remoteSha = '';
+      try {
+        remoteSha = execSync('git rev-parse FETCH_HEAD', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 }).trim();
+      } catch (e) {
+        try {
+          remoteSha = execSync('git rev-parse origin/main', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 }).trim();
+        } catch (e2) {}
+      }
+
+      if (!remoteSha || currentSha === remoteSha) {
+        cachedUpdateInfo = {
+          hasUpdate: false,
+          isGit: true,
+          checked: true,
+          currentSha: currentSha.slice(0, 7),
+          remoteSha: remoteSha ? remoteSha.slice(0, 7) : currentSha.slice(0, 7),
+          message: 'Agent Guard is up to date (commit ' + currentSha.slice(0, 7) + ').'
+        };
       } else {
-        const remoteSha = execSync('git rev-parse origin/main', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 2000 }).trim();
-        if (currentSha === remoteSha) {
-          cachedUpdateInfo = { hasUpdate: false, isGit: true, checked: true, currentSha: currentSha.slice(0, 7), remoteSha: remoteSha.slice(0, 7), message: 'Agent Guard is up to date (commit ' + currentSha.slice(0, 7) + ').' };
-        } else {
-          let behindCount = 1;
-          try {
-            behindCount = parseInt(execSync('git rev-list --count HEAD..origin/main', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), 10) || 1;
-          } catch (e) {}
-          cachedUpdateInfo = {
-            hasUpdate: true,
-            isGit: true,
-            checked: true,
-            behindCount: behindCount,
-            currentSha: currentSha.slice(0, 7),
-            remoteSha: remoteSha.slice(0, 7),
-            message: 'Update available: ' + behindCount + ' new commit(s) on origin/main.'
-          };
-        }
+        let behindCount = 1;
+        try {
+          behindCount = parseInt(execSync('git rev-list --count HEAD..' + remoteSha, { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(), 10) || 1;
+        } catch (e) {}
+        cachedUpdateInfo = {
+          hasUpdate: true,
+          isGit: true,
+          checked: true,
+          behindCount: behindCount,
+          currentSha: currentSha.slice(0, 7),
+          remoteSha: remoteSha.slice(0, 7),
+          message: 'Update available: ' + behindCount + ' new commit(s) on origin/main.'
+        };
       }
     } catch (e) {
+      isUpdateCheckInProgress = false;
       cachedUpdateInfo = { hasUpdate: false, isGit: true, checked: true, error: e.message };
     }
     refreshAllWebviews();
@@ -192,8 +324,15 @@ function refreshAgentGuardUpdateAsync(callback) {
 
 function performAgentGuardUpdate() {
   const repoDir = getAgentGuardRepoDir();
-  if (!repoDir) {
-    vscode.window.showErrorMessage('Cannot update: Agent Guard repository directory not found.');
+  if (!repoDir || !fs.existsSync(path.join(repoDir, '.git'))) {
+    vscode.window.showInformationMessage(
+      'Agent Guard is installed as a standalone extension or plugin. To update to the latest release, please clone or pull from GitHub: ' + OFFICIAL_GITHUB_REPO_URL,
+      'Open GitHub Repository'
+    ).then(sel => {
+      if (sel === 'Open GitHub Repository') {
+        vscode.env.openExternal(vscode.Uri.parse(OFFICIAL_GITHUB_REPO_URL));
+      }
+    });
     return;
   }
   vscode.window.withProgress(
@@ -203,16 +342,30 @@ function performAgentGuardUpdate() {
       cancellable: false,
     },
     async (progress) => {
-      progress.report({ message: 'Pulling latest commits from GitHub...' });
+      progress.report({ message: 'Self-healing remote and fetching from GitHub...' });
       const gitEnv = Object.assign({}, process.env, { GIT_TERMINAL_PROMPT: '0', GIT_ASKPASS: '' });
       try {
-        execSync('git pull --rebase origin main --quiet', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 20000 });
+        // 1. Self-heal remote origin
+        try {
+          execSync('git remote set-url origin ' + OFFICIAL_GITHUB_REPO_URL, { cwd: repoDir, stdio: ['ignore', 'ignore', 'ignore'], timeout: 2000 });
+        } catch (e) {}
+
+        // 2. Fetch and pull
+        progress.report({ message: 'Pulling latest commits from GitHub...' });
+        try {
+          execSync('git pull --rebase origin main --quiet', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 20000 });
+        } catch (e) {
+          execSync('git stash', { cwd: repoDir, stdio: ['ignore', 'ignore', 'ignore'] });
+          execSync('git checkout -B main origin/main --quiet', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], env: gitEnv, timeout: 15000 });
+        }
+
         progress.report({ message: 'Building TypeScript bundles...' });
         try {
           execSync('npm run build', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 30000 });
         } catch (e) {
           execSync('npx tsc', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 30000 });
         }
+
         progress.report({ message: 'Reinstalling extension into editor...' });
         try {
           execSync('node dist/cli.js extension install', { cwd: repoDir, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'ignore'], timeout: 15000 });
@@ -262,7 +415,7 @@ function promptCheckForUpdates() {
           vscode.window.showInformationMessage('✅ ' + (res.message || 'Agent Guard is up to date.'));
         }
         refreshAllWebviews();
-      });
+      }, true); // FORCE = TRUE: guarantees live fresh fetch from GitHub!
     }
   );
 }
